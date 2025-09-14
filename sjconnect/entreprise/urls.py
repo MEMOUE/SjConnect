@@ -14,9 +14,9 @@ router.register(r'conversations', views.ConversationDirecteViewSet)
 app_name = 'entreprise'
 
 urlpatterns = [
-    # API REST
-    path('api/', include(router.urls)),
+    # API REST - toutes les routes sont sous /api/ grâce à l'inclusion dans le urls.py principal
+    path('', include(router.urls)),
     
     # API d'authentification DRF (optionnel)
-    path('api-auth/', include('rest_framework.urls')),
+    path('auth/', include('rest_framework.urls')),
 ]
