@@ -1,5 +1,19 @@
+// src/main.ts
 import { createApp } from 'vue'
-import './style.css'
+import { createPinia } from 'pinia'
+import router from './router'
 import App from './App.vue'
+import './style.css'
+import 'primevue/resources/themes/saga-blue/theme.css' // ou autre thème
+import 'primevue/resources/primevue.min.css'
+import 'primeicons/primeicons.css'
 
-createApp(App).mount('#app')
+const app = createApp(App)
+
+app.use(createPinia())
+app.use(router)
+
+app.mount('#app')
+
+
+
