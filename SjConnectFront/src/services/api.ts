@@ -1,15 +1,45 @@
-// src/services/api.ts
+// src/services/api.ts - VERSION MISE À JOUR
 import axios from 'axios'
 
 const API_BASE_URL = 'http://localhost:8000/api'
 
-// Configuration d'axios
+// Configuration d'axios avec authentification
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
+  withCredentials: true, // Important pour les sessions Django
   headers: {
     'Content-Type': 'application/json',
   },
+})
+
+// Intercepteur pour gérer les erreurs d'authentification
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Redirection vers login si non authentifié
+      window.location.href = '/login'
+    }
+    return Promise.reject(error)
+  }
+)
+
+// Intercepteur pour ajouter le token CSRF
+apiClient.interceptors.request.use(async (config) => {
+  // Récupérer le token CSRF pour les requêtes de modification
+  if (['post', 'put', 'patch', 'delete'].includes(config.method?.toLowerCase() || '')) {
+    try {
+      const csrfResponse = await axios.get(`${API_BASE_URL.replace('/api', '')}/api/csrf/`, { 
+        withCredentials: true 
+      })
+      const csrfToken = csrfResponse.data.csrfToken
+      config.headers['X-CSRFToken'] = csrfToken
+    } catch (error) {
+      console.warn('Impossible de récupérer le token CSRF:', error)
+    }
+  }
+  return config
 })
 
 // Types TypeScript pour l'API

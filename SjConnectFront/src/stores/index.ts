@@ -10,129 +10,6 @@ import type {
 } from '../services/api'
 import apiService from '../services/api'
 
-// Store principal de l'application
-export const useAppStore = defineStore('app', () => {
-  // État global
-  const isLoading = ref(false)
-  const error = ref<string | null>(null)
-  const currentEntreprise = ref<Entreprise | null>(null)
-
-  // Actions
-  const setLoading = (loading: boolean) => {
-    isLoading.value = loading
-  }
-
-  const setError = (err: string | null) => {
-    error.value = err
-  }
-
-  const clearError = () => {
-    error.value = null
-  }
-
-  const setCurrentEntreprise = (entreprise: Entreprise | null) => {
-    currentEntreprise.value = entreprise
-    if (entreprise) {
-      localStorage.setItem('currentEntreprise', JSON.stringify(entreprise))
-    } else {
-      localStorage.removeItem('currentEntreprise')
-    }
-  }
-
-  const loadCurrentEntreprise = () => {
-    const saved = localStorage.getItem('currentEntreprise')
-    if (saved) {
-      currentEntreprise.value = JSON.parse(saved)
-    }
-  }
-
-  return {
-    isLoading,
-    error,
-    currentEntreprise,
-    setLoading,
-    setError,
-    clearError,
-    setCurrentEntreprise,
-    loadCurrentEntreprise
-  }
-})
-
-// Store des entreprises
-export const useEntreprisesStore = defineStore('entreprises', () => {
-  const entreprises = ref<Entreprise[]>([])
-  const selectedEntreprise = ref<Entreprise | null>(null)
-  
-  const loadEntreprises = async () => {
-    try {
-      entreprises.value = await apiService.getEntreprises()
-    } catch (error) {
-      console.error('Erreur lors du chargement des entreprises:', error)
-      throw error
-    }
-  }
-
-  const loadEntreprise = async (id: number) => {
-    try {
-      selectedEntreprise.value = await apiService.getEntreprise(id)
-      return selectedEntreprise.value
-    } catch (error) {
-      console.error('Erreur lors du chargement de l\'entreprise:', error)
-      throw error
-    }
-  }
-
-  const createEntreprise = async (data: Partial<Entreprise>) => {
-    try {
-      const newEntreprise = await apiService.createEntreprise(data)
-      entreprises.value.push(newEntreprise)
-      return newEntreprise
-    } catch (error) {
-      console.error('Erreur lors de la création de l\'entreprise:', error)
-      throw error
-    }
-  }
-
-  const updateEntreprise = async (id: number, data: Partial<Entreprise>) => {
-    try {
-      const updatedEntreprise = await apiService.updateEntreprise(id, data)
-      const index = entreprises.value.findIndex(e => e.id === id)
-      if (index !== -1) {
-        entreprises.value[index] = updatedEntreprise
-      }
-      if (selectedEntreprise.value?.id === id) {
-        selectedEntreprise.value = updatedEntreprise
-      }
-      return updatedEntreprise
-    } catch (error) {
-      console.error('Erreur lors de la mise à jour de l\'entreprise:', error)
-      throw error
-    }
-  }
-
-  const deleteEntreprise = async (id: number) => {
-    try {
-      await apiService.deleteEntreprise(id)
-      entreprises.value = entreprises.value.filter(e => e.id !== id)
-      if (selectedEntreprise.value?.id === id) {
-        selectedEntreprise.value = null
-      }
-    } catch (error) {
-      console.error('Erreur lors de la suppression de l\'entreprise:', error)
-      throw error
-    }
-  }
-
-  return {
-    entreprises,
-    selectedEntreprise,
-    loadEntreprises,
-    loadEntreprise,
-    createEntreprise,
-    updateEntreprise,
-    deleteEntreprise
-  }
-})
 
 // Store des groupes
 export const useGroupesStore = defineStore('groupes', () => {
@@ -221,6 +98,15 @@ export const useGroupesStore = defineStore('groupes', () => {
     }
   }
 
+  const loadMessagesGroupe = async (groupeId: number, entrepriseId: number) => {
+    try {
+      return await apiService.getMessagesGroupe(groupeId, entrepriseId)
+    } catch (error) {
+      console.error('Erreur lors du chargement des messages du groupe:', error)
+      throw error
+    }
+  }
+
   return {
     groupes,
     selectedGroupe,
@@ -232,9 +118,157 @@ export const useGroupesStore = defineStore('groupes', () => {
     loadGroupesMembres,
     createGroupe,
     updateGroupe,
-    deleteGroupe
+    deleteGroupe,
+    loadMessagesGroupe
   }
 })
+
+
+// Store des entreprises
+export const useEntreprisesStore = defineStore('entreprises', () => {
+  const entreprises = ref<Entreprise[]>([])
+  const selectedEntreprise = ref<Entreprise | null>(null)
+  
+  const loadEntreprises = async () => {
+    try {
+      entreprises.value = await apiService.getEntreprises()
+    } catch (error) {
+      console.error('Erreur lors du chargement des entreprises:', error)
+      throw error
+    }
+  }
+
+  const loadEntreprise = async (id: number) => {
+    try {
+      selectedEntreprise.value = await apiService.getEntreprise(id)
+      return selectedEntreprise.value
+    } catch (error) {
+      console.error('Erreur lors du chargement de l\'entreprise:', error)
+      throw error
+    }
+  }
+
+  const createEntreprise = async (data: Partial<Entreprise>) => {
+    try {
+      const newEntreprise = await apiService.createEntreprise(data)
+      entreprises.value.push(newEntreprise)
+      return newEntreprise
+    } catch (error) {
+      console.error('Erreur lors de la création de l\'entreprise:', error)
+      throw error
+    }
+  }
+
+  const updateEntreprise = async (id: number, data: Partial<Entreprise>) => {
+    try {
+      const updatedEntreprise = await apiService.updateEntreprise(id, data)
+      const index = entreprises.value.findIndex(e => e.id === id)
+      if (index !== -1) {
+        entreprises.value[index] = updatedEntreprise
+      }
+      if (selectedEntreprise.value?.id === id) {
+        selectedEntreprise.value = updatedEntreprise
+      }
+      return updatedEntreprise
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de l\'entreprise:', error)
+      throw error
+    }
+  }
+
+  const deleteEntreprise = async (id: number) => {
+    try {
+      await apiService.deleteEntreprise(id)
+      entreprises.value = entreprises.value.filter(e => e.id !== id)
+      if (selectedEntreprise.value?.id === id) {
+        selectedEntreprise.value = null
+      }
+    } catch (error) {
+      console.error('Erreur lors de la suppression de l\'entreprise:', error)
+      throw error
+    }
+  }
+
+  const loadGroupesPossedes = async (entrepriseId: number) => {
+    try {
+      return await apiService.getGroupesPossedes(entrepriseId)
+    } catch (error) {
+      console.error('Erreur lors du chargement des groupes possédés:', error)
+      throw error
+    }
+  }
+
+  const loadGroupesMembres = async (entrepriseId: number) => {
+    try {
+      return await apiService.getGroupesMembres(entrepriseId)
+    } catch (error) {
+      console.error('Erreur lors du chargement des groupes membres:', error)
+      throw error
+    }
+  }
+
+  return {
+    entreprises,
+    selectedEntreprise,
+    loadEntreprises,
+    loadEntreprise,
+    createEntreprise,
+    updateEntreprise,
+    deleteEntreprise,
+    loadGroupesPossedes,
+    loadGroupesMembres
+  }
+})
+
+// Store principal de l'application
+export const useAppStore = defineStore('app', () => {
+  // État global
+  const isLoading = ref(false)
+  const error = ref<string | null>(null)
+  const currentEntreprise = ref<Entreprise | null>(null)
+
+  // Actions
+  const setLoading = (loading: boolean) => {
+    isLoading.value = loading
+  }
+
+  const setError = (err: string | null) => {
+    error.value = err
+  }
+
+  const clearError = () => {
+    error.value = null
+  }
+
+  const setCurrentEntreprise = (entreprise: Entreprise | null) => {
+    currentEntreprise.value = entreprise
+    if (entreprise) {
+      localStorage.setItem('currentEntreprise', JSON.stringify(entreprise))
+    } else {
+      localStorage.removeItem('currentEntreprise')
+    }
+  }
+
+  const loadCurrentEntreprise = () => {
+    const saved = localStorage.getItem('currentEntreprise')
+    if (saved) {
+      currentEntreprise.value = JSON.parse(saved)
+    }
+  }
+
+  return {
+    isLoading,
+    error,
+    currentEntreprise,
+    setLoading,
+    setError,
+    clearError,
+    setCurrentEntreprise,
+    loadCurrentEntreprise
+  }
+})
+
+
 
 // Store des messages
 export const useMessagesStore = defineStore('messages', () => {
@@ -358,4 +392,6 @@ export const useDemandesStore = defineStore('demandes', () => {
     repondreDemande
   }
 })
+
+
 

@@ -1,286 +1,396 @@
 <template>
-  <div class="space-y-6">
-    <!-- En-tête -->
-    <div class="bg-white rounded-lg shadow p-6">
-      <h2 class="text-2xl font-bold text-gray-900 mb-2">Tableau de bord</h2>
-      <p class="text-gray-600">
-        Bienvenue sur SJConnect
-        <span v-if="currentEntreprise" class="font-medium text-blue-600">
-          - {{ currentEntreprise.nom }}
-        </span>
-      </p>
-    </div>
+  <div class="dashboard">
+    <!-- En-tête du dashboard -->
+    <Card class="mb-4">
+      <template #content>
+        <div class="flex justify-content-between align-items-center">
+          <div>
+            <h1 class="text-3xl font-bold text-900 m-0">Tableau de bord</h1>
+            <p class="text-600 mt-2 mb-0">
+              Bienvenue sur SJConnect
+              <Chip 
+                v-if="currentEntreprise" 
+                :label="currentEntreprise.nom" 
+                icon="pi pi-building"
+                class="ml-2"
+              />
+            </p>
+          </div>
+          <div class="flex gap-2">
+            <Button 
+              label="Actions rapides" 
+              icon="pi pi-plus" 
+              @click="toggleActionsMenu"
+              severity="secondary"
+            />
+            <Button 
+              label="Actualiser" 
+              icon="pi pi-refresh" 
+              @click="refreshData"
+              outlined
+            />
+          </div>
+        </div>
+      </template>
+    </Card>
+
+    <!-- Menu d'actions rapides -->
+    <OverlayPanel ref="actionsMenu" class="w-20rem">
+      <div class="p-3">
+        <h6>Actions rapides</h6>
+        <div class="flex flex-column gap-2">
+          <Button 
+            label="Créer un groupe" 
+            icon="pi pi-users" 
+            text 
+            class="justify-content-start"
+            @click="navigateTo('/groupes')"
+          />
+          <Button 
+            label="Envoyer un message" 
+            icon="pi pi-send" 
+            text 
+            class="justify-content-start"
+            @click="navigateTo('/messages')"
+          />
+          <Button 
+            label="Ajouter une entreprise" 
+            icon="pi pi-building" 
+            text 
+            class="justify-content-start"
+            @click="navigateTo('/entreprises')"
+          />
+        </div>
+      </div>
+    </OverlayPanel>
 
     <!-- Message si aucune entreprise sélectionnée -->
-    <div v-if="!currentEntreprise" class="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-      <div class="flex">
-        <div class="flex-shrink-0">
-          <svg class="h-5 w-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-          </svg>
+    <Message 
+      v-if="!currentEntreprise" 
+      severity="warn" 
+      icon="pi pi-exclamation-triangle"
+      class="mb-4"
+    >
+      <template #container>
+        <div class="flex align-items-center gap-3 p-3">
+          <i class="pi pi-exclamation-triangle text-2xl"></i>
+          <div>
+            <h5 class="m-0">Sélectionnez une entreprise</h5>
+            <p class="m-0">Veuillez sélectionner une entreprise dans le menu du haut pour accéder aux fonctionnalités complètes.</p>
+          </div>
         </div>
-        <div class="ml-3">
-          <h3 class="text-sm font-medium text-yellow-800">
-            Sélectionnez une entreprise
-          </h3>
-          <p class="mt-1 text-sm text-yellow-700">
-            Veuillez sélectionner une entreprise dans le menu du haut pour accéder aux fonctionnalités complètes.
-          </p>
-        </div>
+      </template>
+    </Message>
+
+    <!-- Statistiques globales -->
+    <div v-if="!currentEntreprise" class="grid mb-4">
+      <div class="col-12 md:col-6 lg:col-3">
+        <Card class="stats-card">
+          <template #content>
+            <div class="flex align-items-center justify-content-between">
+              <div>
+                <div class="text-500 font-medium mb-2">Entreprises</div>
+                <div class="text-900 font-bold text-3xl">{{ entreprises.length }}</div>
+              </div>
+              <div class="flex align-items-center justify-content-center bg-blue-100 border-round" style="width: 3rem; height: 3rem">
+                <i class="pi pi-building text-blue-500 text-xl"></i>
+              </div>
+            </div>
+          </template>
+        </Card>
+      </div>
+
+      <div class="col-12 md:col-6 lg:col-3">
+        <Card class="stats-card">
+          <template #content>
+            <div class="flex align-items-center justify-content-between">
+              <div>
+                <div class="text-500 font-medium mb-2">Groupes</div>
+                <div class="text-900 font-bold text-3xl">{{ groupes.length }}</div>
+              </div>
+              <div class="flex align-items-center justify-content-center bg-green-100 border-round" style="width: 3rem; height: 3rem">
+                <i class="pi pi-users text-green-500 text-xl"></i>
+              </div>
+            </div>
+          </template>
+        </Card>
+      </div>
+
+      <div class="col-12 md:col-6 lg:col-3">
+        <Card class="stats-card">
+          <template #content>
+            <div class="flex align-items-center justify-content-between">
+              <div>
+                <div class="text-500 font-medium mb-2">Messages</div>
+                <div class="text-900 font-bold text-3xl">{{ messages.length }}</div>
+              </div>
+              <div class="flex align-items-center justify-content-center bg-purple-100 border-round" style="width: 3rem; height: 3rem">
+                <i class="pi pi-comments text-purple-500 text-xl"></i>
+              </div>
+            </div>
+          </template>
+        </Card>
+      </div>
+
+      <div class="col-12 md:col-6 lg:col-3">
+        <Card class="stats-card">
+          <template #content>
+            <div class="flex align-items-center justify-content-between">
+              <div>
+                <div class="text-500 font-medium mb-2">Demandes</div>
+                <div class="text-900 font-bold text-3xl">{{ demandesEnAttente.length }}</div>
+              </div>
+              <div class="flex align-items-center justify-content-center bg-orange-100 border-round" style="width: 3rem; height: 3rem">
+                <i class="pi pi-inbox text-orange-500 text-xl"></i>
+              </div>
+            </div>
+          </template>
+        </Card>
       </div>
     </div>
 
-    <!-- Statistiques générales -->
-    <div v-if="!currentEntreprise" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      <div class="bg-white rounded-lg shadow p-6">
-        <div class="flex items-center">
-          <div class="flex-shrink-0">
-            <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-              <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-            </div>
-          </div>
-          <div class="ml-4">
-            <h3 class="text-lg font-medium text-gray-900">Entreprises</h3>
-            <p class="text-2xl font-bold text-gray-600">{{ entreprises.length }}</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-lg shadow p-6">
-        <div class="flex items-center">
-          <div class="flex-shrink-0">
-            <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-              <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-            </div>
-          </div>
-          <div class="ml-4">
-            <h3 class="text-lg font-medium text-gray-900">Groupes</h3>
-            <p class="text-2xl font-bold text-gray-600">{{ groupes.length }}</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-lg shadow p-6">
-        <div class="flex items-center">
-          <div class="flex-shrink-0">
-            <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-              <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-            </div>
-          </div>
-          <div class="ml-4">
-            <h3 class="text-lg font-medium text-gray-900">Messages</h3>
-            <p class="text-2xl font-bold text-gray-600">{{ messages.length }}</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-lg shadow p-6">
-        <div class="flex items-center">
-          <div class="flex-shrink-0">
-            <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-              <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-            </div>
-          </div>
-          <div class="ml-4">
-            <h3 class="text-lg font-medium text-gray-900">Demandes</h3>
-            <p class="text-2xl font-bold text-gray-600">{{ demandesEnAttente.length }}</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tableau de bord spécifique à l'entreprise -->
-    <div v-else class="space-y-6">
+    <!-- Dashboard spécifique à l'entreprise -->
+    <div v-if="currentEntreprise" class="grid">
       <!-- Statistiques de l'entreprise -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div class="bg-white rounded-lg shadow p-6">
-          <div class="flex items-center">
-            <div class="flex-shrink-0">
-              <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
+      <div class="col-12 mb-4">
+        <Card>
+          <template #title>
+            <div class="flex align-items-center gap-2">
+              <Avatar 
+                :label="currentEntreprise.nom.charAt(0)" 
+                size="large"
+                style="background-color: var(--primary-color)"
+              />
+              <div>
+                <div class="text-xl font-bold">{{ currentEntreprise.nom }}</div>
+                <div class="text-500">Vue d'ensemble des activités</div>
               </div>
             </div>
-            <div class="ml-4">
-              <h3 class="text-lg font-medium text-gray-900">Groupes possédés</h3>
-              <p class="text-2xl font-bold text-blue-600">{{ groupesPossedes.length }}</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-6">
-          <div class="flex items-center">
-            <div class="flex-shrink-0">
-              <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
+          </template>
+          <template #content>
+            <div class="grid">
+              <div class="col-12 md:col-3">
+                <div class="text-center p-3 border-round bg-blue-50">
+                  <i class="pi pi-building text-4xl text-blue-500 mb-3"></i>
+                  <div class="text-900 font-bold text-2xl">{{ groupesPossedes.length }}</div>
+                  <div class="text-500">Groupes possédés</div>
+                </div>
+              </div>
+              <div class="col-12 md:col-3">
+                <div class="text-center p-3 border-round bg-green-50">
+                  <i class="pi pi-users text-4xl text-green-500 mb-3"></i>
+                  <div class="text-900 font-bold text-2xl">{{ groupesMembres.length }}</div>
+                  <div class="text-500">Membre de</div>
+                </div>
+              </div>
+              <div class="col-12 md:col-3">
+                <div class="text-center p-3 border-round bg-purple-50">
+                  <i class="pi pi-comments text-4xl text-purple-500 mb-3"></i>
+                  <div class="text-900 font-bold text-2xl">{{ conversations.length }}</div>
+                  <div class="text-500">Conversations</div>
+                </div>
+              </div>
+              <div class="col-12 md:col-3">
+                <div class="text-center p-3 border-round bg-orange-50">
+                  <i class="pi pi-clock text-4xl text-orange-500 mb-3"></i>
+                  <div class="text-900 font-bold text-2xl">{{ demandesEnAttente.length }}</div>
+                  <div class="text-500">En attente</div>
+                </div>
               </div>
             </div>
-            <div class="ml-4">
-              <h3 class="text-lg font-medium text-gray-900">Membre de</h3>
-              <p class="text-2xl font-bold text-green-600">{{ groupesMembres.length }}</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-6">
-          <div class="flex items-center">
-            <div class="flex-shrink-0">
-              <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-              </div>
-            </div>
-            <div class="ml-4">
-              <h3 class="text-lg font-medium text-gray-900">Conversations</h3>
-              <p class="text-2xl font-bold text-purple-600">{{ conversations.length }}</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-6">
-          <div class="flex items-center">
-            <div class="flex-shrink-0">
-              <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-              </div>
-            </div>
-            <div class="ml-4">
-              <h3 class="text-lg font-medium text-gray-900">Demandes en attente</h3>
-              <p class="text-2xl font-bold text-orange-600">{{ demandesEnAttente.length }}</p>
-            </div>
-          </div>
-        </div>
+          </template>
+        </Card>
       </div>
 
       <!-- Actions rapides -->
-      <div class="bg-white rounded-lg shadow p-6">
-        <h3 class="text-lg font-medium text-gray-900 mb-4">Actions rapides</h3>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <router-link
-            to="/groupes"
-            class="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
-              <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
+      <div class="col-12 md:col-4 mb-4">
+        <Card>
+          <template #title>Actions rapides</template>
+          <template #content>
+            <div class="flex flex-column gap-3">
+              <Button 
+                label="Créer un groupe" 
+                icon="pi pi-plus" 
+                class="w-full justify-content-start"
+                @click="navigateTo('/groupes')"
+                outlined
+              />
+              <Button 
+                label="Envoyer un message" 
+                icon="pi pi-send" 
+                class="w-full justify-content-start"
+                @click="navigateTo('/messages')"
+                outlined
+              />
+              <Button 
+                label="Voir les demandes" 
+                icon="pi pi-inbox" 
+                class="w-full justify-content-start"
+                @click="navigateTo('/demandes')"
+                outlined
+              />
             </div>
-            <div>
-              <h4 class="text-sm font-medium text-gray-900">Créer un groupe</h4>
-              <p class="text-sm text-gray-500">Nouveau groupe de discussion</p>
-            </div>
-          </router-link>
+          </template>
+        </Card>
+      </div>
 
-          <router-link
-            to="/messages"
-            class="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-4">
-              <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
+      <!-- Groupes récents -->
+      <div class="col-12 md:col-8 mb-4">
+        <Card>
+          <template #title>
+            <div class="flex justify-content-between align-items-center">
+              <span>Groupes récents</span>
+              <Button 
+                label="Voir tout" 
+                text 
+                size="small"
+                @click="navigateTo('/groupes')"
+              />
             </div>
-            <div>
-              <h4 class="text-sm font-medium text-gray-900">Envoyer un message</h4>
-              <p class="text-sm text-gray-500">Démarrer une conversation</p>
+          </template>
+          <template #content>
+            <div v-if="groupesPossedes.length > 0" class="flex flex-column gap-3">
+              <div 
+                v-for="groupe in groupesPossedes.slice(0, 3)" 
+                :key="groupe.id"
+                class="flex align-items-center justify-content-between p-3 border-1 surface-border border-round hover:surface-hover cursor-pointer"
+                @click="navigateTo(`/groupes/${groupe.id}`)"
+              >
+                <div class="flex align-items-center gap-3">
+                  <Avatar 
+                    :label="groupe.nom.charAt(0)" 
+                    style="background-color: var(--green-500)"
+                  />
+                  <div>
+                    <div class="font-semibold">{{ groupe.nom }}</div>
+                    <div class="text-500 text-sm">{{ groupe.nombre_membres }} membres</div>
+                  </div>
+                </div>
+                <div class="flex align-items-center gap-2">
+                  <Tag 
+                    :value="groupe.est_public ? 'Public' : 'Privé'" 
+                    :severity="groupe.est_public ? 'success' : 'info'"
+                  />
+                  <i class="pi pi-chevron-right text-400"></i>
+                </div>
+              </div>
             </div>
-          </router-link>
+            <div v-else class="text-center py-4">
+              <i class="pi pi-users text-4xl text-400 mb-3"></i>
+              <div class="text-500">Aucun groupe créé</div>
+              <Button 
+                label="Créer votre premier groupe" 
+                icon="pi pi-plus" 
+                text 
+                class="mt-2"
+                @click="navigateTo('/groupes')"
+              />
+            </div>
+          </template>
+        </Card>
+      </div>
 
-          <router-link
-            to="/demandes"
-            class="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-4">
-              <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
+      <!-- Conversations récentes -->
+      <div class="col-12 md:col-6 mb-4">
+        <Card>
+          <template #title>
+            <div class="flex justify-content-between align-items-center">
+              <span>Conversations récentes</span>
+              <Button 
+                label="Voir tout" 
+                text 
+                size="small"
+                @click="navigateTo('/messages')"
+              />
             </div>
-            <div>
-              <h4 class="text-sm font-medium text-gray-900">Voir les demandes</h4>
-              <p class="text-sm text-gray-500">Gérer les intégrations</p>
+          </template>
+          <template #content>
+            <div v-if="conversations.length > 0" class="flex flex-column gap-3">
+              <div 
+                v-for="conversation in conversations.slice(0, 4)" 
+                :key="conversation.id"
+                class="flex align-items-center gap-3 p-2 border-round hover:surface-hover cursor-pointer"
+                @click="navigateTo('/messages')"
+              >
+                <Avatar 
+                  :label="getConversationPartner(conversation).charAt(0)"
+                  style="background-color: var(--blue-500)"
+                />
+                <div class="flex-1">
+                  <div class="font-semibold text-sm">{{ getConversationPartner(conversation) }}</div>
+                  <div class="text-500 text-xs">{{ formatDate(conversation.derniere_activite) }}</div>
+                </div>
+                <Badge v-if="Math.random() > 0.5" value="2" severity="info" />
+              </div>
             </div>
-          </router-link>
-        </div>
+            <div v-else class="text-center py-4">
+              <i class="pi pi-comments text-4xl text-400 mb-3"></i>
+              <div class="text-500">Aucune conversation</div>
+            </div>
+          </template>
+        </Card>
       </div>
 
       <!-- Activité récente -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Groupes récents -->
-        <div class="bg-white rounded-lg shadow p-6">
-          <h3 class="text-lg font-medium text-gray-900 mb-4">Groupes récents</h3>
-          <div v-if="groupesPossedes.length > 0" class="space-y-3">
-            <div 
-              v-for="groupe in groupesPossedes.slice(0, 5)" 
-              :key="groupe.id"
-              class="flex items-center justify-between p-3 border border-gray-200 rounded-lg"
-            >
-              <div>
-                <h4 class="text-sm font-medium text-gray-900">{{ groupe.nom }}</h4>
-                <p class="text-sm text-gray-500">{{ groupe.nombre_membres }} membres</p>
+      <div class="col-12 md:col-6 mb-4">
+        <Card>
+          <template #title>Activité récente</template>
+          <template #content>
+            <div class="flex flex-column gap-3">
+              <div class="flex align-items-start gap-3">
+                <Avatar 
+                  icon="pi pi-users" 
+                  size="small"
+                  style="background-color: var(--green-500)"
+                />
+                <div class="flex-1">
+                  <div class="font-semibold text-sm">Nouveau membre ajouté</div>
+                  <div class="text-500 text-xs">Innovation Lab a rejoint le groupe "Tech Innovators"</div>
+                  <div class="text-400 text-xs mt-1">Il y a 2 heures</div>
+                </div>
               </div>
-              <router-link 
-                :to="`/groupes/${groupe.id}`"
-                class="text-blue-600 hover:text-blue-800 text-sm font-medium"
-              >
-                Voir
-              </router-link>
-            </div>
-          </div>
-          <p v-else class="text-gray-500 text-sm">Aucun groupe créé</p>
-        </div>
-
-        <!-- Conversations récentes -->
-        <div class="bg-white rounded-lg shadow p-6">
-          <h3 class="text-lg font-medium text-gray-900 mb-4">Conversations récentes</h3>
-          <div v-if="conversations.length > 0" class="space-y-3">
-            <div 
-              v-for="conversation in conversations.slice(0, 5)" 
-              :key="conversation.id"
-              class="flex items-center justify-between p-3 border border-gray-200 rounded-lg"
-            >
-              <div>
-                <h4 class="text-sm font-medium text-gray-900">
-                  {{ getConversationPartner(conversation) }}
-                </h4>
-                <p class="text-sm text-gray-500">
-                  {{ formatDate(conversation.derniere_activite) }}
-                </p>
+              
+              <div class="flex align-items-start gap-3">
+                <Avatar 
+                  icon="pi pi-envelope" 
+                  size="small"
+                  style="background-color: var(--blue-500)"
+                />
+                <div class="flex-1">
+                  <div class="font-semibold text-sm">Message reçu</div>
+                  <div class="text-500 text-xs">StartupXYZ vous a envoyé un message</div>
+                  <div class="text-400 text-xs mt-1">Il y a 5 heures</div>
+                </div>
               </div>
-              <router-link 
-                to="/messages"
-                class="text-blue-600 hover:text-blue-800 text-sm font-medium"
-              >
-                Voir
-              </router-link>
+              
+              <div class="flex align-items-start gap-3">
+                <Avatar 
+                  icon="pi pi-check" 
+                  size="small"
+                  style="background-color: var(--orange-500)"
+                />
+                <div class="flex-1">
+                  <div class="font-semibold text-sm">Demande acceptée</div>
+                  <div class="text-500 text-xs">Votre demande pour rejoindre "Business Network" a été acceptée</div>
+                  <div class="text-400 text-xs mt-1">Il y a 1 jour</div>
+                </div>
+              </div>
             </div>
-          </div>
-          <p v-else class="text-gray-500 text-sm">Aucune conversation</p>
-        </div>
+          </template>
+        </Card>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useRouter } from 'vue-router'
 import { useAppStore, useEntreprisesStore, useGroupesStore, useMessagesStore, useDemandesStore } from '../stores'
 import type { ConversationDirecte } from '../services/api'
 
+const router = useRouter()
 const appStore = useAppStore()
 const entreprisesStore = useEntreprisesStore()
 const groupesStore = useGroupesStore()
@@ -293,7 +403,24 @@ const { groupes, groupesPossedes, groupesMembres } = storeToRefs(groupesStore)
 const { messages, conversations } = storeToRefs(messagesStore)
 const { demandesEnAttente } = storeToRefs(demandesStore)
 
+const actionsMenu = ref()
+
 // Méthodes
+const toggleActionsMenu = (event: Event) => {
+  actionsMenu.value.toggle(event)
+}
+
+const navigateTo = (path: string) => {
+  router.push(path)
+  actionsMenu.value?.hide()
+}
+
+const refreshData = async () => {
+  if (currentEntreprise.value) {
+    await loadEntrepriseData()
+  }
+}
+
 const getConversationPartner = (conversation: ConversationDirecte): string => {
   if (!currentEntreprise.value) return ''
   
@@ -353,10 +480,35 @@ onMounted(async () => {
 })
 
 // Watch pour recharger les données quand l'entreprise change
-import { watch } from 'vue'
 watch(currentEntreprise, async (newEntreprise) => {
   if (newEntreprise) {
     await loadEntrepriseData()
   }
 })
 </script>
+
+<style scoped>
+.dashboard {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.stats-card {
+  transition: all 0.3s ease;
+}
+
+.stats-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 25px rgba(0, 0, 0, 0.1);
+}
+
+.stats-card .p-card-content {
+  padding: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .dashboard {
+    padding: 0 0.5rem;
+  }
+}
+</style>
