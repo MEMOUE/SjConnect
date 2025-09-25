@@ -8,7 +8,12 @@ export interface User {
   username: string
   email: string
   first_name: string
-  last_name: string
+  last_name: string;
+  profil?: {
+    entreprise?: any;
+    role?: string;
+    // Ajoutez d'autres propriétés nécessaires ici
+  };
 }
 
 export interface LoginCredentials {

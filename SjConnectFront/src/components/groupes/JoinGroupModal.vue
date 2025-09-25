@@ -182,8 +182,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useGroupesStore, useDemandesStore, useAppStore } from '../stores'
-import type { Entreprise, Groupe } from '../services/api'
+import { useGroupesStore, useDemandesStore, useAppStore } from '../../stores'
+import type { Entreprise, Groupe } from '../../services/api'
 
 interface Props {
   show: boolean

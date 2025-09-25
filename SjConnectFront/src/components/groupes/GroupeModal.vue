@@ -152,7 +152,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import type { Groupe, Entreprise } from '../services/api'
+import type { Groupe, Entreprise } from '../../services/api'
 
 interface Props {
   show: boolean

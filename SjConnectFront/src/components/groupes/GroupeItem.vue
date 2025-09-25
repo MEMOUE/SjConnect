@@ -79,7 +79,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Groupe } from '../services/api'
+import type { Groupe } from '../../services/api'
 
 interface Props {
   groupe: Groupe

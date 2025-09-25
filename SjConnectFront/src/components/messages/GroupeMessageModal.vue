@@ -196,8 +196,8 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { useMessagesStore, useAppStore } from '../stores'
-import type { Groupe, Entreprise } from '../services/api'
+import { useMessagesStore, useAppStore } from '../../stores'
+import type { Groupe, Entreprise } from '../../services/api'
 
 interface Props {
   show: boolean

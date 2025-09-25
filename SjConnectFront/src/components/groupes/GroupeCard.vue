@@ -118,7 +118,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Groupe } from '../services/api'
+import type { Groupe } from '../../services/api'
 
 interface Props {
   groupe: Groupe

@@ -1,509 +1,253 @@
 <template>
-  <div class="login-container">
-    <div class="login-card">
-      <!-- Logo et titre -->
-      <div class="header">
-        <div class="logo">
-          <span class="logo-text">SJ</span>
+  <div class="login-page flex align-items-center justify-content-center min-h-screen">
+    <Card class="login-card w-full max-w-26rem p-4">
+      <template #header>
+        <div class="text-center py-4">
+          <Avatar 
+            label="SJ Connect" 
+            size="xlarge"
+            class="avatar-logo mb-3"
+          />
+          <h2 class="title">Bienvenue</h2>
+          <p class="subtitle">Connectez-vous à votre espace SJConnect</p>
         </div>
-        <h2 class="title">
-          {{ isRegistering ? 'Créer un compte' : 'Connexion à SJConnect' }}
-        </h2>
-        <p class="subtitle">
-          {{ isRegistering 
-            ? 'Rejoignez la plateforme de communication inter-entreprises' 
-            : 'Connectez-vous à votre espace' 
-          }}
-        </p>
-      </div>
+      </template>
 
-      <!-- Formulaire -->
-      <form @submit.prevent="handleSubmit" class="form">
-        <!-- Messages d'erreur -->
+      <template #content>
+        <!-- Message d'erreur -->
         <Message 
-          v-if="authStore.error" 
+          v-if="error" 
           severity="error" 
           :closable="true"
-          @close="authStore.clearError"
+          @close="clearError"
+          class="mb-3"
         >
-          {{ authStore.error }}
+          {{ error }}
         </Message>
 
-        <div class="form-fields">
-          <!-- Prénom et nom (inscription seulement) -->
-          <div v-if="isRegistering" class="name-fields">
-            <div class="field">
-              <InputText
-                id="first_name"
-                v-model="form.first_name"
-                placeholder="Prénom"
-                class="w-full"
-              />
-            </div>
-            <div class="field">
-              <InputText
-                id="last_name"
-                v-model="form.last_name"
-                placeholder="Nom"
-                class="w-full"
-              />
-            </div>
-          </div>
-
-          <!-- Email (inscription seulement) -->
-          <div v-if="isRegistering" class="field">
+        <!-- Formulaire -->
+        <form @submit.prevent="handleLogin" class="flex flex-column gap-4">
+          <div>
+            <label for="email" class="block font-medium mb-2">Email</label>
             <InputText
               id="email"
               v-model="form.email"
               type="email"
               required
-              placeholder="Adresse email"
               class="w-full"
+              placeholder="exemple@email.com"
               :class="{ 'p-invalid': errors.email }"
             />
             <small v-if="errors.email" class="p-error">{{ errors.email }}</small>
           </div>
 
-          <!-- Nom d'utilisateur -->
-          <div class="field">
-            <InputText
-              id="username"
-              v-model="form.username"
-              required
-              placeholder="Nom d'utilisateur"
-              class="w-full"
-              :class="{ 'p-invalid': errors.username }"
-            />
-            <small v-if="errors.username" class="p-error">{{ errors.username }}</small>
-          </div>
-
-          <!-- Mot de passe -->
-          <div class="field">
-            <Password
-              id="password"
-              v-model="form.password"
-              required
-              :placeholder="isRegistering ? 'Mot de passe (8 caractères min.)' : 'Mot de passe'"
-              class="w-full"
-              :class="{ 'p-invalid': errors.password }"
-              :feedback="isRegistering"
-              toggle-mask
-            />
+          <div>
+           <template>
+    <div class="card flex justify-center">
+        <Password v-model="form.password" promptLabel="Choose a password" weakLabel="Too simple" mediumLabel="Average complexity" strongLabel="Complex password" />
+    </div>
+</template>
             <small v-if="errors.password" class="p-error">{{ errors.password }}</small>
           </div>
 
-          <!-- Confirmation mot de passe (inscription seulement) -->
-          <div v-if="isRegistering" class="field">
-            <Password
-              id="confirmPassword"
-              v-model="form.confirmPassword"
-              required
-              placeholder="Confirmer le mot de passe"
-              class="w-full"
-              :class="{ 'p-invalid': errors.confirmPassword }"
-              :feedback="false"
-              toggle-mask
-            />
-            <small v-if="errors.confirmPassword" class="p-error">{{ errors.confirmPassword }}</small>
-          </div>
-        </div>
-
-        <!-- Options supplémentaires pour la connexion -->
-        <div v-if="!isRegistering" class="login-options">
-          <div class="remember-me">
-            <Checkbox
-              id="remember-me"
-              v-model="form.rememberMe"
-              :binary="true"
-            />
-            <label for="remember-me" class="remember-label">
-              Se souvenir de moi
-            </label>
+          <div class="flex align-items-center justify-content-between text-sm">
+            <div class="flex align-items-center">
+              <Checkbox id="remember" v-model="form.remember" :binary="true" />
+              <label for="remember" class="ml-2">Se souvenir de moi</label>
+            </div>
+            <a href="#" class="forgot-link">Mot de passe oublié ?</a>
           </div>
 
-          <div class="forgot-password">
-            <a href="#" class="link">
-              Mot de passe oublié ?
-            </a>
-          </div>
-        </div>
-
-        <!-- Bouton de soumission -->
-        <div class="submit-section">
           <Button
             type="submit"
-            :disabled="authStore.isLoading || !isFormValid"
-            :loading="authStore.isLoading"
-            :label="isRegistering ? 'Créer le compte' : 'Se connecter'"
-            class="w-full submit-button"
+            label="Se connecter"
             icon="pi pi-sign-in"
-            :loading-icon="authStore.isLoading ? 'pi pi-spinner pi-spin' : undefined"
+            :loading="loading"
+            class="btn-primary w-full"
           />
-        </div>
+        </form>
 
-        <!-- Lien pour basculer entre connexion et inscription -->
-        <div class="toggle-mode">
-          <Button
-            type="button"
-            @click="toggleMode"
-            :label="isRegistering 
-              ? 'Déjà un compte ? Se connecter' 
-              : 'Pas encore de compte ? S\'inscrire'"
-            class="p-button-text p-button-plain w-full"
-          />
-        </div>
-      </form>
+        <!-- Divider -->
+        <Divider align="center" class="my-4">
+          <span class="text-600 text-sm color-black">Nouveau sur SJConnect ?</span>
+        </Divider>
 
-      <!-- Informations additionnelles -->
-      <div class="footer-info">
-        <p class="terms-text">
-          En vous connectant, vous acceptez nos 
-          <a href="#" class="link">conditions d'utilisation</a>
-          et notre 
-          <a href="#" class="link">politique de confidentialité</a>.
-        </p>
-      </div>
-    </div>
+        <Button
+          @click="showRegisterForm = true"
+          label="Créer un compte entreprise"
+          icon="pi pi-plus"
+          outlined
+          class="btn-outline w-full"
+        />
+      </template>
+    </Card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-
-// Composants PrimeVue
-import InputText from 'primevue/inputtext'
-import Password from 'primevue/password'
-import Button from 'primevue/button'
-import Checkbox from 'primevue/checkbox'
-import Message from 'primevue/message'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
-// État local
-const isRegistering = ref(false)
+const loading = ref(false)
+const error = ref<string | null>(null)
+const showRegisterForm = ref(false)
 
 const form = ref({
-  username: '',
   email: '',
   password: '',
-  confirmPassword: '',
-  first_name: '',
-  last_name: '',
-  rememberMe: false
+  remember: false
 })
 
 const errors = ref({
-  username: '',
   email: '',
-  password: '',
-  confirmPassword: ''
+  password: ''
 })
 
-// Computed
-const isFormValid = computed(() => {
-  const hasRequiredFields = form.value.username && form.value.password
-  
-  if (isRegistering.value) {
-    return hasRequiredFields && 
-           form.value.email && 
-           form.value.password.length >= 8 &&
-           form.value.password === form.value.confirmPassword
-  }
-  
-  return hasRequiredFields
-})
+const clearError = () => {
+  error.value = null
+}
 
-// Méthodes
-const validateForm = () => {
-  errors.value = {
-    username: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
-  }
-  
+const validateLoginForm = () => {
+  errors.value = { email: '', password: '' }
   let isValid = true
-  
-  // Validation nom d'utilisateur
-  if (!form.value.username.trim()) {
-    errors.value.username = 'Le nom d\'utilisateur est obligatoire'
-    isValid = false
-  } else if (form.value.username.length < 3) {
-    errors.value.username = 'Le nom d\'utilisateur doit faire au moins 3 caractères'
+
+  if (!form.value.email.trim()) {
+    errors.value.email = 'L’email est obligatoire'
     isValid = false
   }
-  
-  // Validation email (inscription seulement)
-  if (isRegistering.value) {
-    if (!form.value.email.trim()) {
-      errors.value.email = 'L\'email est obligatoire'
-      isValid = false
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.value.email)) {
-      errors.value.email = 'Format d\'email invalide'
-      isValid = false
-    }
-  }
-  
-  // Validation mot de passe
   if (!form.value.password) {
     errors.value.password = 'Le mot de passe est obligatoire'
     isValid = false
-  } else if (isRegistering.value && form.value.password.length < 8) {
-    errors.value.password = 'Le mot de passe doit faire au moins 8 caractères'
-    isValid = false
   }
-  
-  // Validation confirmation mot de passe (inscription seulement)
-  if (isRegistering.value) {
-    if (form.value.password !== form.value.confirmPassword) {
-      errors.value.confirmPassword = 'Les mots de passe ne correspondent pas'
-      isValid = false
-    }
-  }
-  
   return isValid
 }
 
-const resetForm = () => {
-  form.value = {
-    username: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    first_name: '',
-    last_name: '',
-    rememberMe: false
-  }
-  errors.value = {
-    username: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
-  }
-  authStore.clearError()
-}
-
-const toggleMode = () => {
-  isRegistering.value = !isRegistering.value
-  resetForm()
-}
-
-const handleSubmit = async () => {
-  if (!validateForm()) return
-  
+const handleLogin = async () => {
+  if (!validateLoginForm()) return
   try {
-    if (isRegistering.value) {
-      await authStore.register({
-        username: form.value.username.trim(),
-        email: form.value.email.trim(),
-        password: form.value.password,
-        first_name: form.value.first_name.trim() || undefined,
-        last_name: form.value.last_name.trim() || undefined
-      })
-    } else {
-      await authStore.login({
-        username: form.value.username.trim(),
-        password: form.value.password
-      })
-    }
-    
-    // Redirection vers le dashboard après connexion réussie
+    loading.value = true
+    clearError()
+
+    await authStore.login({
+      username: form.value.email,
+      password: form.value.password
+    })
+
     router.push('/')
-  } catch (error) {
-    // L'erreur est déjà gérée dans le store
-    console.error('Erreur d\'authentification:', error)
+  } catch (err: any) {
+    error.value = err.response?.data?.error || 'Erreur de connexion'
+  } finally {
+    loading.value = false
   }
 }
-
-// Watchers pour validation en temps réel
-watch(() => form.value.username, () => {
-  if (errors.value.username) {
-    errors.value.username = ''
-  }
-})
-
-watch(() => form.value.email, () => {
-  if (errors.value.email) {
-    errors.value.email = ''
-  }
-})
-
-watch(() => form.value.password, () => {
-  if (errors.value.password) {
-    errors.value.password = ''
-  }
-  if (errors.value.confirmPassword && form.value.password === form.value.confirmPassword) {
-    errors.value.confirmPassword = ''
-  }
-})
-
-watch(() => form.value.confirmPassword, () => {
-  if (errors.value.confirmPassword && form.value.password === form.value.confirmPassword) {
-    errors.value.confirmPassword = ''
-  }
-})
 </script>
 
 <style scoped>
-.login-container {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 1rem;
+/* Fond dégradé moderne */
+/* Styles professionnels pour la page Formulaire */
+:host {
+  --primary: #2C4A87;         
+  --primary-dark: #1E3260;    
+  --secondary: #F4A261;       
+  --secondary-dark: #E76F51;  
+  --bg: #F9FAFB;              
+  --text: #212529;            
+  --border: #B0B8C5;          /* Bordure plus visible */
+  --input-bg: #FFFFFF;        
+  --input-focus: #2C4A87;     
+  --radius: 8px;              
+  --shadow: 0 2px 6px rgba(0,0,0,0.08);
 }
 
-.login-card {
-  background: white;
-  border-radius: 1rem;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  padding: 2rem;
-  width: 100%;
-  max-width: 400px;
+/* Container principal */
+.page-container {
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 30px;
+  background: var(--bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-.header {
-  text-align: center;
-  margin-bottom: 2rem;
+/* Titre */
+.page-container h1 {
+  font-size: 26px;
+  margin-bottom: 25px;
+  color: var(--primary-dark);
+  border-bottom: 2px solid var(--primary);
+  padding-bottom: 10px;
 }
 
-.logo {
-  display: inline-block;
-  width: 4rem;
-  height: 4rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 1rem;
-  margin-bottom: 1.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.logo-text {
-  color: white;
-  font-weight: bold;
-  font-size: 1.5rem;
-}
-
-.title {
-  font-size: 1.875rem;
-  font-weight: 800;
-  color: #1a202c;
-  margin: 0 0 0.5rem 0;
-}
-
-.subtitle {
-  color: #718096;
-  font-size: 0.875rem;
-  margin: 0;
-}
-
-.form {
-  margin-top: 2rem;
-}
-
-.form-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.name-fields {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.w-full {
-  width: 100%;
-}
-
-.login-options {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin: 1.5rem 0;
-}
-
-.remember-me {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.remember-label {
-  font-size: 0.875rem;
-  color: #4a5568;
-  cursor: pointer;
-}
-
-.forgot-password {
-  font-size: 0.875rem;
-}
-
-.link {
-  color: #667eea;
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.link:hover {
-  text-decoration: underline;
-}
-
-.submit-section {
-  margin: 1.5rem 0;
-}
-
-.submit-button {
-  height: 3rem;
+/* Labels */
+.form-label {
+  display: block;
   font-weight: 600;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
+  margin-bottom: 6px;
+  color: var(--text);
+  font-size: 14px;
 }
 
-.toggle-mode {
-  text-align: center;
-  margin: 1rem 0;
+/* Champs (inputs, selects, textarea) */
+.form-input, .form-select, .form-textarea {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 14px;
+  border: 2px solid var(--border);   /* Bordure visible */
+  border-radius: var(--radius);
+  background: var(--input-bg);
+  color: var(--text);
+  transition: border-color 0.3s, box-shadow 0.3s;
+  margin-bottom: 18px;
+  box-sizing: border-box;
 }
 
-.footer-info {
-  margin-top: 2rem;
-  text-align: center;
+.form-input:focus, 
+.form-select:focus, 
+.form-textarea:focus {
+  border-color: var(--input-focus);
+  outline: none;
+  box-shadow: 0 0 6px rgba(44, 74, 135, 0.25);
 }
 
-.terms-text {
-  font-size: 0.75rem;
-  color: #a0aec0;
-  line-height: 1.4;
-  margin: 0;
+/* Bouton */
+.form-button {
+  display: inline-block;
+  padding: 12px 24px;
+  background: var(--primary);
+  color: white;
+  font-weight: 600;
+  border: 2px solid var(--primary-dark);  /* Bordure ajoutée */
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.3s, transform 0.2s, border-color 0.3s;
+  box-shadow: var(--shadow);
 }
 
-/* Responsive */
-@media (max-width: 480px) {
-  .login-card {
-    padding: 1.5rem;
-  }
-  
-  .name-fields {
-    grid-template-columns: 1fr;
-  }
-  
-  .login-options {
-    flex-direction: column;
-    gap: 1rem;
-    align-items: stretch;
-    text-align: center;
-  }
+.form-button:hover {
+  background: var(--primary-dark);
+  border-color: var(--primary); /* Changement subtil au hover */
+  transform: translateY(-2px);
 }
+
+/* Message d’erreur */
+.form-error {
+  color: var(--secondary-dark);
+  font-size: 13px;
+  margin-top: -12px;
+  margin-bottom: 12px;
+}
+
+:deep(.p-divider .p-divider-content) {
+  background: #0e0d0d;   /* Fond blanc (ou couleur de ta card) */
+  padding: 0 8px;     /* Petit espace autour du texte */
+  font-weight: 500;
+  color: var(--text);
+}
+
+
 </style>

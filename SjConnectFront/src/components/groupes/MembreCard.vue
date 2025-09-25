@@ -61,7 +61,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { MembreGroupe, Entreprise } from '../services/api'
+import type { MembreGroupe, Entreprise } from '../../services/api'
 import ConfirmModal from './ConfirmModal.vue'
 
 interface Props {

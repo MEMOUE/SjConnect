@@ -202,9 +202,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useEntreprisesStore, useAppStore } from '../stores'
-import apiService from '../services/api'
-import type { Entreprise, Groupe } from '../services/api'
+import { useEntreprisesStore, useAppStore } from '../../stores'
+import apiService from '../../services/api'
+import type { Entreprise, Groupe } from '../../services/api'
 
 interface Props {
   show: boolean

@@ -168,7 +168,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { DemandeIntegration, Entreprise } from '../services/api'
+import type { DemandeIntegration, Entreprise } from '../../services/api'
 
 interface Props {
   demande: DemandeIntegration

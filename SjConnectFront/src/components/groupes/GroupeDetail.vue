@@ -319,13 +319,13 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { useAppStore, useGroupesStore } from '../stores'
-import apiService from '../services/api'
-import type { Groupe, MembreGroupe, Message } from '../services/api'
-import MessageBubble from './MessageBubble.vue'
+import { useAppStore, useGroupesStore } from '../../stores'
+import apiService from '../../services/api'
+import type { Groupe, MembreGroupe, Message } from '../../services/api'
+import MessageBubble from '../MessageBubble.vue'
 import MembreCard from './MembreCard.vue'
 import AddMemberModal from './AddMembreModal.vue'
-import GroupMessageModal from './GroupeMessageModal.vue'
+import GroupMessageModal from '../messages/GroupeMessageModal.vue'
 import ConfirmModal from './ConfirmModal.vue'
 
 const route = useRoute()
