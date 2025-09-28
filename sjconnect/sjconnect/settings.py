@@ -30,6 +30,9 @@ INSTALLED_APPS = [
     'corsheaders',
     'drf_spectacular',  # Ajouté pour Swagger
     'entreprise',
+    'monetisation',
+    'employe',
+    'conversation',
 ]
 
 MIDDLEWARE = [
