@@ -1,0 +1,24 @@
+# Requirements pour SJConnect Backend
+Django==5.2.6
+djangorestframework==3.14.0
+django-cors-headers==4.3.1
+drf-spectacular==0.27.0
+django-filter==23.3
+Pillow
+
+# Base de données (optionnel, pour PostgreSQL en production)
+# psycopg2-binary==2.9.7
+
+# Pour le traitement des médias
+# moviepy==1.0.3
+
+# Pour les tests
+pytest-django==4.6.0
+factory-boy==3.3.0
+
+# Utilitaires
+python-decouple==3.8
+whitenoise==6.6.0
+
+# Pour la production
+gunicorn==21.2.0

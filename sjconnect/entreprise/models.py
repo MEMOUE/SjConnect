@@ -204,7 +204,7 @@ class Message(models.Model):
 
 class ConversationDirecte(models.Model):
     """Modèle pour gérer les conversations directes entre utilisateurs"""
-    utilisateur1 = models.ForeignKey(User, on_delete=models.CASCADE, related_name='conversations_1')
+    utilisateur1 = models.ForeignKey(User, on_delete=models.CASCADE, related_name='conversations_1', default=1)
     utilisateur2 = models.ForeignKey(User, on_delete=models.CASCADE, related_name='conversations_2')
     date_creation = models.DateTimeField(auto_now_add=True)
     derniere_activite = models.DateTimeField(auto_now=True)

@@ -1,11 +1,9 @@
+# sjconnect/settings.py - Version simplifiée et complète
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-gve!4pc(76fi#s%qdph5pjh1j-#_m1c#3t#3&v^j1$wev9w+8f'
@@ -13,11 +11,9 @@ SECRET_KEY = 'django-insecure-gve!4pc(76fi#s%qdph5pjh1j-#_m1c#3t#3&v^j1$wev9w+8f
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = ['*']
 
 # Application definition
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -25,18 +21,19 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # Ajoutez ces lignes :
+
+    # Third party apps
     'rest_framework',
     'corsheaders',
-    'drf_spectacular',  # Ajouté pour Swagger
+    'drf_spectacular',
+
+    # Local apps
     'entreprise',
-    'monetisation',
-    'employe',
-    'conversation',
+    'actualite',
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # Ajoutez cette ligne
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -51,10 +48,11 @@ ROOT_URLCONF = 'sjconnect.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
+                'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
@@ -65,10 +63,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'sjconnect.wsgi.application'
 
-
 # Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -76,10 +71,7 @@ DATABASES = {
     }
 }
 
-
 # Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -95,49 +87,48 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
-
-LANGUAGE_CODE = 'fr'  # Changé en français
-TIME_ZONE = 'UTC'
+LANGUAGE_CODE = 'fr-fr'
+TIME_ZONE = 'Europe/Paris'
 USE_I18N = True
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+    ]
 
-STATIC_URL = 'static/'
+# Media files
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
-# Configuration Django REST Framework
+# Django REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.BasicAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
     ],
-    # Configuration pour drf-spectacular
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
-# Configuration drf-spectacular (Swagger/OpenAPI)
+# drf-spectacular settings
 SPECTACULAR_SETTINGS = {
     'TITLE': 'SJConnect API',
-    'DESCRIPTION': 'API de gestion des entreprises et communication inter-entreprises',
+    'DESCRIPTION': 'API pour la plateforme de communication inter-entreprises SJConnect',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     'SCHEMA_PATH_PREFIX': '/api/',
@@ -148,6 +139,8 @@ SPECTACULAR_SETTINGS = {
         'persistAuthorization': True,
         'displayOperationId': True,
         'displayRequestDuration': True,
+        'filter': True,
+        'tryItOutEnabled': True,
     },
     'REDOC_UI_SETTINGS': {
         'hideDownloadButton': False,
@@ -157,19 +150,85 @@ SPECTACULAR_SETTINGS = {
         'theme': {
             'colors': {
                 'primary': {
-                    'main': '#1976d2'
+                    'main': '#007bff'
                 }
             }
         }
-    }
+    },
+    'TAGS': [
+        {'name': 'Authentification', 'description': 'Endpoints d\'authentification'},
+        {'name': 'Entreprises', 'description': 'Gestion des entreprises'},
+        {'name': 'Groupes', 'description': 'Gestion des groupes de discussion'},
+        {'name': 'Messages', 'description': 'Système de messagerie'},
+        {'name': 'Actualités', 'description': 'Gestion des actualités'},
+        {'name': 'Notifications', 'description': 'Système de notifications'},
+    ]
 }
 
-# Configuration CORS (pour permettre les requêtes depuis le frontend)
+# CORS settings
+CORS_ALLOW_ALL_ORIGINS = DEBUG  # Seulement en développement
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # React
-    "http://localhost:8080",  # Vue
+    "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+    "http://localhost:8080",
     "http://127.0.0.1:8080",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+# Security settings for development
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+    CSRF_TRUSTED_ORIGINS = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+    ]
+
+# Logging
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'debug.log',
+        },
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console', 'file'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
+
+# Custom settings
+MAX_UPLOAD_SIZE = 100 * 1024 * 1024  # 100MB
+ALLOWED_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
+ALLOWED_VIDEO_EXTENSIONS = ['.mp4', '.avi', '.mov', '.wmv', '.webm']
+ALLOWED_DOCUMENT_EXTENSIONS = ['.pdf', '.doc', '.docx', '.txt']
