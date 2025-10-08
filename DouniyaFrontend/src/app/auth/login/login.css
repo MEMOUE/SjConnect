@@ -1,0 +1,14 @@
+/* Fix pour l'icône dans l'input */
+.relative input {
+  padding-left: 2.5rem !important;
+}
+
+/* Boutons de type de compte */
+button[type="button"] {
+  cursor: pointer;
+}
+
+/* Assurer la visibilité de l'icône */
+.relative span {
+  pointer-events: none;
+}

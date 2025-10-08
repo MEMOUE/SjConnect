@@ -1,1 +1,273 @@
-<p>register-entrprise works!</p>
+<div class="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 py-12">
+  <div class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+    <!-- Header -->
+    <div class="text-center mb-8">
+      <div class="flex items-center justify-center space-x-2 mb-4">
+        <div class="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
+          <span class="text-white font-bold text-2xl">DC</span>
+        </div>
+        <span class="text-3xl font-bold text-blue-600">DouniyaConnect</span>
+      </div>
+      <h1 class="text-3xl font-bold text-gray-900 mb-2">Créer un compte entreprise</h1>
+      <p class="text-gray-600">Rejoignez le premier réseau professionnel africain souverain</p>
+    </div>
+
+    <!-- Formulaire -->
+    <div class="bg-white rounded-2xl shadow-xl p-8">
+      <form [formGroup]="registerForm" (ngSubmit)="onSubmit()">
+        <!-- Section 1: Informations générales -->
+        <div class="mb-8">
+          <h2 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
+            <span class="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center mr-3 text-sm">1</span>
+            Informations générales de l'entreprise
+          </h2>
+          
+          <div class="space-y-6">
+            <!-- Nom de l'entreprise -->
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">
+                Nom de l'entreprise <span class="text-red-500">*</span>
+              </label>
+              <input 
+                pInputText 
+                formControlName="nomEntreprise" 
+                placeholder="Raison sociale de l'entreprise"
+                class="w-full"
+              />
+              <small *ngIf="registerForm.get('nomEntreprise')?.invalid && registerForm.get('nomEntreprise')?.touched" class="text-red-500 block mt-1">
+                Le nom de l'entreprise est requis
+              </small>
+            </div>
+
+            <!-- Type d'entreprise -->
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">
+                Type d'entreprise <span class="text-red-500">*</span>
+              </label>
+              <p-select 
+                [options]="typesEntreprise" 
+                formControlName="typeEntreprise" 
+                placeholder="Sélectionnez un type" 
+                optionLabel="label" 
+                optionValue="value"
+                styleClass="w-full"
+              ></p-select>
+              <small *ngIf="registerForm.get('typeEntreprise')?.invalid && registerForm.get('typeEntreprise')?.touched" class="text-red-500 block mt-1">
+                Le type d'entreprise est requis
+              </small>
+            </div>
+
+            <!-- Secteur d'activité -->
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">
+                Secteur d'activité <span class="text-red-500">*</span>
+              </label>
+              <p-select 
+                [options]="secteursActivite" 
+                formControlName="secteurActivite" 
+                placeholder="Sélectionnez un secteur" 
+                optionLabel="label" 
+                optionValue="value"
+                styleClass="w-full"
+              ></p-select>
+              <small *ngIf="registerForm.get('secteurActivite')?.invalid && registerForm.get('secteurActivite')?.touched" class="text-red-500 block mt-1">
+                Le secteur d'activité est requis
+              </small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Coordonnées -->
+        <div class="mb-8">
+          <h2 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
+            <span class="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center mr-3 text-sm">2</span>
+            Coordonnées de l'entreprise
+          </h2>
+          
+          <div class="space-y-6">
+            <!-- Adresse physique -->
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">
+                Adresse physique <span class="text-red-500">*</span>
+              </label>
+              <textarea 
+                pTextarea 
+                formControlName="adressePhysique" 
+                rows="3" 
+                placeholder="Adresse complète, incluant le code postal et la ville"
+                class="w-full"
+              ></textarea>
+              <small *ngIf="registerForm.get('adressePhysique')?.invalid && registerForm.get('adressePhysique')?.touched" class="text-red-500 block mt-1">
+                L'adresse physique est requise
+              </small>
+            </div>
+
+            <!-- Numéro de téléphone -->
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">
+                Numéro de téléphone <span class="text-red-500">*</span>
+              </label>
+              <input 
+                pInputText 
+                formControlName="telephone" 
+                placeholder="Téléphone principal pour contact"
+                class="w-full"
+              />
+              <small *ngIf="registerForm.get('telephone')?.invalid && registerForm.get('telephone')?.touched" class="text-red-500 block mt-1">
+                Le numéro de téléphone est requis
+              </small>
+            </div>
+
+            <!-- Email -->
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">
+                Adresse e-mail de contact <span class="text-red-500">*</span>
+              </label>
+              <input 
+                pInputText 
+                type="email" 
+                formControlName="email" 
+                placeholder="Adresse email principale pour les notifications"
+                class="w-full"
+              />
+              <small *ngIf="registerForm.get('email')?.invalid && registerForm.get('email')?.touched" class="text-red-500 block mt-1">
+                Une adresse e-mail valide est requise
+              </small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: Compte utilisateur -->
+        <div class="mb-8">
+          <h2 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
+            <span class="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center mr-3 text-sm">3</span>
+            Compte utilisateur
+          </h2>
+          
+          <div class="space-y-6">
+            <!-- Nom d'utilisateur -->
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">
+                Nom d'utilisateur <span class="text-red-500">*</span>
+              </label>
+              <input 
+                pInputText 
+                formControlName="username" 
+                placeholder="Identifiant unique visible sur la plateforme"
+                class="w-full"
+              />
+              <small *ngIf="registerForm.get('username')?.invalid && registerForm.get('username')?.touched" class="text-red-500 block mt-1">
+                Le nom d'utilisateur est requis
+              </small>
+            </div>
+
+            <!-- Mot de passe -->
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">
+                Mot de passe <span class="text-red-500">*</span>
+              </label>
+              <p-password 
+                formControlName="password" 
+                [toggleMask]="true" 
+                placeholder="Min. 8 caractères, incluant majuscules, chiffres et symboles"
+                styleClass="w-full"
+              ></p-password>
+              <small *ngIf="registerForm.get('password')?.invalid && registerForm.get('password')?.touched" class="text-red-500 block mt-1">
+                Le mot de passe doit contenir au moins 8 caractères
+              </small>
+            </div>
+
+            <!-- Confirmation mot de passe -->
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">
+                Confirmation du mot de passe <span class="text-red-500">*</span>
+              </label>
+              <p-password 
+                formControlName="confirmPassword" 
+                [toggleMask]="true" 
+                [feedback]="false" 
+                placeholder="Re-saisir le mot de passe"
+                styleClass="w-full"
+              ></p-password>
+              <small *ngIf="registerForm.hasError('passwordMismatch') && registerForm.get('confirmPassword')?.touched" class="text-red-500 block mt-1">
+                Les mots de passe ne correspondent pas
+              </small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Acceptation des conditions -->
+        <div class="mb-8 p-6 bg-gradient-to-br from-blue-50 to-gray-50 rounded-xl border-2 border-blue-200 hover:border-blue-300 transition-all duration-200">
+          <div class="flex items-start gap-4">
+            <div class="flex-shrink-0">
+              <p-checkbox 
+                formControlName="acceptTerms" 
+                [binary]="true" 
+                inputId="terms"
+                styleClass="mt-1"
+              ></p-checkbox>
+            </div>
+            <label for="terms" class="text-sm text-gray-700 cursor-pointer select-none flex-1 leading-relaxed">
+              <span class="font-semibold">J'accepte les</span> 
+              <a href="#" class="text-blue-600 hover:text-blue-700 underline font-semibold transition-colors">conditions d'utilisation</a> 
+              <span class="font-semibold">et la</span> 
+              <a href="#" class="text-blue-600 hover:text-blue-700 underline font-semibold transition-colors">politique de confidentialité</a> 
+              <span class="font-semibold">de DouniyaConnect.</span>
+              <span class="text-red-500 ml-1">*</span>
+            </label>
+          </div>
+          <div *ngIf="registerForm.get('acceptTerms')?.invalid && registerForm.get('acceptTerms')?.touched" class="mt-3 ml-11">
+            <div class="flex items-center gap-2 text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-200">
+              <i class="pi pi-exclamation-circle"></i>
+              <small class="font-medium">
+                Vous devez accepter les conditions d'utilisation pour continuer
+              </small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Indicateur de validation -->
+        <div *ngIf="registerForm.get('acceptTerms')?.value" class="mb-6 p-4 bg-green-50 border-2 border-green-200 rounded-lg flex items-center gap-3">
+          <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+            <i class="pi pi-check text-white font-bold"></i>
+          </div>
+          <p class="text-sm text-green-800 font-medium">
+            Merci d'avoir accepté nos conditions. Vous pouvez maintenant créer votre compte.
+          </p>
+        </div>
+
+        <!-- Boutons -->
+        <div class="flex flex-col sm:flex-row gap-4">
+          <button 
+            pButton 
+            type="submit" 
+            [disabled]="registerForm.invalid || isLoading" 
+            class="flex-1 bg-blue-600 hover:bg-blue-700 text-white relative"
+          >
+            <span *ngIf="!isLoading">Créer mon compte entreprise</span>
+            <span *ngIf="isLoading" class="flex items-center justify-center">
+              <i class="pi pi-spin pi-spinner mr-2"></i>
+              Création en cours...
+            </span>
+          </button>
+          <button 
+            pButton 
+            type="button" 
+            label="Annuler" 
+            (click)="onCancel()" 
+            class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700" 
+            severity="secondary"
+          ></button>
+        </div>
+
+        <!-- Lien vers connexion -->
+        <div class="mt-6 text-center">
+          <p class="text-gray-600">
+            Vous avez déjà un compte ? 
+            <a routerLink="/connexion" class="text-blue-600 hover:underline font-semibold">Se connecter</a>
+          </p>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

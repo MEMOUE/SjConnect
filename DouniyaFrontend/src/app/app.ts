@@ -1,11 +1,19 @@
 import { Component, signal } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { ButtonModule } from 'primeng/button';
+import { ButtonDirective } from 'primeng/button';
+import { Footer } from './footer/footer';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, ButtonModule],
+  imports: [
+    RouterOutlet, 
+    RouterLink, 
+    RouterLinkActive, 
+    CommonModule, 
+    ButtonDirective, 
+    Footer
+  ],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
