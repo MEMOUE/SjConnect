@@ -1,7 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { ButtonDirective } from 'primeng/button';
 import { Footer } from './footer/footer';
 
 @Component({
@@ -11,7 +10,6 @@ import { Footer } from './footer/footer';
     RouterLink, 
     RouterLinkActive, 
     CommonModule, 
-    ButtonDirective, 
     Footer
   ],
   templateUrl: './app.html',

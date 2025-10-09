@@ -1,0 +1,14 @@
+/* Styles pour le formulaire d'ajout d'employé */
+.space-y-6 > * + * {
+  margin-top: 1.5rem;
+}
+
+label {
+  display: block;
+  font-weight: 600;
+  color: #374151;
+}
+
+h2 i {
+  flex-shrink: 0;
+}

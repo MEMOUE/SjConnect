@@ -1,0 +1,25 @@
+/* Styles spécifiques pour le formulaire d'inscription individu */
+.space-y-6 > * + * {
+  margin-top: 1.5rem;
+}
+
+/* Labels */
+label {
+  display: block;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* Section numérotée */
+h2 span {
+  flex-shrink: 0;
+}
+
+/* DatePicker PrimeNG */
+.p-datepicker {
+  width: 100%;
+}
+
+.p-datepicker input {
+  width: 100%;
+}

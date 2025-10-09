@@ -1,1 +1,221 @@
-<p>new-employer works!</p>
+<div class="min-h-screen bg-gradient-to-br from-purple-50 to-gray-100 py-12">
+  <div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+    <!-- Header -->
+    <div class="text-center mb-8">
+      <div class="flex items-center justify-center space-x-2 mb-4">
+        <div class="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center">
+          <i class="pi pi-user-plus text-white text-2xl"></i>
+        </div>
+        <span class="text-3xl font-bold text-purple-600">Ajouter un employé</span>
+      </div>
+      <p class="text-gray-600">Invitez un nouveau membre à rejoindre votre entreprise sur DouniyaConnect</p>
+    </div>
+
+    <!-- Formulaire -->
+    <div class="bg-white rounded-2xl shadow-xl p-8">
+      <form [formGroup]="employerForm" (ngSubmit)="onSubmit()">
+        <!-- Informations personnelles -->
+        <div class="mb-8">
+          <h2 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
+            <i class="pi pi-user text-purple-600 mr-3"></i>
+            Informations personnelles
+          </h2>
+          
+          <div class="space-y-6">
+            <!-- Prénom et Nom -->
+            <div class="grid md:grid-cols-2 gap-6">
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                  Prénom <span class="text-red-500">*</span>
+                </label>
+                <input 
+                  pInputText 
+                  formControlName="prenom" 
+                  placeholder="Prénom de l'employé"
+                  class="w-full"
+                />
+                <small *ngIf="employerForm.get('prenom')?.invalid && employerForm.get('prenom')?.touched" class="text-red-500 block mt-1">
+                  Le prénom est requis
+                </small>
+              </div>
+
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                  Nom <span class="text-red-500">*</span>
+                </label>
+                <input 
+                  pInputText 
+                  formControlName="nom" 
+                  placeholder="Nom de l'employé"
+                  class="w-full"
+                />
+                <small *ngIf="employerForm.get('nom')?.invalid && employerForm.get('nom')?.touched" class="text-red-500 block mt-1">
+                  Le nom est requis
+                </small>
+              </div>
+            </div>
+
+            <!-- Email et Téléphone -->
+            <div class="grid md:grid-cols-2 gap-6">
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                  Email professionnel <span class="text-red-500">*</span>
+                </label>
+                <input 
+                  pInputText 
+                  type="email" 
+                  formControlName="email" 
+                  placeholder="prenom.nom@entreprise.com"
+                  class="w-full"
+                />
+                <small *ngIf="employerForm.get('email')?.invalid && employerForm.get('email')?.touched" class="text-red-500 block mt-1">
+                  Une adresse e-mail valide est requise
+                </small>
+                <small class="text-gray-500 text-xs block mt-1">
+                  Un email d'invitation sera envoyé à cette adresse
+                </small>
+              </div>
+
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                  Téléphone <span class="text-red-500">*</span>
+                </label>
+                <input 
+                  pInputText 
+                  formControlName="telephone" 
+                  placeholder="+225 XX XX XX XX XX"
+                  class="w-full"
+                />
+                <small *ngIf="employerForm.get('telephone')?.invalid && employerForm.get('telephone')?.touched" class="text-red-500 block mt-1">
+                  Le téléphone est requis
+                </small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Informations professionnelles -->
+        <div class="mb-8">
+          <h2 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
+            <i class="pi pi-briefcase text-purple-600 mr-3"></i>
+            Informations professionnelles
+          </h2>
+          
+          <div class="space-y-6">
+            <!-- Poste et Département -->
+            <div class="grid md:grid-cols-2 gap-6">
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                  Poste <span class="text-red-500">*</span>
+                </label>
+                <input 
+                  pInputText 
+                  formControlName="poste" 
+                  placeholder="Ex: Développeur, Chef de projet..."
+                  class="w-full"
+                />
+                <small *ngIf="employerForm.get('poste')?.invalid && employerForm.get('poste')?.touched" class="text-red-500 block mt-1">
+                  Le poste est requis
+                </small>
+              </div>
+
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                  Département <span class="text-red-500">*</span>
+                </label>
+                <p-select 
+                  [options]="departements" 
+                  formControlName="departement" 
+                  placeholder="Sélectionnez un département" 
+                  optionLabel="label" 
+                  optionValue="value"
+                  styleClass="w-full"
+                ></p-select>
+                <small *ngIf="employerForm.get('departement')?.invalid && employerForm.get('departement')?.touched" class="text-red-500 block mt-1">
+                  Le département est requis
+                </small>
+              </div>
+            </div>
+
+            <!-- Rôle et Matricule -->
+            <div class="grid md:grid-cols-2 gap-6">
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                  Rôle dans la plateforme <span class="text-red-500">*</span>
+                </label>
+                <p-select 
+                  [options]="roles" 
+                  formControlName="role" 
+                  placeholder="Sélectionnez un rôle" 
+                  optionLabel="label" 
+                  optionValue="value"
+                  styleClass="w-full"
+                ></p-select>
+                <small *ngIf="employerForm.get('role')?.invalid && employerForm.get('role')?.touched" class="text-red-500 block mt-1">
+                  Le rôle est requis
+                </small>
+                <small class="text-gray-500 text-xs block mt-1">
+                  Définit les permissions de l'employé sur la plateforme
+                </small>
+              </div>
+
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                  Numéro de matricule (optionnel)
+                </label>
+                <input 
+                  pInputText 
+                  formControlName="numeroMatricule" 
+                  placeholder="Ex: EMP-2025-001"
+                  class="w-full"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Information box -->
+        <div class="mb-8 p-4 bg-purple-50 border-l-4 border-purple-600 rounded-lg">
+          <div class="flex items-start gap-3">
+            <i class="pi pi-info-circle text-purple-600 text-xl mt-1"></i>
+            <div class="text-sm text-gray-700">
+              <p class="font-semibold mb-1">Après validation :</p>
+              <ul class="list-disc list-inside space-y-1 text-gray-600">
+                <li>Un email d'invitation sera envoyé à l'employé</li>
+                <li>Il pourra créer son mot de passe et accéder à la plateforme</li>
+                <li>Ses accès seront configurés selon le rôle attribué</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Boutons -->
+        <div class="flex flex-col sm:flex-row gap-4">
+          <button 
+            pButton 
+            type="submit" 
+            [disabled]="employerForm.invalid || isLoading" 
+            class="flex-1 bg-purple-600 hover:bg-purple-700 text-white relative"
+          >
+            <span *ngIf="!isLoading">
+              <i class="pi pi-user-plus mr-2"></i>
+              Ajouter l'employé
+            </span>
+            <span *ngIf="isLoading" class="flex items-center justify-center">
+              <i class="pi pi-spin pi-spinner mr-2"></i>
+              Ajout en cours...
+            </span>
+          </button>
+          <button 
+            pButton 
+            type="button" 
+            label="Annuler" 
+            (click)="onCancel()" 
+            class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700" 
+            severity="secondary"
+          ></button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
