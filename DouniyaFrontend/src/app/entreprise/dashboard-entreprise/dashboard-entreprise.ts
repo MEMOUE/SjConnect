@@ -20,37 +20,37 @@ export class DashboardEntreprise {
 
   // KPIs alignés avec les objectifs du document
   stats = [
-    { 
-      label: 'Employés actifs', 
-      value: '45', 
-      icon: 'pi-users', 
+    {
+      label: 'Employés actifs',
+      value: '45',
+      icon: 'pi-users',
       color: 'blue',
       trend: '+5 ce mois',
       trendPositive: true,
       description: 'Collaboration interne'
     },
-    { 
-      label: 'Connexions B2B', 
-      value: '12', 
-      icon: 'pi-building', 
+    {
+      label: 'Connexions B2B',
+      value: '12',
+      icon: 'pi-building',
       color: 'purple',
       trend: '+3 nouvelles',
       trendPositive: true,
       description: 'Partenariats actifs'
     },
-    { 
-      label: 'Transactions Marketplace', 
-      value: '234', 
-      icon: 'pi-shopping-cart', 
+    {
+      label: 'Transactions Marketplace',
+      value: '234',
+      icon: 'pi-shopping-cart',
       color: 'green',
       trend: '+89 cette semaine',
       trendPositive: true,
       description: 'B2B & B2C'
     },
-    { 
-      label: 'Documents partagés', 
-      value: '1.2k', 
-      icon: 'pi-file', 
+    {
+      label: 'Documents partagés',
+      value: '1.2k',
+      icon: 'pi-file',
       color: 'orange',
       trend: '+156 ce mois',
       trendPositive: true,
@@ -60,31 +60,31 @@ export class DashboardEntreprise {
 
   // Actions rapides selon les fonctionnalités du document
   quickActions = [
-    { 
-      label: 'Ajouter un employé', 
-      icon: 'pi-user-plus', 
-      route: '/ajouter-employe', 
+    {
+      label: 'Ajouter un employé',
+      icon: 'pi-user-plus',
+      route: '/ajouter-employe',
       color: 'blue',
       description: 'Gérer votre équipe'
     },
-    { 
-      label: 'Espace B2B', 
-      icon: 'pi-building', 
-      route: '#', 
+    {
+      label: 'Espace B2B',
+      icon: 'pi-building',
+      route: '/entreprise/espace-b2b',
       color: 'purple',
       description: 'Collaboration inter-entreprises'
     },
-    { 
-      label: 'Visioconférence', 
-      icon: 'pi-video', 
-      route: '#', 
+    {
+      label: 'Visioconférence',
+      icon: 'pi-video',
+      route: '/entreprise/visio',
       color: 'green',
       description: 'Jusqu\'à 500 participants'
     },
-    { 
-      label: 'Marketplace', 
-      icon: 'pi-shopping-bag', 
-      route: '#', 
+    {
+      label: 'Marketplace',
+      icon: 'pi-shopping-bag',
+      route: '/entreprise/marketplace',
       color: 'orange',
       description: 'Appels d\'offres & services'
     }
@@ -124,36 +124,36 @@ export class DashboardEntreprise {
 
   // Activités récentes
   recentActivities = [
-    { 
-      user: 'Kouassi Jean', 
-      action: 'a créé un espace B2B avec', 
+    {
+      user: 'Kouassi Jean',
+      action: 'a créé un espace B2B avec',
       target: 'Banque Atlantique',
       time: 'Il y a 2 heures',
       icon: 'pi-building',
       color: 'purple',
       type: 'b2b'
     },
-    { 
-      user: 'Aminata Diallo', 
-      action: 'a publié une offre sur', 
+    {
+      user: 'Aminata Diallo',
+      action: 'a publié une offre sur',
       target: 'Marketplace',
       time: 'Il y a 3 heures',
       icon: 'pi-shopping-cart',
       color: 'green',
       type: 'marketplace'
     },
-    { 
-      user: 'Mohamed Traoré', 
-      action: 'a rejoint l\'équipe', 
+    {
+      user: 'Mohamed Traoré',
+      action: 'a rejoint l\'équipe',
       target: 'Département IT',
       time: 'Il y a 5 heures',
       icon: 'pi-user-plus',
       color: 'blue',
       type: 'team'
     },
-    { 
-      user: 'Fatou Koné', 
-      action: 'a lancé une visioconférence', 
+    {
+      user: 'Fatou Koné',
+      action: 'a lancé une visioconférence',
       target: '45 participants',
       time: 'Il y a 1 jour',
       icon: 'pi-video',
@@ -164,24 +164,24 @@ export class DashboardEntreprise {
 
   // Projets collaboratifs (B2B)
   projetsCollaboratifs = [
-    { 
-      name: 'Consortium Fintech UEMOA', 
+    {
+      name: 'Consortium Fintech UEMOA',
       partenaires: 5,
       secteur: 'Banque',
       statut: 'En cours',
       progression: 75,
       priority: 'high'
     },
-    { 
-      name: 'Marketplace agricole régionale', 
+    {
+      name: 'Marketplace agricole régionale',
       partenaires: 8,
       secteur: 'Agricole',
       statut: 'En cours',
       progression: 45,
       priority: 'medium'
     },
-    { 
-      name: 'Plateforme e-santé Afrique', 
+    {
+      name: 'Plateforme e-santé Afrique',
       partenaires: 3,
       secteur: 'Santé',
       statut: 'En cours',
@@ -205,21 +205,21 @@ export class DashboardEntreprise {
 
   // Notifications
   notifications = [
-    { 
-      message: 'Nouvelle demande de partenariat B2B de Orange CI', 
-      time: 'Il y a 1 heure', 
+    {
+      message: 'Nouvelle demande de partenariat B2B de Orange CI',
+      time: 'Il y a 1 heure',
       type: 'info',
       icon: 'pi-building'
     },
-    { 
-      message: 'Visioconférence régionale dans 30 minutes', 
-      time: 'Il y a 30 min', 
+    {
+      message: 'Visioconférence régionale dans 30 minutes',
+      time: 'Il y a 30 min',
       type: 'warning',
       icon: 'pi-video'
     },
-    { 
-      message: 'Nouvelle transaction marketplace : 500 000 FCFA', 
-      time: 'Il y a 2 heures', 
+    {
+      message: 'Nouvelle transaction marketplace : 500 000 FCFA',
+      time: 'Il y a 2 heures',
       type: 'success',
       icon: 'pi-money-bill'
     }

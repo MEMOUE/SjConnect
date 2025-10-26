@@ -1,1 +1,297 @@
-<p>visio-conference works!</p>
+<div class="visio-conference-container">
+  <!-- Meeting Room (when in meeting) -->
+  <div class="meeting-room" *ngIf="isInMeeting">
+    <div class="video-grid">
+      <div class="video-tile main-video">
+        <div class="video-content">
+          <span class="video-avatar">👨</span>
+          <span class="video-name">Mohamed Benali (Vous)</span>
+          <span class="video-status" *ngIf="!isVideoOn">📷 Caméra désactivée</span>
+        </div>
+      </div>
+      <div class="video-tile" *ngFor="let participant of participants.slice(0, 3)">
+        <div class="video-content">
+          <span class="video-avatar">{{ participant.avatar }}</span>
+          <span class="video-name">{{ participant.name }}</span>
+          <span class="video-indicators">
+            <span *ngIf="participant.isMuted">🔇</span>
+            <span *ngIf="!participant.isVideoOn">📷</span>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Meeting Controls -->
+    <div class="meeting-controls">
+      <button
+        class="control-btn"
+        [class.active]="isMuted"
+        (click)="toggleMute()">
+        <span class="control-icon">{{ isMuted ? '🔇' : '🎤' }}</span>
+        <span class="control-label">{{ isMuted ? 'Réactiver' : 'Muet' }}</span>
+      </button>
+
+      <button
+        class="control-btn"
+        [class.active]="!isVideoOn"
+        (click)="toggleVideo()">
+        <span class="control-icon">{{ isVideoOn ? '📹' : '📷' }}</span>
+        <span class="control-label">{{ isVideoOn ? 'Arrêter vidéo' : 'Démarrer vidéo' }}</span>
+      </button>
+
+      <button
+        class="control-btn"
+        [class.active]="isScreenSharing"
+        (click)="toggleScreenShare()">
+        <span class="control-icon">🖥️</span>
+        <span class="control-label">Partager écran</span>
+      </button>
+
+      <button
+        class="control-btn"
+        [class.active]="isRecording"
+        (click)="toggleRecording()">
+        <span class="control-icon">⏺️</span>
+        <span class="control-label">{{ isRecording ? 'Arrêter' : 'Enregistrer' }}</span>
+      </button>
+
+      <button
+        class="control-btn"
+        [class.active]="showParticipants"
+        (click)="toggleParticipants()">
+        <span class="control-icon">👥</span>
+        <span class="control-label">Participants</span>
+      </button>
+
+      <button
+        class="control-btn"
+        [class.active]="showChat"
+        (click)="toggleChat()">
+        <span class="control-icon">💬</span>
+        <span class="control-label">Chat</span>
+      </button>
+
+      <button class="control-btn end-call" (click)="endMeeting()">
+        <span class="control-icon">📞</span>
+        <span class="control-label">Terminer</span>
+      </button>
+    </div>
+
+    <!-- Sidebar (Participants or Chat) -->
+    <div class="meeting-sidebar" *ngIf="showParticipants || showChat">
+      <!-- Participants Panel -->
+      <div class="sidebar-panel" *ngIf="showParticipants">
+        <div class="panel-header">
+          <h3>Participants ({{ participants.length }})</h3>
+          <button class="close-btn" (click)="toggleParticipants()">✕</button>
+        </div>
+        <div class="participants-list">
+          <div class="participant-item" *ngFor="let participant of participants">
+            <span class="participant-avatar">{{ participant.avatar }}</span>
+            <div class="participant-info">
+              <p class="participant-name">
+                {{ participant.name }}
+                <span class="host-badge" *ngIf="participant.isHost">Hôte</span>
+              </p>
+              <p class="participant-email">{{ participant.email }}</p>
+            </div>
+            <div class="participant-status">
+              <span *ngIf="participant.isMuted">🔇</span>
+              <span *ngIf="!participant.isVideoOn">📷</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat Panel -->
+      <div class="sidebar-panel" *ngIf="showChat">
+        <div class="panel-header">
+          <h3>Chat</h3>
+          <button class="close-btn" (click)="toggleChat()">✕</button>
+        </div>
+        <div class="chat-messages">
+          <div class="chat-message" *ngFor="let msg of chatMessages">
+            <div class="message-header">
+              <span class="message-sender">{{ msg.sender }}</span>
+              <span class="message-time">{{ msg.time }}</span>
+            </div>
+            <p class="message-content">{{ msg.message }}</p>
+          </div>
+        </div>
+        <div class="chat-input">
+          <input type="text" placeholder="Tapez votre message...">
+          <button>Envoyer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dashboard (when not in meeting) -->
+  <div class="dashboard" *ngIf="!isInMeeting">
+    <div class="header">
+      <div class="header-content">
+        <h1>📹 Visioconférence</h1>
+        <p class="subtitle">Gérez vos réunions et conférences en ligne</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn-secondary">⚙️ Paramètres</button>
+        <button class="btn-primary" (click)="openNewMeetingForm()">➕ Nouvelle réunion</button>
+      </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon blue">📊</div>
+        <div class="stat-content">
+          <p class="stat-label">Total réunions</p>
+          <h3 class="stat-value">{{ stats.totalMeetings }}</h3>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green">⏱️</div>
+        <div class="stat-content">
+          <p class="stat-label">Heures ce mois</p>
+          <h3 class="stat-value">{{ stats.hoursThisMonth }}h</h3>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon purple">👥</div>
+        <div class="stat-content">
+          <p class="stat-label">Participants moyens</p>
+          <h3 class="stat-value">{{ stats.avgParticipants }}</h3>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon orange">📅</div>
+        <div class="stat-content">
+          <p class="stat-label">Aujourd'hui</p>
+          <h3 class="stat-value">{{ stats.upcomingToday }}</h3>
+        </div>
+      </div>
+    </div>
+
+    <!-- View Toggle -->
+    <div class="view-toggle">
+      <button
+        class="toggle-btn"
+        [class.active]="activeView === 'upcoming'"
+        (click)="activeView = 'upcoming'">
+        📅 À venir
+      </button>
+      <button
+        class="toggle-btn"
+        [class.active]="activeView === 'past'"
+        (click)="activeView = 'past'">
+        📝 Historique
+      </button>
+    </div>
+
+    <!-- Meetings List -->
+    <div class="meetings-section">
+      <!-- Upcoming Meetings -->
+      <div class="meetings-list" *ngIf="activeView === 'upcoming'">
+        <div class="meeting-card" *ngFor="let meeting of upcomingMeetings">
+          <div class="meeting-info">
+            <h3 class="meeting-title">{{ meeting.title }}</h3>
+            <div class="meeting-details">
+              <span class="detail-item">📅 {{ meeting.date }}</span>
+              <span class="detail-item">🕐 {{ meeting.time }}</span>
+              <span class="detail-item">⏱️ {{ meeting.duration }} min</span>
+              <span class="detail-item">👥 {{ meeting.participants }} participants</span>
+            </div>
+            <p class="meeting-host">Hôte: {{ meeting.host }}</p>
+            <div class="meeting-link">
+              <input type="text" [value]="meeting.link" readonly>
+              <button class="btn-copy" (click)="copyLink(meeting.link)">📋 Copier</button>
+            </div>
+          </div>
+          <div class="meeting-actions">
+            <button class="btn-action primary" (click)="joinMeeting(meeting)">
+              🎥 Rejoindre
+            </button>
+            <button class="btn-action" (click)="editMeeting(meeting)">✏️ Éditer</button>
+            <button class="btn-action delete" (click)="deleteMeeting(meeting)">🗑️</button>
+          </div>
+        </div>
+
+        <div class="empty-state" *ngIf="upcomingMeetings.length === 0">
+          <span class="empty-icon">📅</span>
+          <p>Aucune réunion à venir</p>
+        </div>
+      </div>
+
+      <!-- Past Meetings -->
+      <div class="meetings-list" *ngIf="activeView === 'past'">
+        <div class="meeting-card past" *ngFor="let meeting of pastMeetings">
+          <div class="meeting-info">
+            <h3 class="meeting-title">{{ meeting.title }}</h3>
+            <div class="meeting-details">
+              <span class="detail-item">📅 {{ meeting.date }}</span>
+              <span class="detail-item">🕐 {{ meeting.time }}</span>
+              <span class="detail-item">⏱️ {{ meeting.duration }} min</span>
+              <span class="detail-item">👥 {{ meeting.participants }} participants</span>
+            </div>
+            <p class="meeting-host">Hôte: {{ meeting.host }}</p>
+            <span class="status-badge completed">✓ Terminée</span>
+          </div>
+          <div class="meeting-actions">
+            <button class="btn-action">📊 Rapport</button>
+            <button class="btn-action">🎬 Enregistrement</button>
+          </div>
+        </div>
+
+        <div class="empty-state" *ngIf="pastMeetings.length === 0">
+          <span class="empty-icon">📝</span>
+          <p>Aucun historique</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Meeting Modal -->
+  <div class="modal-overlay" *ngIf="showNewMeetingForm" (click)="closeNewMeetingForm()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Nouvelle réunion</h2>
+        <button class="close-btn" (click)="closeNewMeetingForm()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Titre de la réunion</label>
+          <input type="text" [(ngModel)]="newMeeting.title" placeholder="Réunion d'équipe...">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" [(ngModel)]="newMeeting.date">
+          </div>
+          <div class="form-group">
+            <label>Heure</label>
+            <input type="time" [(ngModel)]="newMeeting.time">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Durée (minutes)</label>
+          <select [(ngModel)]="newMeeting.duration">
+            <option [value]="30">30 minutes</option>
+            <option [value]="60">1 heure</option>
+            <option [value]="90">1h 30</option>
+            <option [value]="120">2 heures</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Participants (emails séparés par des virgules)</label>
+          <textarea
+            [(ngModel)]="newMeeting.participants"
+            placeholder="email1@example.com, email2@example.com..."
+            rows="3"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeNewMeetingForm()">Annuler</button>
+        <button class="btn-primary" (click)="createMeeting()">Créer la réunion</button>
+      </div>
+    </div>
+  </div>
+</div>

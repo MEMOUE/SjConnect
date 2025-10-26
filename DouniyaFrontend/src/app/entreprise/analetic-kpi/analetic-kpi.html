@@ -1,1 +1,124 @@
-<p>analetic-kpi works!</p>
+<div class="analetic-kpi-container">
+  <div class="header">
+    <div class="header-content">
+      <h1>📊 Analytique & KPI</h1>
+      <p class="subtitle">Tableau de bord des indicateurs de performance</p>
+    </div>
+    <div class="header-actions">
+      <select [(ngModel)]="selectedPeriod" (change)="onPeriodChange(selectedPeriod)" class="period-select">
+        <option value="week">Cette semaine</option>
+        <option value="month">Ce mois</option>
+        <option value="quarter">Ce trimestre</option>
+        <option value="year">Cette année</option>
+      </select>
+      <button class="btn-secondary" (click)="refreshData()">🔄 Actualiser</button>
+      <button class="btn-primary" (click)="exportData()">📥 Exporter</button>
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="kpi-grid">
+    <div class="kpi-card" *ngFor="let kpi of kpis">
+      <div class="kpi-icon" [style.background-color]="kpi.color + '20'">
+        <span [style.color]="kpi.color">{{ kpi.icon }}</span>
+      </div>
+      <div class="kpi-content">
+        <p class="kpi-title">{{ kpi.title }}</p>
+        <h3 class="kpi-value">{{ kpi.value }}</h3>
+        <div class="kpi-change" [class.positive]="kpi.change > 0" [class.negative]="kpi.change < 0">
+          <span class="arrow">{{ kpi.change > 0 ? '↑' : '↓' }}</span>
+          <span>{{ kpi.change > 0 ? '+' : '' }}{{ kpi.change }}%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Section -->
+  <div class="charts-grid">
+    <!-- Revenue Chart -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <h3>📈 Évolution du chiffre d'affaires</h3>
+        <span class="chart-period">Derniers 6 mois</span>
+      </div>
+      <div class="chart-container">
+        <div class="bar-chart">
+          <div class="bar-wrapper" *ngFor="let data of revenueData">
+            <div class="bar" [style.height.%]="getBarHeight(data.value)">
+              <span class="bar-value">{{ (data.value / 1000).toFixed(0) }}k</span>
+            </div>
+            <span class="bar-label">{{ data.label }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top Products -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <h3>🏆 Top 5 Produits</h3>
+        <span class="chart-period">Par ventes</span>
+      </div>
+      <div class="products-list">
+        <div class="product-item" *ngFor="let product of topProducts; let i = index">
+          <div class="product-rank">{{ i + 1 }}</div>
+          <div class="product-info">
+            <p class="product-name">{{ product.name }}</p>
+            <p class="product-orders">{{ product.orders }} commandes</p>
+          </div>
+          <div class="product-sales">{{ product.sales.toLocaleString('fr-FR') }} €</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sales by Category -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <h3>🎯 Ventes par catégorie</h3>
+        <span class="chart-period">Distribution</span>
+      </div>
+      <div class="category-list">
+        <div class="category-item" *ngFor="let cat of salesByCategory">
+          <div class="category-info">
+            <span class="category-name">{{ cat.category }}</span>
+            <span class="category-value">{{ cat.value.toLocaleString('fr-FR') }} €</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" [style.width.%]="cat.percentage"></div>
+          </div>
+          <span class="category-percentage">{{ cat.percentage }}%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Statistics Summary -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <h3>📊 Statistiques détaillées</h3>
+        <span class="chart-period">Résumé</span>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <span class="stat-label">Panier moyen</span>
+          <span class="stat-value">100.55 €</span>
+          <span class="stat-trend positive">+5.2%</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Taux de conversion</span>
+          <span class="stat-value">3.8%</span>
+          <span class="stat-trend positive">+0.4%</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Nouveaux clients</span>
+          <span class="stat-value">234</span>
+          <span class="stat-trend positive">+12%</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Taux de retour</span>
+          <span class="stat-value">2.1%</span>
+          <span class="stat-trend negative">+0.3%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

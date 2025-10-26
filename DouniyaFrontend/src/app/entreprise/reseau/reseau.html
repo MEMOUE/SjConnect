@@ -1,0 +1,323 @@
+<div class="reseau-container">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-content">
+      <h1>🌐 Réseau Professionnel</h1>
+      <p class="subtitle">Connectez-vous avec des professionnels de votre secteur</p>
+    </div>
+    <div class="header-actions">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input
+          type="text"
+          [(ngModel)]="searchTerm"
+          placeholder="Rechercher des personnes, entreprises..."
+          class="search-input">
+      </div>
+      <button class="btn-primary" (click)="openNewPostModal()">✍️ Nouvelle publication</button>
+    </div>
+  </div>
+
+  <!-- Profile Summary -->
+  <div class="profile-summary">
+    <div class="profile-main">
+      <div class="profile-avatar-large">{{ currentUser.avatar }}</div>
+      <div class="profile-info">
+        <h2>{{ currentUser.name }}</h2>
+        <p class="profile-title">{{ currentUser.title }} chez {{ currentUser.company }}</p>
+        <div class="profile-stats">
+          <span class="stat-item">
+            <strong>{{ currentUser.connections }}</strong> connexions
+          </span>
+          <span class="stat-item">
+            <strong>{{ currentUser.followers }}</strong> abonnés
+          </span>
+        </div>
+      </div>
+    </div>
+    <div class="profile-metrics">
+      <div class="metric-item">
+        <span class="metric-icon">👁️</span>
+        <div class="metric-info">
+          <span class="metric-value">{{ stats.profileViews }}</span>
+          <span class="metric-label">Vues du profil</span>
+        </div>
+      </div>
+      <div class="metric-item">
+        <span class="metric-icon">📊</span>
+        <div class="metric-info">
+          <span class="metric-value">{{ stats.postImpressions }}</span>
+          <span class="metric-label">Impressions</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs Navigation -->
+  <div class="tabs-container">
+    <div class="tabs-nav">
+      <button
+        class="tab-btn"
+        [class.active]="activeTab === 'feed'"
+        (click)="setActiveTab('feed')">
+        📰 Fil d'actualité
+      </button>
+      <button
+        class="tab-btn"
+        [class.active]="activeTab === 'connections'"
+        (click)="setActiveTab('connections')">
+        👥 Réseau
+        <span class="tab-badge">{{ currentUser.connections }}</span>
+      </button>
+      <button
+        class="tab-btn"
+        [class.active]="activeTab === 'notifications'"
+        (click)="setActiveTab('notifications')">
+        🔔 Notifications
+        <span class="tab-badge alert" *ngIf="getUnreadCount() > 0">{{ getUnreadCount() }}</span>
+      </button>
+      <button
+        class="tab-btn"
+        [class.active]="activeTab === 'groups'"
+        (click)="setActiveTab('groups')">
+        👥 Groupes
+      </button>
+    </div>
+
+    <!-- Feed Tab -->
+    <div class="tab-content" *ngIf="activeTab === 'feed'">
+      <div class="feed-layout">
+        <div class="feed-main">
+          <div class="post-card" *ngFor="let post of posts">
+            <div class="post-header">
+              <div class="post-author">
+                <div class="author-avatar">{{ post.author.avatar }}</div>
+                <div class="author-info">
+                  <h4 class="author-name">{{ post.author.name }}</h4>
+                  <p class="author-title">{{ post.author.title }} • {{ post.author.company }}</p>
+                  <p class="post-time">{{ post.timestamp }}</p>
+                </div>
+              </div>
+              <button class="post-menu-btn">⋮</button>
+            </div>
+
+            <div class="post-content">
+              <p>{{ post.content }}</p>
+              <div class="post-image" *ngIf="post.image">
+                <span class="image-placeholder">{{ post.image }}</span>
+              </div>
+            </div>
+
+            <div class="post-stats">
+              <span>{{ post.likes }} J'aime</span>
+              <span>{{ post.comments }} commentaires</span>
+              <span>{{ post.shares }} partages</span>
+            </div>
+
+            <div class="post-actions">
+              <button
+                class="action-btn"
+                [class.active]="post.isLiked"
+                (click)="likePost(post)">
+                <span class="action-icon">{{ post.isLiked ? '❤️' : '🤍' }}</span>
+                <span>J'aime</span>
+              </button>
+              <button class="action-btn" (click)="commentPost(post)">
+                <span class="action-icon">💬</span>
+                <span>Commenter</span>
+              </button>
+              <button class="action-btn" (click)="sharePost(post)">
+                <span class="action-icon">🔄</span>
+                <span>Partager</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="feed-sidebar">
+          <!-- Trending Groups -->
+          <div class="sidebar-card">
+            <h3 class="sidebar-title">🔥 Groupes populaires</h3>
+            <div class="groups-list-mini">
+              <div class="group-item-mini" *ngFor="let group of groups.slice(0, 3)">
+                <span class="group-icon">{{ group.icon }}</span>
+                <div class="group-info">
+                  <p class="group-name">{{ group.name }}</p>
+                  <p class="group-members">{{ group.members }} membres</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Suggested Connections -->
+          <div class="sidebar-card">
+            <h3 class="sidebar-title">✨ Suggestions</h3>
+            <div class="suggestions-list">
+              <div class="suggestion-item" *ngFor="let connection of connections.slice(0, 3) | slice:0:3">
+                <div class="suggestion-avatar">{{ connection.avatar }}</div>
+                <div class="suggestion-info">
+                  <p class="suggestion-name">{{ connection.name }}</p>
+                  <p class="suggestion-title">{{ connection.title }}</p>
+                  <p class="suggestion-mutual">{{ connection.mutualConnections }} relations communes</p>
+                </div>
+                <button class="btn-connect-mini" (click)="connect(connection)">
+                  Se connecter
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Connections Tab -->
+    <div class="tab-content" *ngIf="activeTab === 'connections'">
+      <div class="connections-header">
+        <div class="filter-pills">
+          <button class="pill active">Tous</button>
+          <button class="pill">Récents</button>
+          <button class="pill">En attente</button>
+        </div>
+      </div>
+
+      <div class="connections-grid">
+        <div class="connection-card" *ngFor="let connection of connections">
+          <div class="connection-header">
+            <div class="connection-avatar">{{ connection.avatar }}</div>
+            <span class="connection-status" [ngClass]="getStatusClass(connection.status)">
+              {{ getStatusLabel(connection.status) }}
+            </span>
+          </div>
+          <h4 class="connection-name">{{ connection.name }}</h4>
+          <p class="connection-title">{{ connection.title }}</p>
+          <p class="connection-company">{{ connection.company }}</p>
+          <p class="connection-mutual">{{ connection.mutualConnections }} relations communes</p>
+
+          <div class="connection-actions">
+            <button
+              class="btn-action primary"
+              *ngIf="connection.status === 'suggested'"
+              (click)="connect(connection)">
+              Se connecter
+            </button>
+            <button
+              class="btn-action success"
+              *ngIf="connection.status === 'pending'"
+              (click)="acceptConnection(connection)">
+              Accepter
+            </button>
+            <button
+              class="btn-action"
+              *ngIf="connection.status === 'connected'"
+              (click)="viewProfile(connection.name)">
+              Voir le profil
+            </button>
+            <button
+              class="btn-action danger"
+              *ngIf="connection.status === 'connected'"
+              (click)="removeConnection(connection)">
+              Retirer
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notifications Tab -->
+    <div class="tab-content" *ngIf="activeTab === 'notifications'">
+      <div class="notifications-header">
+        <button class="btn-mark-read" (click)="markAllAsRead()">
+          ✓ Tout marquer comme lu
+        </button>
+      </div>
+
+      <div class="notifications-list">
+        <div
+          class="notification-item"
+          [class.unread]="!notification.isRead"
+          *ngFor="let notification of notifications"
+          (click)="markNotificationAsRead(notification)">
+          <span class="notification-icon">{{ getNotificationIcon(notification.type) }}</span>
+          <div class="notification-avatar">{{ notification.avatar }}</div>
+          <div class="notification-content">
+            <p>
+              <strong>{{ notification.user }}</strong>
+              {{ notification.action }}
+            </p>
+            <span class="notification-time">{{ notification.timestamp }}</span>
+          </div>
+          <span class="notification-dot" *ngIf="!notification.isRead"></span>
+        </div>
+      </div>
+
+      <div class="empty-state" *ngIf="notifications.length === 0">
+        <span class="empty-icon">🔔</span>
+        <p>Aucune notification</p>
+      </div>
+    </div>
+
+    <!-- Groups Tab -->
+    <div class="tab-content" *ngIf="activeTab === 'groups'">
+      <div class="groups-grid">
+        <div class="group-card" *ngFor="let group of groups">
+          <div class="group-header">
+            <span class="group-icon-large">{{ group.icon }}</span>
+            <span class="group-category">{{ group.category }}</span>
+          </div>
+          <h3 class="group-name">{{ group.name }}</h3>
+          <div class="group-stats">
+            <span class="group-stat">
+              <span class="stat-icon">👥</span>
+              {{ group.members }} membres
+            </span>
+            <span class="group-stat">
+              <span class="stat-icon">📝</span>
+              {{ group.posts }} publications
+            </span>
+          </div>
+          <button class="btn-join-group" (click)="joinGroup(group)">
+            Rejoindre le groupe
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Post Modal -->
+  <div class="modal-overlay" *ngIf="showNewPostModal" (click)="closeNewPostModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-user">
+          <div class="modal-avatar">{{ currentUser.avatar }}</div>
+          <div class="modal-user-info">
+            <h3>{{ currentUser.name }}</h3>
+            <p>Publier pour tous</p>
+          </div>
+        </div>
+        <button class="close-btn" (click)="closeNewPostModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <textarea
+          [(ngModel)]="newPostContent"
+          placeholder="De quoi voulez-vous parler ?"
+          class="post-textarea"
+          rows="8"></textarea>
+      </div>
+      <div class="modal-footer">
+        <div class="post-options">
+          <button class="option-btn">📷 Photo</button>
+          <button class="option-btn">🎥 Vidéo</button>
+          <button class="option-btn">📄 Document</button>
+          <button class="option-btn">📊 Sondage</button>
+        </div>
+        <button
+          class="btn-publish"
+          [disabled]="!newPostContent.trim()"
+          (click)="createPost()">
+          Publier
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
