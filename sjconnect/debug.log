@@ -1,3 +1,14 @@
 Watching for file changes with StatReloader
 "GET /api/docs/ HTTP/1.1" 200 4596
 "GET /api/schema/ HTTP/1.1" 200 211688
+Watching for file changes with StatReloader
+Not Found: /
+"GET / HTTP/1.1" 404 3616
+Not Found: /favicon.ico
+"GET /favicon.ico HTTP/1.1" 404 3667
+Not Found: /schema
+"GET /schema HTTP/1.1" 404 3652
+"GET /api/schema/ HTTP/1.1" 200 102275
+"GET /api/docs/ HTTP/1.1" 200 4596
+"GET /api/docs/ HTTP/1.1" 200 4596
+"GET /api/schema/ HTTP/1.1" 200 211688
