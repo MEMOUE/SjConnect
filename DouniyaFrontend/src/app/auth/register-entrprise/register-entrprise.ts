@@ -8,6 +8,10 @@ import { Select } from 'primeng/select';
 import { Password } from 'primeng/password';
 import { Checkbox } from 'primeng/checkbox';
 import { ButtonDirective } from 'primeng/button';
+import { Toast } from 'primeng/toast';
+import { MessageService } from 'primeng/api';
+import { AuthService } from '../../services/auth/auth.service';
+import { RegisterEntrepriseRequest } from '../../models/auth.interfaces';
 
 @Component({
   selector: 'app-register-entrprise',
@@ -20,8 +24,9 @@ import { ButtonDirective } from 'primeng/button';
     Select,
     Password,
     Checkbox,
-    ButtonDirective
+    ButtonDirective,
   ],
+  providers: [MessageService],
   templateUrl: './register-entrprise.html',
   styleUrl: './register-entrprise.css'
 })
@@ -52,7 +57,9 @@ export class RegisterEntrprise {
 
   constructor(
     private fb: FormBuilder,
-    private router: Router
+    private router: Router,
+    private authService: AuthService,
+    private messageService: MessageService
   ) {
     this.registerForm = this.fb.group({
       nomEntreprise: ['', Validators.required],
@@ -64,7 +71,10 @@ export class RegisterEntrprise {
       username: ['', Validators.required],
       password: ['', [Validators.required, Validators.minLength(8)]],
       confirmPassword: ['', Validators.required],
-      acceptTerms: [false, Validators.requiredTrue]
+      acceptTerms: [false, Validators.requiredTrue],
+      numeroRegistreCommerce: [''],
+      description: [''],
+      siteWeb: ['']
     }, {
       validators: this.passwordMatchValidator
     });
@@ -84,17 +94,67 @@ export class RegisterEntrprise {
   onSubmit() {
     if (this.registerForm.valid) {
       this.isLoading = true;
-      console.log('Formulaire soumis:', this.registerForm.value);
-      
-      // Simulation d'une requête API
-      setTimeout(() => {
-        this.isLoading = false;
-        alert('Compte entreprise créé avec succès !');
-        this.router.navigate(['/connexion']);
-      }, 2000);
+
+      const request: RegisterEntrepriseRequest = {
+        nomEntreprise: this.registerForm.value.nomEntreprise,
+        typeEntreprise: this.registerForm.value.typeEntreprise,
+        secteurActivite: this.registerForm.value.secteurActivite,
+        adressePhysique: this.registerForm.value.adressePhysique,
+        telephone: this.registerForm.value.telephone,
+        email: this.registerForm.value.email,
+        username: this.registerForm.value.username,
+        password: this.registerForm.value.password,
+        confirmPassword: this.registerForm.value.confirmPassword,
+        acceptTerms: this.registerForm.value.acceptTerms,
+        numeroRegistreCommerce: this.registerForm.value.numeroRegistreCommerce || undefined,
+        description: this.registerForm.value.description || undefined,
+        siteWeb: this.registerForm.value.siteWeb || undefined
+      };
+
+      this.authService.registerEntreprise(request).subscribe({
+        next: (response) => {
+          this.isLoading = false;
+
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Inscription réussie',
+            detail: response.message
+          });
+
+          setTimeout(() => {
+            this.router.navigate(['/connexion']);
+          }, 2000);
+        },
+        error: (error) => {
+          this.isLoading = false;
+
+          let errorMessage = 'Une erreur est survenue lors de l\'inscription';
+
+          if (error.error?.message) {
+            errorMessage = error.error.message;
+          } else if (error.error?.data) {
+            // Erreurs de validation
+            const validationErrors = Object.values(error.error.data).join(', ');
+            errorMessage = validationErrors;
+          }
+
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Erreur d\'inscription',
+            detail: errorMessage,
+            life: 5000
+          });
+        }
+      });
     } else {
       Object.keys(this.registerForm.controls).forEach(key => {
         this.registerForm.get(key)?.markAsTouched();
+      });
+
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Formulaire incomplet',
+        detail: 'Veuillez remplir tous les champs requis'
       });
     }
   }
