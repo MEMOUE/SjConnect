@@ -35,3 +35,131 @@
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out;
 }
+
+/* Animation pulse pour les indicateurs */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Smooth hover effects */
+button, a, input[type="checkbox"] {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Custom focus styles */
+textarea:focus,
+input:focus {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Emoji picker animation */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.emoji-picker-enter {
+  animation: slideDown 0.2s ease-out;
+}
+
+/* File attachment hover effect */
+.file-item:hover {
+  transform: translateX(5px);
+}
+
+/* Message card hover effect */
+.message-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.message-card:hover {
+  transform: translateY(-2px);
+}
+
+/* Responsive text overflow */
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Custom gradient backgrounds */
+.gradient-blue {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.gradient-green {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.gradient-purple {
+  background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+}
+
+/* Stats card animation */
+@keyframes countUp {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.stat-number {
+  animation: countUp 0.5s ease-out;
+}
+
+/* Tooltip styles */
+[title] {
+  position: relative;
+}
+
+/* Smooth color transitions */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Loading spinner */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Badge pulse effect */
+@keyframes badge-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.badge-pulse {
+  animation: badge-pulse 2s ease-in-out infinite;
+}
