@@ -1,8 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, BehaviorSubject, tap } from 'rxjs';
-declare const require: any;
-const environment = require('../../../environments/environment');
+import { environment } from '../../../environments/environment';
 import {
   RegisterEntrepriseRequest,
   RegisterParticulierRequest,
@@ -27,6 +26,9 @@ export class AuthService {
     const storedUser = this.getStoredUser();
     this.currentUserSubject = new BehaviorSubject<UserResponse | null>(storedUser);
     this.currentUser$ = this.currentUserSubject.asObservable();
+    
+    // Log pour vérifier l'URL (peut être retiré en production)
+    console.log('🔧 AuthService initialized with API URL:', this.apiUrl);
   }
 
   // ============================================
@@ -37,6 +39,7 @@ export class AuthService {
    * Inscription d'une entreprise
    */
   registerEntreprise(request: RegisterEntrepriseRequest): Observable<ApiResponse<void>> {
+    console.log('📤 POST:', `${this.apiUrl}/register/entreprise`);
     return this.http.post<ApiResponse<void>>(`${this.apiUrl}/register/entreprise`, request);
   }
 
@@ -44,6 +47,7 @@ export class AuthService {
    * Inscription d'un particulier
    */
   registerParticulier(request: RegisterParticulierRequest): Observable<ApiResponse<void>> {
+    console.log('📤 POST:', `${this.apiUrl}/register/particulier`);
     return this.http.post<ApiResponse<void>>(`${this.apiUrl}/register/particulier`, request);
   }
 
@@ -55,6 +59,7 @@ export class AuthService {
    * Connexion
    */
   login(request: LoginRequest): Observable<AuthResponse> {
+    console.log('📤 POST:', `${this.apiUrl}/login`);
     return this.http.post<AuthResponse>(`${this.apiUrl}/login`, request).pipe(
       tap(response => {
         // Stocker les tokens et l'utilisateur

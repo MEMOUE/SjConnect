@@ -34,6 +34,12 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String telephone;
 
+    @Column(name = "is_active", nullable = false)
+    private boolean isActive = true;
+
+    @Column(name = "accept_terms", nullable = false)
+    private boolean acceptTerms = true;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
@@ -63,6 +69,9 @@ public class User implements UserDetails {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
+        if (!isActive) {
+            isActive = true;
+        }
     }
 
     @PreUpdate

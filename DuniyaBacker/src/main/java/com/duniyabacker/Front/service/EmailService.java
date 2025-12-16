@@ -125,7 +125,7 @@ public class EmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            helper.setFrom(fromEmail);
+            helper.setFrom("noreply@duniyaconnect.com");
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(htmlContent, true);

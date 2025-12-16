@@ -18,16 +18,19 @@ spring:
         format_sql: true
 
   mail:
-    host: smtp.gmail.com
+    host: mail.duniyaconnect.com
     port: 587
-    username: ${MAIL_USERNAME:votre-email@gmail.com}
-    password: ${MAIL_PASSWORD:votre-mot-de-passe}
+    username: no-reply@duniyaconnect.com
+    password: 7V9zebGzvWFeAgT
     properties:
       mail:
         smtp:
           auth: true
           starttls:
             enable: true
+            required: true
+        transport:
+          protocol: smtp
 
 server:
   port: 8080
