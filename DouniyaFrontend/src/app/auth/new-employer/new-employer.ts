@@ -5,6 +5,9 @@ import { Router } from '@angular/router';
 import { InputText } from 'primeng/inputtext';
 import { Select } from 'primeng/select';
 import { ButtonDirective } from 'primeng/button';
+import { MessageService } from 'primeng/api';
+import { AuthEmployeService} from '../../services/auth/auth-employe.service'
+import { CreateEmployeRequest } from '../../models/auth.interfaces';
 
 @Component({
   selector: 'app-new-employer',
@@ -15,6 +18,7 @@ import { ButtonDirective } from 'primeng/button';
     Select,
     ButtonDirective
   ],
+  providers: [MessageService],
   templateUrl: './new-employer.html',
   styleUrl: './new-employer.css'
 })
@@ -44,7 +48,9 @@ export class NewEmployer {
 
   constructor(
     private fb: FormBuilder,
-    private router: Router
+    private router: Router,
+    private employeService: AuthEmployeService,
+    private messageService: MessageService
   ) {
     this.employerForm = this.fb.group({
       prenom: ['', Validators.required],
@@ -61,22 +67,66 @@ export class NewEmployer {
   onSubmit() {
     if (this.employerForm.valid) {
       this.isLoading = true;
-      console.log('Employé ajouté:', this.employerForm.value);
-      
-      // Simulation d'une requête API
-      setTimeout(() => {
-        this.isLoading = false;
-        alert('Employé ajouté avec succès ! Un email d\'invitation lui a été envoyé.');
-        this.router.navigate(['/']); // Rediriger vers le dashboard
-      }, 1500);
+
+      const request: CreateEmployeRequest = {
+        prenom: this.employerForm.value.prenom,
+        nom: this.employerForm.value.nom,
+        email: this.employerForm.value.email,
+        telephone: this.employerForm.value.telephone,
+        poste: this.employerForm.value.poste,
+        departement: this.employerForm.value.departement,
+        role: this.employerForm.value.role,
+        numeroMatricule: this.employerForm.value.numeroMatricule || undefined
+      };
+
+      this.employeService.createEmploye(request).subscribe({
+        next: (response) => {
+          this.isLoading = false;
+
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Employé ajouté',
+            detail: response.message
+          });
+
+          setTimeout(() => {
+            this.router.navigate(['/entreprise/equipe']);
+          }, 2000);
+        },
+        error: (error) => {
+          this.isLoading = false;
+
+          let errorMessage = 'Une erreur est survenue lors de l\'ajout de l\'employé';
+
+          if (error.error?.message) {
+            errorMessage = error.error.message;
+          } else if (error.error?.data) {
+            const validationErrors = Object.values(error.error.data).join(', ');
+            errorMessage = validationErrors;
+          }
+
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Erreur',
+            detail: errorMessage,
+            life: 5000
+          });
+        }
+      });
     } else {
       Object.keys(this.employerForm.controls).forEach(key => {
         this.employerForm.get(key)?.markAsTouched();
+      });
+
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Formulaire incomplet',
+        detail: 'Veuillez remplir tous les champs requis'
       });
     }
   }
 
   onCancel() {
-    this.router.navigate(['/']); // Retour au dashboard
+    this.router.navigate(['/entreprise/equipe']);
   }
 }

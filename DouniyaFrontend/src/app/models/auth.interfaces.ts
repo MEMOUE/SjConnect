@@ -87,17 +87,17 @@ export interface UserResponse {
   telephone: string;
   role: string;
   createdAt: string;
-  
+
   // Champs spécifiques entreprise
   nomEntreprise?: string;
   typeEntreprise?: string;
   secteurActivite?: string;
-  
+
   // Champs spécifiques particulier
   prenom?: string;
   nom?: string;
   genre?: string;
-  
+
   // Champs spécifiques employé
   poste?: string;
   departement?: string;

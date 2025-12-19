@@ -1,0 +1,21 @@
+/* Styles pour le formulaire d'acceptation d'invitation */
+.space-y-6 > * + * {
+  margin-top: 1.5rem;
+}
+
+label {
+  display: block;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* Animation pour le spinner */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.pi-spin {
+  animation: spin 1s linear infinite;
+}

@@ -1,0 +1,142 @@
+<div class="min-h-screen bg-gradient-to-br from-purple-600 via-purple-700 to-purple-800 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+  <div class="max-w-md w-full">
+    <!-- Header -->
+    <div class="text-center mb-8">
+      <div class="flex items-center justify-center space-x-2 mb-6">
+        <div class="w-16 h-16 bg-white rounded-lg flex items-center justify-center">
+          <i class="pi pi-user-plus text-purple-600 text-3xl"></i>
+        </div>
+        <span class="text-4xl font-bold text-white">DouniyaConnect</span>
+      </div>
+      <h1 class="text-3xl font-bold text-white mb-2">Accepter l'invitation</h1>
+      <p class="text-purple-100">Créez votre compte pour rejoindre votre entreprise</p>
+    </div>
+
+    <!-- Vérification du token -->
+    <div *ngIf="isCheckingToken" class="bg-white rounded-2xl shadow-2xl p-8 text-center">
+      <i class="pi pi-spin pi-spinner text-purple-600 text-4xl mb-4"></i>
+      <p class="text-gray-600">Vérification de votre invitation...</p>
+    </div>
+
+    <!-- Token invalide -->
+    <div *ngIf="!isCheckingToken && !tokenValid" class="bg-white rounded-2xl shadow-2xl p-8">
+      <div class="text-center mb-6">
+        <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <i class="pi pi-times text-red-600 text-3xl"></i>
+        </div>
+        <h2 class="text-xl font-bold text-gray-900 mb-2">Invitation invalide</h2>
+        <p class="text-gray-600">
+          Le lien d'invitation est invalide ou a expiré.
+          Veuillez contacter votre entreprise pour obtenir une nouvelle invitation.
+        </p>
+      </div>
+      <button
+        pButton
+        type="button"
+        label="Retour à l'accueil"
+        (click)="onCancel()"
+        class="w-full bg-purple-600 hover:bg-purple-700 text-white"
+      ></button>
+    </div>
+
+    <!-- Formulaire d'acceptation -->
+    <div *ngIf="!isCheckingToken && tokenValid" class="bg-white rounded-2xl shadow-2xl p-8">
+      <div class="mb-6 p-4 bg-purple-50 border-l-4 border-purple-600 rounded-lg">
+        <div class="flex items-start gap-3">
+          <i class="pi pi-info-circle text-purple-600 text-xl mt-1"></i>
+          <div class="text-sm text-gray-700">
+            <p class="font-semibold mb-1">Bienvenue !</p>
+            <p class="text-gray-600">
+              Créez votre nom d'utilisateur et votre mot de passe pour accéder à la plateforme.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <form [formGroup]="acceptForm" (ngSubmit)="onSubmit()">
+        <!-- Nom d'utilisateur -->
+        <div class="mb-6">
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Nom d'utilisateur <span class="text-red-500">*</span>
+          </label>
+          <input
+            pInputText
+            formControlName="username"
+            placeholder="Choisissez un nom d'utilisateur unique"
+            class="w-full"
+          />
+          <small *ngIf="acceptForm.get('username')?.invalid && acceptForm.get('username')?.touched" class="text-red-500 block mt-1">
+            Le nom d'utilisateur doit contenir au moins 3 caractères
+          </small>
+        </div>
+
+        <!-- Mot de passe -->
+        <div class="mb-6">
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Mot de passe <span class="text-red-500">*</span>
+          </label>
+          <p-password
+            formControlName="password"
+            [toggleMask]="true"
+            placeholder="Minimum 8 caractères"
+            styleClass="w-full"
+          ></p-password>
+          <small *ngIf="acceptForm.get('password')?.invalid && acceptForm.get('password')?.touched" class="text-red-500 block mt-1">
+            Le mot de passe doit contenir au moins 8 caractères
+          </small>
+        </div>
+
+        <!-- Confirmation mot de passe -->
+        <div class="mb-6">
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Confirmer le mot de passe <span class="text-red-500">*</span>
+          </label>
+          <p-password
+            formControlName="confirmPassword"
+            [toggleMask]="true"
+            [feedback]="false"
+            placeholder="Ressaisir le mot de passe"
+            styleClass="w-full"
+          ></p-password>
+          <small *ngIf="acceptForm.hasError('passwordMismatch') && acceptForm.get('confirmPassword')?.touched" class="text-red-500 block mt-1">
+            Les mots de passe ne correspondent pas
+          </small>
+        </div>
+
+        <!-- Boutons -->
+        <div class="flex flex-col gap-4">
+          <button
+            pButton
+            type="submit"
+            [disabled]="acceptForm.invalid || isLoading"
+            class="w-full bg-purple-600 hover:bg-purple-700 text-white relative"
+          >
+            <span *ngIf="!isLoading">
+              <i class="pi pi-check mr-2"></i>
+              Activer mon compte
+            </span>
+            <span *ngIf="isLoading" class="flex items-center justify-center">
+              <i class="pi pi-spin pi-spinner mr-2"></i>
+              Activation en cours...
+            </span>
+          </button>
+          <button
+            pButton
+            type="button"
+            label="Annuler"
+            (click)="onCancel()"
+            class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700"
+            severity="secondary"
+          ></button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Aide -->
+    <div class="mt-6 text-center">
+      <p class="text-purple-100 text-sm">
+        Besoin d'aide ? <a href="#" class="text-white hover:underline font-semibold">Contactez-nous</a>
+      </p>
+    </div>
+  </div>
+</div>

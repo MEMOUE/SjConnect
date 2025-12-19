@@ -8,6 +8,9 @@ import { Password } from 'primeng/password';
 import { Checkbox } from 'primeng/checkbox';
 import { ButtonDirective } from 'primeng/button';
 import { DatePicker } from 'primeng/datepicker';
+import { MessageService } from 'primeng/api';
+import { AuthService } from '../../services/auth/auth.service';
+import { RegisterParticulierRequest } from '../../models/auth.interfaces';
 
 @Component({
   selector: 'app-register-individu',
@@ -20,15 +23,16 @@ import { DatePicker } from 'primeng/datepicker';
     Password,
     Checkbox,
     ButtonDirective,
-    DatePicker
+    DatePicker,
   ],
+  providers: [MessageService],
   templateUrl: './register-individu.html',
   styleUrl: './register-individu.css'
 })
 export class RegisterIndividu {
   registerForm: FormGroup;
   isLoading = false;
-  maxDate = new Date(); // Date maximale = aujourd'hui
+  maxDate = new Date();
 
   genres = [
     { label: 'Homme', value: 'homme' },
@@ -51,7 +55,9 @@ export class RegisterIndividu {
 
   constructor(
     private fb: FormBuilder,
-    private router: Router
+    private router: Router,
+    private authService: AuthService,
+    private messageService: MessageService
   ) {
     this.registerForm = this.fb.group({
       prenom: ['', Validators.required],
@@ -86,17 +92,72 @@ export class RegisterIndividu {
   onSubmit() {
     if (this.registerForm.valid) {
       this.isLoading = true;
-      console.log('Formulaire soumis:', this.registerForm.value);
-      
-      // Simulation d'une requête API
-      setTimeout(() => {
-        this.isLoading = false;
-        alert('Compte individuel créé avec succès !');
-        this.router.navigate(['/connexion']);
-      }, 2000);
+
+      // Convertir la date au format ISO (YYYY-MM-DD)
+      const dateNaissance = this.registerForm.value.dateNaissance;
+      const formattedDate = dateNaissance instanceof Date
+        ? dateNaissance.toISOString().split('T')[0]
+        : dateNaissance;
+
+      const request: RegisterParticulierRequest = {
+        prenom: this.registerForm.value.prenom,
+        nom: this.registerForm.value.nom,
+        genre: this.registerForm.value.genre,
+        dateNaissance: formattedDate,
+        telephone: this.registerForm.value.telephone,
+        email: this.registerForm.value.email,
+        secteurActivite: this.registerForm.value.secteurActivite,
+        posteActuel: this.registerForm.value.posteActuel || undefined,
+        username: this.registerForm.value.username,
+        password: this.registerForm.value.password,
+        confirmPassword: this.registerForm.value.confirmPassword,
+        acceptTerms: this.registerForm.value.acceptTerms,
+        newsletter: this.registerForm.value.newsletter
+      };
+
+      this.authService.registerParticulier(request).subscribe({
+        next: (response) => {
+          this.isLoading = false;
+
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Inscription réussie',
+            detail: response.message
+          });
+
+          setTimeout(() => {
+            this.router.navigate(['/connexion']);
+          }, 2000);
+        },
+        error: (error) => {
+          this.isLoading = false;
+
+          let errorMessage = 'Une erreur est survenue lors de l\'inscription';
+
+          if (error.error?.message) {
+            errorMessage = error.error.message;
+          } else if (error.error?.data) {
+            const validationErrors = Object.values(error.error.data).join(', ');
+            errorMessage = validationErrors;
+          }
+
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Erreur d\'inscription',
+            detail: errorMessage,
+            life: 5000
+          });
+        }
+      });
     } else {
       Object.keys(this.registerForm.controls).forEach(key => {
         this.registerForm.get(key)?.markAsTouched();
+      });
+
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Formulaire incomplet',
+        detail: 'Veuillez remplir tous les champs requis'
       });
     }
   }
