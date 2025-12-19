@@ -30,7 +30,7 @@ export const routes: Routes = [
 
   // Routes entreprise (protégées)
   {
-    path: 'ajouter-employe',
+    path: 'entreprise/ajouter-employe',
     component: NewEmployer,
     canActivate: [EntrepriseGuard]
   },
