@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 declare const require: any;
-const environment = require('../../../environments/environment');
+import { environment } from '../../../environments/environment';
 import {
   CreateEmployeRequest,
   AcceptInvitationRequest,
