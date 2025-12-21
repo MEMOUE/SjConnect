@@ -1,160 +1,167 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-
-interface Message {
-  id: number;
-  senderId: number;
-  senderName: string;
-  senderAvatar: string;
-  content: string;
-  timestamp: Date;
-  isRead: boolean;
-  type: 'text' | 'file' | 'image';
-}
-
-interface Conversation {
-  id: number;
-  name: string;
-  avatar: string;
-  lastMessage: string;
-  lastMessageTime: Date;
-  unreadCount: number;
-  isOnline: boolean;
-  isGroup: boolean;
-}
+import { ChatService, Conversation, Message, ChatNotification } from '../../services/chat/chat.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-chat',
+  standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './chat.html',
   styleUrl: './chat.css'
 })
-export class Chat implements OnInit {
-  conversations: Conversation[] = [
-    {
-      id: 1,
-      name: 'Équipe IT',
-      avatar: 'IT',
-      lastMessage: 'La mise à jour est prévue pour demain',
-      lastMessageTime: new Date(Date.now() - 300000),
-      unreadCount: 3,
-      isOnline: true,
-      isGroup: true
-    },
-    {
-      id: 2,
-      name: 'Aminata Diallo',
-      avatar: 'AD',
-      lastMessage: 'Merci pour ton aide !',
-      lastMessageTime: new Date(Date.now() - 3600000),
-      unreadCount: 0,
-      isOnline: true,
-      isGroup: false
-    },
-    {
-      id: 3,
-      name: 'Projet Marketplace',
-      avatar: 'PM',
-      lastMessage: 'On se réunit cet après-midi ?',
-      lastMessageTime: new Date(Date.now() - 7200000),
-      unreadCount: 5,
-      isOnline: false,
-      isGroup: true
-    },
-    {
-      id: 4,
-      name: 'Mohamed Traoré',
-      avatar: 'MT',
-      lastMessage: 'J\'ai envoyé les documents',
-      lastMessageTime: new Date(Date.now() - 86400000),
-      unreadCount: 0,
-      isOnline: false,
-      isGroup: false
-    },
-    {
-      id: 5,
-      name: 'Direction',
-      avatar: 'DIR',
-      lastMessage: 'Réunion hebdomadaire demain à 10h',
-      lastMessageTime: new Date(Date.now() - 172800000),
-      unreadCount: 1,
-      isOnline: false,
-      isGroup: true
-    }
-  ];
+export class Chat implements OnInit, OnDestroy {
+  @ViewChild('messageContainer') private messageContainer!: ElementRef;
 
-  messages: Message[] = [
-    {
-      id: 1,
-      senderId: 2,
-      senderName: 'Kouassi Jean',
-      senderAvatar: 'KJ',
-      content: 'Bonjour l\'équipe ! Comment avance le projet ?',
-      timestamp: new Date(Date.now() - 3600000),
-      isRead: true,
-      type: 'text'
-    },
-    {
-      id: 2,
-      senderId: 1,
-      senderName: 'Vous',
-      senderAvatar: 'VO',
-      content: 'Ça avance bien ! On est à 75% de progression',
-      timestamp: new Date(Date.now() - 3000000),
-      isRead: true,
-      type: 'text'
-    },
-    {
-      id: 3,
-      senderId: 3,
-      senderName: 'Ibrahim Sanogo',
-      senderAvatar: 'IS',
-      content: 'La mise à jour est prévue pour demain',
-      timestamp: new Date(Date.now() - 300000),
-      isRead: false,
-      type: 'text'
-    }
-  ];
-
+  conversations: Conversation[] = [];
+  filteredConversations: Conversation[] = [];
   selectedConversation: Conversation | null = null;
+  messages: Message[] = [];
+
   newMessage = '';
   searchTerm = '';
-  filteredConversations: Conversation[] = [...this.conversations];
+
+  isLoading = false;
+  isConnected = false;
+
+  // Indicateur de frappe
+  typingUsers: Map<number, string[]> = new Map();
+  typingTimeout: any;
+
+  private subscriptions: Subscription[] = [];
+
+  constructor(private chatService: ChatService) {}
 
   ngOnInit() {
-    // Sélectionner la première conversation par défaut
-    if (this.conversations.length > 0) {
-      this.selectConversation(this.conversations[0]);
-    }
+    this.loadConversations();
+    this.connectToWebSocket();
+    this.setupWebSocketListeners();
   }
+
+  ngOnDestroy() {
+    this.subscriptions.forEach(sub => sub.unsubscribe());
+    this.chatService.disconnect();
+  }
+
+  // ============================================
+  // CHARGEMENT DES DONNÉES
+  // ============================================
+
+  loadConversations() {
+    this.isLoading = true;
+    const sub = this.chatService.getConversations().subscribe({
+      next: (response) => {
+        this.conversations = response.content.map((conv: any) => ({
+          id: conv.id,
+          name: conv.name,
+          avatar: conv.avatar,
+          lastMessage: conv.lastMessage?.content || '',
+          lastMessageTime: conv.lastMessage?.createdAt ? new Date(conv.lastMessage.createdAt) : new Date(),
+          unreadCount: conv.unreadCount,
+          isOnline: conv.isOnline,
+          isGroup: conv.isGroup,
+          participants: conv.participants
+        }));
+        this.filteredConversations = [...this.conversations];
+        this.isLoading = false;
+
+        // Sélectionner la première conversation par défaut
+        if (this.conversations.length > 0 && !this.selectedConversation) {
+          this.selectConversation(this.conversations[0]);
+        }
+      },
+      error: (error) => {
+        console.error('Erreur lors du chargement des conversations:', error);
+        this.isLoading = false;
+      }
+    });
+    this.subscriptions.push(sub);
+  }
+
+  loadMessages(conversationId: number) {
+    const sub = this.chatService.getMessages(conversationId).subscribe({
+      next: (response) => {
+        this.messages = response.content.map((msg: any) => ({
+          id: msg.id,
+          senderId: msg.senderId,
+          senderName: msg.senderName,
+          senderAvatar: msg.senderAvatar,
+          content: msg.content,
+          timestamp: new Date(msg.createdAt),
+          isRead: msg.isRead,
+          type: msg.type.toLowerCase(),
+          fileUrl: msg.fileUrl,
+          fileName: msg.fileName,
+          conversationId: msg.conversationId
+        })).reverse(); // Inverser pour avoir les plus récents en bas
+
+        // Marquer comme lus
+        this.chatService.markAsRead(conversationId).subscribe();
+
+        // Scroll vers le bas
+        setTimeout(() => this.scrollToBottom(), 100);
+      },
+      error: (error) => {
+        console.error('Erreur lors du chargement des messages:', error);
+      }
+    });
+    this.subscriptions.push(sub);
+  }
+
+  // ============================================
+  // WEBSOCKET
+  // ============================================
+
+  connectToWebSocket() {
+    this.chatService.connect();
+
+    const sub = this.chatService.isConnected$.subscribe(connected => {
+      this.isConnected = connected;
+      console.log('WebSocket status:', connected ? 'Connecté' : 'Déconnecté');
+    });
+    this.subscriptions.push(sub);
+  }
+
+  setupWebSocketListeners() {
+    // Nouveau message reçu
+    const msgSub = this.chatService.onMessageReceived$.subscribe({
+      next: (notification: ChatNotification) => {
+        this.handleNewMessage(notification);
+      }
+    });
+    this.subscriptions.push(msgSub);
+
+    // Notification de frappe
+    const typingSub = this.chatService.onTypingNotification$.subscribe({
+      next: (notification: ChatNotification) => {
+        this.handleTypingNotification(notification);
+      }
+    });
+    this.subscriptions.push(typingSub);
+
+    // Changement de statut utilisateur
+    const statusSub = this.chatService.onUserStatusChange$.subscribe({
+      next: (notification: ChatNotification) => {
+        this.handleUserStatusChange(notification);
+      }
+    });
+    this.subscriptions.push(statusSub);
+  }
+
+  // ============================================
+  // GESTION DES CONVERSATIONS
+  // ============================================
 
   selectConversation(conversation: Conversation) {
     this.selectedConversation = conversation;
     conversation.unreadCount = 0;
-  }
 
-  sendMessage() {
-    if (this.newMessage.trim() && this.selectedConversation) {
-      const message: Message = {
-        id: this.messages.length + 1,
-        senderId: 1,
-        senderName: 'Vous',
-        senderAvatar: 'VO',
-        content: this.newMessage,
-        timestamp: new Date(),
-        isRead: false,
-        type: 'text'
-      };
+    // Charger les messages
+    this.loadMessages(conversation.id);
 
-      this.messages.push(message);
-
-      // Mettre à jour la conversation
-      this.selectedConversation.lastMessage = this.newMessage;
-      this.selectedConversation.lastMessageTime = new Date();
-
-      this.newMessage = '';
-    }
+    // S'abonner aux notifications de cette conversation
+    this.chatService.subscribeToConversation(conversation.id);
   }
 
   searchConversations() {
@@ -166,6 +173,153 @@ export class Chat implements OnInit {
       this.filteredConversations = [...this.conversations];
     }
   }
+
+  // ============================================
+  // GESTION DES MESSAGES
+  // ============================================
+
+  sendMessage() {
+    if (!this.newMessage.trim() || !this.selectedConversation) {
+      return;
+    }
+
+    const content = this.newMessage;
+    this.newMessage = '';
+
+    // Arrêter l'indicateur de frappe
+    this.chatService.sendStopTypingNotification(this.selectedConversation.id);
+
+    const sub = this.chatService.sendMessage(
+      this.selectedConversation.id,
+      content
+    ).subscribe({
+      next: (response) => {
+        const message: Message = {
+          id: response.data.id,
+          senderId: response.data.senderId,
+          senderName: response.data.senderName,
+          senderAvatar: response.data.senderAvatar,
+          content: response.data.content,
+          timestamp: new Date(response.data.createdAt),
+          isRead: false,
+          type: 'text',
+          conversationId: response.data.conversationId
+        };
+
+        this.messages.push(message);
+
+        // Mettre à jour la conversation
+        if (this.selectedConversation) {
+          this.selectedConversation.lastMessage = content;
+          this.selectedConversation.lastMessageTime = new Date();
+        }
+
+        setTimeout(() => this.scrollToBottom(), 100);
+      },
+      error: (error) => {
+        console.error('Erreur lors de l\'envoi du message:', error);
+        this.newMessage = content; // Restaurer le message
+      }
+    });
+    this.subscriptions.push(sub);
+  }
+
+  onTyping() {
+    if (this.selectedConversation && this.newMessage.trim()) {
+      this.chatService.sendTypingNotification(this.selectedConversation.id);
+
+      // Arrêter automatiquement après 3 secondes d'inactivité
+      clearTimeout(this.typingTimeout);
+      this.typingTimeout = setTimeout(() => {
+        if (this.selectedConversation) {
+          this.chatService.sendStopTypingNotification(this.selectedConversation.id);
+        }
+      }, 3000);
+    }
+  }
+
+  // ============================================
+  // GESTION DES NOTIFICATIONS
+  // ============================================
+
+  handleNewMessage(notification: ChatNotification) {
+    if (!notification.message) return;
+
+    const message: Message = {
+      id: notification.message.id,
+      senderId: notification.message.senderId,
+      senderName: notification.message.senderName,
+      senderAvatar: notification.message.senderAvatar,
+      content: notification.message.content,
+      timestamp: new Date(notification.message.timestamp),
+      isRead: false,
+      type: notification.message.type,
+      conversationId: notification.message.conversationId
+    };
+
+    // Si c'est la conversation active, ajouter le message
+    if (this.selectedConversation?.id === notification.conversationId) {
+      this.messages.push(message);
+      setTimeout(() => this.scrollToBottom(), 100);
+
+      // Marquer comme lu
+      this.chatService.markAsRead(notification.conversationId).subscribe();
+    } else {
+      // Sinon, incrémenter le compteur de messages non lus
+      const conversation = this.conversations.find(c => c.id === notification.conversationId);
+      if (conversation) {
+        conversation.unreadCount++;
+        conversation.lastMessage = message.content;
+        conversation.lastMessageTime = message.timestamp;
+      }
+    }
+  }
+
+  handleTypingNotification(notification: ChatNotification) {
+    if (!this.selectedConversation || notification.conversationId !== this.selectedConversation.id) {
+      return;
+    }
+
+    if (!this.typingUsers.has(notification.conversationId)) {
+      this.typingUsers.set(notification.conversationId, []);
+    }
+
+    const users = this.typingUsers.get(notification.conversationId)!;
+
+    if (notification.type === 'USER_TYPING' && notification.username) {
+      if (!users.includes(notification.username)) {
+        users.push(notification.username);
+      }
+    } else if (notification.type === 'USER_STOP_TYPING' && notification.username) {
+      const index = users.indexOf(notification.username);
+      if (index > -1) {
+        users.splice(index, 1);
+      }
+    }
+  }
+
+  handleUserStatusChange(notification: ChatNotification) {
+    // Mettre à jour le statut en ligne des conversations
+    this.conversations.forEach(conv => {
+      if (!conv.isGroup && conv.participants) {
+        const participant = conv.participants.find(p => p.username === notification.username);
+        if (participant) {
+          conv.isOnline = notification.type === 'USER_ONLINE';
+        }
+      }
+    });
+  }
+
+  getTypingIndicator(conversationId: number): string {
+    const users = this.typingUsers.get(conversationId) || [];
+    if (users.length === 0) return '';
+    if (users.length === 1) return `${users[0]} est en train d'écrire...`;
+    return `${users.length} personnes sont en train d'écrire...`;
+  }
+
+  // ============================================
+  // UTILITAIRES
+  // ============================================
 
   formatTime(date: Date): string {
     const now = new Date();
@@ -186,5 +340,16 @@ export class Chat implements OnInit {
     const colors = ['blue', 'purple', 'green', 'orange', 'pink', 'indigo'];
     const index = name.length % colors.length;
     return colors[index];
+  }
+
+  scrollToBottom(): void {
+    try {
+      if (this.messageContainer) {
+        this.messageContainer.nativeElement.scrollTop =
+          this.messageContainer.nativeElement.scrollHeight;
+      }
+    } catch (err) {
+      console.error('Erreur lors du scroll:', err);
+    }
   }
 }
