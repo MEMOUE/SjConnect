@@ -34,12 +34,20 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final EmailService emailService;
 
+    public void validatePasswordConfirmation(String passworde,  String confirmation) {
+        if (!passworde.equals(confirmation)) {
+            throw new BadRequestException("Les mots de passe ne correspondent pas");
+        }
+
+    }
+
     @Transactional
     public ApiResponse<Void> registerEntreprise(RegisterEntrepriseRequest request) {
         // Vérifications
-        if (!request.getPassword().equals(request.getConfirmPassword())) {
-            throw new BadRequestException("Les mots de passe ne correspondent pas");
-        }
+        validatePasswordConfirmation(request.getPassword(), request.getConfirmPassword());
+//        if (!request.getPassword().equals(request.getConfirmPassword())) {
+//            throw new BadRequestException("Les mots de passe ne correspondent pas");
+//        }
 
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new ResourceAlreadyExistsException("Ce nom d'utilisateur est déjà utilisé");
@@ -82,9 +90,10 @@ public class AuthService {
     @Transactional
     public ApiResponse<Void> registerParticulier(RegisterParticulierRequest request) {
         // Vérifications
-        if (!request.getPassword().equals(request.getConfirmPassword())) {
-            throw new BadRequestException("Les mots de passe ne correspondent pas");
-        }
+        validatePasswordConfirmation(request.getPassword(), request.getConfirmPassword());
+//        if (!request.getPassword().equals(request.getConfirmPassword())) {
+//            throw new BadRequestException("Les mots de passe ne correspondent pas");
+//        }
 
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new ResourceAlreadyExistsException("Ce nom d'utilisateur est déjà utilisé");
@@ -184,9 +193,10 @@ public class AuthService {
 
     @Transactional
     public ApiResponse<Void> resetPassword(NewPasswordRequest request) {
-        if (!request.getPassword().equals(request.getConfirmPassword())) {
-            throw new BadRequestException("Les mots de passe ne correspondent pas");
-        }
+        validatePasswordConfirmation(request.getPassword(), request.getConfirmPassword());
+//        if (!request.getPassword().equals(request.getConfirmPassword())) {
+//            throw new BadRequestException("Les mots de passe ne correspondent pas");
+//        }
 
         User user = userRepository.findByResetPasswordToken(request.getToken())
                 .orElseThrow(() -> new BadRequestException("Token de réinitialisation invalide"));
