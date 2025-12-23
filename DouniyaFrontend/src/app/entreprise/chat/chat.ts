@@ -88,7 +88,7 @@ export class Chat implements OnInit, OnDestroy {
           senderName: msg.senderName,
           senderAvatar: msg.senderAvatar,
           content: msg.content,
-          timestamp: new Date(msg.createdAt),
+          timestamp: new Date(msg.createdAt || msg.timestamp || Date.now()),
           isRead: msg.isRead,
           type: msg.type.toLowerCase(),
           fileUrl: msg.fileUrl,
@@ -200,7 +200,7 @@ export class Chat implements OnInit, OnDestroy {
           senderName: response.data.senderName,
           senderAvatar: response.data.senderAvatar,
           content: response.data.content,
-          timestamp: new Date(response.data.createdAt),
+          timestamp: new Date(response.data.createdAt || response.data.timestamp || Date.now()),
           isRead: false,
           type: 'text',
           conversationId: response.data.conversationId
@@ -251,7 +251,7 @@ export class Chat implements OnInit, OnDestroy {
       senderName: notification.message.senderName,
       senderAvatar: notification.message.senderAvatar,
       content: notification.message.content,
-      timestamp: new Date(notification.message.timestamp),
+      timestamp: new Date(notification.message.timestamp || Date.now()),
       isRead: false,
       type: notification.message.type,
       conversationId: notification.message.conversationId

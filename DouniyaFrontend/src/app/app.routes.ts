@@ -7,7 +7,6 @@ import { NewEmployer } from './auth/new-employer/new-employer';
 import { AcceptInvitation } from './auth/accept-invitation/accept-invitation';
 import { DashboardEntreprise } from './entreprise/dashboard-entreprise/dashboard-entreprise';
 import { Equipe } from './entreprise/equipe/equipe';
-import { Chat } from './entreprise/chat/chat';
 import { EspaceB2B } from './entreprise/espace-b2-b/espace-b2-b';
 import { MarketPace } from './entreprise/market-pace/market-pace';
 import { VisioConference } from './entreprise/visio-conference/visio-conference';
@@ -16,6 +15,7 @@ import { Parametres } from './entreprise/parametres/parametres';
 import { Reseau } from './entreprise/reseau/reseau';
 import { ProjetB2b } from './entreprise/projet-b2b/projet-b2b';
 import { AuthGuard, EntrepriseGuard } from './guard/auth-guard';
+import {Chat} from './entreprise/chat/chat';
 
 export const routes: Routes = [
   // Routes publiques
