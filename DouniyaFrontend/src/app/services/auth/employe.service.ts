@@ -1,13 +1,13 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import {map, Observable} from 'rxjs';
-declare const require: any;
+import { map, Observable, catchError, tap, of } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   CreateEmployeRequest,
   AcceptInvitationRequest,
   ApiResponse,
-  EmployeResponse, EmployeSimple
+  EmployeResponse,
+  EmployeSimple
 } from '../../models/auth.model';
 
 @Injectable({
@@ -17,7 +17,9 @@ export class EmployeService {
   private apiUrl = environment.apiUrl + '/entreprise/employes';
   private authApiUrl = environment.apiUrl + '/auth';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) {
+    console.log('🔧 EmployeService initialized with API URL:', this.apiUrl);
+  }
 
   /**
    * Créer un nouvel employé (entreprise uniquement)
@@ -94,27 +96,84 @@ export class EmployeService {
    * Pour utilisation dans le chat
    */
   getAllEmployesForChat(): Observable<EmployeSimple[]> {
-    return this.http.get<any[]>(`${this.apiUrl}/all`).pipe(
-      map(employes => employes.map(emp => ({
-        id: emp.id,
-        name: `${emp.prenom} ${emp.nom}`,
-        email: emp.email,
-        poste: emp.poste,
-        departement: emp.departement,
-        avatar: this.getInitials(`${emp.prenom} ${emp.nom}`)
-      })))
+    console.log('📤 GET:', `${this.apiUrl}/all`);
+
+    return this.http.get<EmployeResponse[]>(`${this.apiUrl}/all`).pipe(
+      tap(employes => {
+        console.log('✅ Réponse brute du backend:', employes);
+        console.log('📊 Nombre d\'employés reçus:', employes?.length || 0);
+      }),
+      map(employes => {
+        if (!employes || !Array.isArray(employes)) {
+          console.warn('⚠️ La réponse n\'est pas un tableau:', employes);
+          return [];
+        }
+
+        const mappedEmployes = employes.map(emp => {
+          const fullName = `${emp.prenom} ${emp.nom}`;
+          return {
+            id: emp.id,
+            name: fullName,
+            email: emp.email,
+            poste: emp.poste,
+            departement: this.formatDepartement(emp.departement),
+            avatar: this.getInitials(fullName)
+          };
+        });
+
+        console.log('🔄 Employés transformés:', mappedEmployes);
+        return mappedEmployes;
+      }),
+      catchError(error => {
+        console.error('❌ Erreur lors du chargement des employés pour le chat:', error);
+        console.error('📋 Détails de l\'erreur:', {
+          status: error.status,
+          statusText: error.statusText,
+          message: error.message,
+          url: error.url
+        });
+
+        // Retourner un tableau vide en cas d'erreur
+        return of([]);
+      })
     );
+  }
+
+  /**
+   * Formater le département
+   */
+  private formatDepartement(dept: string): string {
+    const departementMap: { [key: string]: string } = {
+      'direction': 'Direction Générale',
+      'rh': 'Ressources Humaines',
+      'finance': 'Finance & Comptabilité',
+      'it': 'IT & Technologie',
+      'commercial': 'Commercial & Ventes',
+      'marketing': 'Marketing & Communication',
+      'production': 'Production',
+      'logistique': 'Logistique',
+      'service_client': 'Service Client',
+      'autre': 'Autre'
+    };
+
+    return departementMap[dept] || dept;
   }
 
   /**
    * Générer les initiales à partir d'un nom
    */
   private getInitials(name: string): string {
-    if (!name) return '??';
+    if (!name) {
+      console.warn('⚠️ Nom vide pour la génération d\'initiales');
+      return '??';
+    }
+
     const parts = name.trim().split(' ');
     if (parts.length >= 2) {
-      return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+      const initials = (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+      return initials;
     }
+
     return name.substring(0, 2).toUpperCase();
   }
 }
