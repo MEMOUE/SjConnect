@@ -10,7 +10,7 @@ import { ButtonDirective } from 'primeng/button';
 import { DatePicker } from 'primeng/datepicker';
 import { MessageService } from 'primeng/api';
 import { AuthService } from '../../services/auth/auth.service';
-import { RegisterParticulierRequest } from '../../models/auth.interfaces';
+import { RegisterParticulierRequest } from '../../models/auth.model';
 
 @Component({
   selector: 'app-register-individu',

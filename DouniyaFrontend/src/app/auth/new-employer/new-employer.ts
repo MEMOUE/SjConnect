@@ -6,8 +6,8 @@ import { InputText } from 'primeng/inputtext';
 import { Select } from 'primeng/select';
 import { ButtonDirective } from 'primeng/button';
 import { MessageService } from 'primeng/api';
-import { AuthEmployeService} from '../../services/auth/auth-employe.service'
-import { CreateEmployeRequest } from '../../models/auth.interfaces';
+import { EmployeService} from '../../services/auth/employe.service'
+import { CreateEmployeRequest } from '../../models/auth.model';
 
 @Component({
   selector: 'app-new-employer',
@@ -49,7 +49,7 @@ export class NewEmployer {
   constructor(
     private fb: FormBuilder,
     private router: Router,
-    private employeService: AuthEmployeService,
+    private employeService: EmployeService,
     private messageService: MessageService
   ) {
     this.employerForm = this.fb.group({

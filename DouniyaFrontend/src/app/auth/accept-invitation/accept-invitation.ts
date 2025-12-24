@@ -6,8 +6,8 @@ import { InputText } from 'primeng/inputtext';
 import { Password } from 'primeng/password';
 import { ButtonDirective } from 'primeng/button';
 import { MessageService } from 'primeng/api';
-import { AuthEmployeService} from '../../services/auth/auth-employe.service'
-import { AcceptInvitationRequest } from '../../models/auth.interfaces';
+import { EmployeService} from '../../services/auth/employe.service'
+import { AcceptInvitationRequest } from '../../models/auth.model';
 
 @Component({
   selector: 'app-accept-invitation',
@@ -31,7 +31,7 @@ export class AcceptInvitation implements OnInit {
     private fb: FormBuilder,
     private router: Router,
     private route: ActivatedRoute,
-    private employeService: AuthEmployeService,
+    private employeService: EmployeService,
     private messageService: MessageService
   ) {
     this.acceptForm = this.fb.group({

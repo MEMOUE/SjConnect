@@ -50,11 +50,20 @@
           </div>
         </div>
       </div>
+
+      <!-- Message si aucune conversation -->
+      <div *ngIf="!isLoading && filteredConversations.length === 0" class="p-8 text-center text-gray-500">
+        <i class="pi pi-inbox text-4xl text-gray-300 mb-3"></i>
+        <p class="text-sm">Aucune conversation</p>
+        <p class="text-xs mt-1">Créez une nouvelle conversation pour commencer</p>
+      </div>
     </div>
 
     <!-- Bouton nouvelle conversation -->
     <div class="p-4 border-t border-gray-200">
-      <button class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2">
+      <button
+        (click)="openNewConversationDialog()"
+        class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2">
         <i class="pi pi-plus"></i>
         <span>Nouvelle conversation</span>
       </button>
@@ -98,21 +107,21 @@
     <!-- Messages -->
     <div #messageContainer class="flex-1 overflow-y-auto p-6 space-y-4">
       <div *ngFor="let message of messages"
-           [class.justify-end]="message.senderId === 1"
+           [class.justify-end]="message.senderId === currentUserId"
            class="flex">
-        <div [class.items-end]="message.senderId === 1" class="flex flex-col max-w-[70%]">
-          <div *ngIf="message.senderId !== 1" class="flex items-center space-x-2 mb-1">
+        <div [class.items-end]="message.senderId === currentUserId" class="flex flex-col max-w-[70%]">
+          <div *ngIf="message.senderId !== currentUserId" class="flex items-center space-x-2 mb-1">
             <span class="text-xs font-semibold text-gray-700">{{message.senderName}}</span>
             <span class="text-xs text-gray-500">{{formatTime(message.timestamp)}}</span>
           </div>
-          <div [class.bg-blue-600]="message.senderId === 1"
-               [class.text-white]="message.senderId === 1"
-               [class.bg-white]="message.senderId !== 1"
-               [class.text-gray-900]="message.senderId !== 1"
+          <div [class.bg-blue-600]="message.senderId === currentUserId"
+               [class.text-white]="message.senderId === currentUserId"
+               [class.bg-white]="message.senderId !== currentUserId"
+               [class.text-gray-900]="message.senderId !== currentUserId"
                class="px-4 py-3 rounded-lg shadow-sm">
             <p class="text-sm">{{message.content}}</p>
           </div>
-          <div *ngIf="message.senderId === 1" class="flex items-center justify-end space-x-2 mt-1">
+          <div *ngIf="message.senderId === currentUserId" class="flex items-center justify-end space-x-2 mt-1">
             <span class="text-xs text-gray-500">{{formatTime(message.timestamp)}}</span>
             <i [class.text-blue-600]="message.isRead"
                [class.text-gray-400]="!message.isRead"
@@ -152,7 +161,7 @@
                 [disabled]="!newMessage.trim()"
                 [class.opacity-50]="!newMessage.trim()"
                 [class.cursor-not-allowed]="!newMessage.trim()"
-                class="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                class="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:hover:bg-blue-600">
           <i class="pi pi-send"></i>
         </button>
       </div>
@@ -172,3 +181,137 @@
     </div>
   </div>
 </div>
+
+<!-- Dialog pour nouvelle conversation -->
+<p-dialog
+  [(visible)]="showNewConversationDialog"
+  [modal]="true"
+  [style]="{width: '550px'}"
+  header="Nouvelle conversation"
+  [draggable]="false"
+  [resizable]="false">
+
+  <div class="space-y-4">
+    <!-- Nom de la conversation -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-2">
+        Nom de la conversation *
+      </label>
+      <input
+        type="text"
+        [(ngModel)]="newConversationName"
+        placeholder="Ex: Équipe Marketing, Discussion avec Jean"
+        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+      <p class="mt-1 text-xs text-gray-500">
+        Choisissez un nom descriptif pour identifier facilement la conversation
+      </p>
+    </div>
+
+    <!-- Type de conversation -->
+    <div class="flex items-center space-x-2">
+      <input
+        type="checkbox"
+        [(ngModel)]="isGroupConversation"
+        id="isGroup"
+        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer" />
+      <label for="isGroup" class="text-sm text-gray-700 cursor-pointer">
+        Conversation de groupe
+      </label>
+      <i class="pi pi-info-circle text-gray-400 text-xs"
+         title="Une conversation de groupe permet d'ajouter plusieurs participants"></i>
+    </div>
+
+    <!-- Sélection des participants -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-2">
+        Participants * (Employés de l'entreprise)
+      </label>
+
+      <!-- MultiSelect PrimeNG -->
+      <p-multiSelect
+        [(ngModel)]="selectedParticipants"
+        [options]="availableEmployes"
+        optionLabel="name"
+        placeholder="Sélectionnez un ou plusieurs employés"
+        [style]="{'width':'100%'}"
+        [filter]="true"
+        filterPlaceHolder="Rechercher un employé"
+        [showToggleAll]="true"
+        [maxSelectedLabels]="3"
+        selectedItemsLabel="{0} employés sélectionnés">
+
+        <!-- Template pour afficher un employé dans la liste -->
+        <ng-template let-employe pTemplate="item">
+          <div class="flex items-center space-x-3 py-2">
+            <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-semibold">
+              {{employe.avatar}}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm font-medium text-gray-900">{{employe.name}}</div>
+              <div class="text-xs text-gray-500">{{employe.poste}} • {{employe.departement}}</div>
+            </div>
+          </div>
+        </ng-template>
+
+        <!-- Template pour afficher les employés sélectionnés -->
+        <ng-template let-value pTemplate="selectedItems">
+          <div class="flex flex-wrap gap-2">
+            <div *ngFor="let employe of value"
+                 class="inline-flex items-center space-x-2 bg-blue-100 text-blue-800 px-2 py-1 rounded-md text-xs">
+              <span class="font-medium">{{employe.avatar}}</span>
+              <span>{{employe.name}}</span>
+            </div>
+          </div>
+          <div *ngIf="!value || value.length === 0" class="text-gray-500">
+            Aucun employé sélectionné
+          </div>
+        </ng-template>
+      </p-multiSelect>
+
+      <!-- Indicateur de chargement -->
+      <div *ngIf="isLoadingEmployes" class="mt-2 text-sm text-gray-500 flex items-center">
+        <i class="pi pi-spin pi-spinner mr-2"></i>
+        Chargement des employés...
+      </div>
+
+      <!-- Message si aucun employé -->
+      <div *ngIf="!isLoadingEmployes && availableEmployes.length === 0"
+           class="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+        <div class="flex items-start">
+          <i class="pi pi-exclamation-triangle text-yellow-600 mr-2 mt-0.5"></i>
+          <div class="text-sm text-yellow-800">
+            <p class="font-medium">Aucun employé disponible</p>
+            <p class="mt-1">Ajoutez des employés à votre entreprise pour créer des conversations.</p>
+          </div>
+        </div>
+      </div>
+
+      <p class="mt-2 text-xs text-gray-500">
+        <i class="pi pi-users mr-1"></i>
+        {{selectedParticipants.length}} employé(s) sélectionné(s) • Minimum 1 requis
+      </p>
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <div class="flex justify-end space-x-2 pt-4 border-t">
+      <button
+        type="button"
+        (click)="showNewConversationDialog = false"
+        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+        <i class="pi pi-times mr-2"></i>
+        Annuler
+      </button>
+      <button
+        type="button"
+        (click)="createConversation()"
+        [disabled]="!newConversationName.trim() || selectedParticipants.length === 0"
+        [class.opacity-50]="!newConversationName.trim() || selectedParticipants.length === 0"
+        [class.cursor-not-allowed]="!newConversationName.trim() || selectedParticipants.length === 0"
+        class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:hover:bg-blue-600 transition-colors">
+        <i class="pi pi-check mr-2"></i>
+        Créer la conversation
+      </button>
+    </div>
+  </ng-template>
+</p-dialog>

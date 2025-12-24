@@ -128,3 +128,12 @@ export interface EmployeResponse {
   enabled: boolean;
   createdAt: string;
 }
+
+export interface EmployeSimple {
+  id: number;
+  name: string;
+  email: string;
+  poste: string;
+  departement: string;
+  avatar: string;
+}

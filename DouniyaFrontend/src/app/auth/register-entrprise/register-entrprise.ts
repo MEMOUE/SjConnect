@@ -11,7 +11,7 @@ import { ButtonDirective } from 'primeng/button';
 import { Toast } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { AuthService } from '../../services/auth/auth.service';
-import { RegisterEntrepriseRequest } from '../../models/auth.interfaces';
+import { RegisterEntrepriseRequest } from '../../models/auth.model';
 
 @Component({
   selector: 'app-register-entrprise',

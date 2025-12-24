@@ -11,7 +11,7 @@ import { DatePicker } from 'primeng/datepicker';
 import { Toast } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { AuthService } from '../../services/auth/auth.service';
-import { RegisterParticulierRequest } from '../../models/auth.interfaces';
+import { RegisterParticulierRequest } from '../../models/auth.model';
 
 @Component({
   selector: 'app-register-individu',
@@ -96,7 +96,7 @@ export class RegisterIndividu {
 
       // Convertir la date au format ISO (YYYY-MM-DD)
       const dateNaissance = this.registerForm.value.dateNaissance;
-      const formattedDate = dateNaissance instanceof Date 
+      const formattedDate = dateNaissance instanceof Date
         ? dateNaissance.toISOString().split('T')[0]
         : dateNaissance;
 
@@ -119,7 +119,7 @@ export class RegisterIndividu {
       this.authService.registerParticulier(request).subscribe({
         next: (response) => {
           this.isLoading = false;
-          
+
           this.messageService.add({
             severity: 'success',
             summary: 'Inscription réussie',
@@ -132,9 +132,9 @@ export class RegisterIndividu {
         },
         error: (error) => {
           this.isLoading = false;
-          
+
           let errorMessage = 'Une erreur est survenue lors de l\'inscription';
-          
+
           if (error.error?.message) {
             errorMessage = error.error.message;
           } else if (error.error?.data) {
@@ -154,7 +154,7 @@ export class RegisterIndividu {
       Object.keys(this.registerForm.controls).forEach(key => {
         this.registerForm.get(key)?.markAsTouched();
       });
-      
+
       this.messageService.add({
         severity: 'warn',
         summary: 'Formulaire incomplet',

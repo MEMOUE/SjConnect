@@ -1,14 +1,24 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import {ChatService} from '../../services/chat/chat.service';
+import { DialogModule } from 'primeng/dialog';
+import { MultiSelectModule } from 'primeng/multiselect';
+import { ChatService } from '../../services/chat/chat.service';
+import { EmployeService } from '../../services/auth/employe.service';
+import { AuthService } from '../../services/auth/auth.service';
 import { Conversation, Message, ChatNotification } from '../../models/chat.model';
 import { Subscription } from 'rxjs';
+import {EmployeSimple} from '../../models/auth.model';
 
 @Component({
   selector: 'app-chat',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    DialogModule,
+    MultiSelectModule
+  ],
   templateUrl: './chat.html',
   styleUrl: './chat.css'
 })
@@ -26,18 +36,40 @@ export class Chat implements OnInit, OnDestroy {
   isLoading = false;
   isConnected = false;
 
+  // Dialog nouvelle conversation
+  showNewConversationDialog = false;
+  newConversationName = '';
+  isGroupConversation = false;
+  selectedParticipants: EmployeSimple[] = [];
+  availableEmployes: EmployeSimple[] = [];
+  isLoadingEmployes = false;
+
   // Indicateur de frappe
   typingUsers: Map<number, string[]> = new Map();
   typingTimeout: any;
 
+  // ID de l'utilisateur actuel
+  currentUserId: number = 1;
+
   private subscriptions: Subscription[] = [];
 
-  constructor(private chatService: ChatService) {}
+  constructor(
+    private chatService: ChatService,
+    private employeService: EmployeService,
+    private authService: AuthService
+  ) {}
 
   ngOnInit() {
+    // Récupérer l'utilisateur actuel
+    const currentUser = this.authService.getCurrentUserValue();
+    if (currentUser) {
+      this.currentUserId = currentUser.id;
+    }
+
     this.loadConversations();
     this.connectToWebSocket();
     this.setupWebSocketListeners();
+    this.loadEmployes();
   }
 
   ngOnDestroy() {
@@ -52,22 +84,21 @@ export class Chat implements OnInit, OnDestroy {
   loadConversations() {
     this.isLoading = true;
     const sub = this.chatService.getConversations().subscribe({
-      next: (response) => {
-        this.conversations = response.content.map((conv: any) => ({
+      next: (page) => {
+        this.conversations = page.content.map((conv: any) => ({
           id: conv.id,
           name: conv.name,
           avatar: conv.avatar,
           lastMessage: conv.lastMessage?.content || '',
           lastMessageTime: conv.lastMessage?.createdAt ? new Date(conv.lastMessage.createdAt) : new Date(),
-          unreadCount: conv.unreadCount,
-          isOnline: conv.isOnline,
+          unreadCount: conv.unreadCount || 0,
+          isOnline: conv.isOnline || false,
           isGroup: conv.isGroup,
-          participants: conv.participants
+          participants: conv.participants || []
         }));
         this.filteredConversations = [...this.conversations];
         this.isLoading = false;
 
-        // Sélectionner la première conversation par défaut
         if (this.conversations.length > 0 && !this.selectedConversation) {
           this.selectConversation(this.conversations[0]);
         }
@@ -80,27 +111,40 @@ export class Chat implements OnInit, OnDestroy {
     this.subscriptions.push(sub);
   }
 
+  loadEmployes() {
+    this.isLoadingEmployes = true;
+    const sub = this.employeService.getAllEmployesForChat().subscribe({
+      next: (employes) => {
+        this.availableEmployes = employes;
+        this.isLoadingEmployes = false;
+        console.log('✅ Employés chargés:', employes.length);
+      },
+      error: (error) => {
+        console.error('Erreur lors du chargement des employés:', error);
+        this.isLoadingEmployes = false;
+      }
+    });
+    this.subscriptions.push(sub);
+  }
+
   loadMessages(conversationId: number) {
     const sub = this.chatService.getMessages(conversationId).subscribe({
-      next: (response) => {
-        this.messages = response.content.map((msg: any) => ({
+      next: (page) => {
+        this.messages = page.content.map((msg: any) => ({
           id: msg.id,
           senderId: msg.senderId,
           senderName: msg.senderName,
           senderAvatar: msg.senderAvatar,
           content: msg.content,
-          timestamp: new Date(msg.createdAt || msg.timestamp || Date.now()),
+          timestamp: new Date(msg.createdAt || Date.now()),
           isRead: msg.isRead,
-          type: msg.type.toLowerCase(),
+          type: msg.type?.toLowerCase() || 'text',
           fileUrl: msg.fileUrl,
           fileName: msg.fileName,
-          conversationId: msg.conversationId
-        })).reverse(); // Inverser pour avoir les plus récents en bas
+          conversationId: conversationId
+        })).reverse();
 
-        // Marquer comme lus
         this.chatService.markAsRead(conversationId).subscribe();
-
-        // Scroll vers le bas
         setTimeout(() => this.scrollToBottom(), 100);
       },
       error: (error) => {
@@ -125,7 +169,6 @@ export class Chat implements OnInit, OnDestroy {
   }
 
   setupWebSocketListeners() {
-    // Nouveau message reçu
     const msgSub = this.chatService.onMessageReceived$.subscribe({
       next: (notification: ChatNotification) => {
         this.handleNewMessage(notification);
@@ -133,7 +176,6 @@ export class Chat implements OnInit, OnDestroy {
     });
     this.subscriptions.push(msgSub);
 
-    // Notification de frappe
     const typingSub = this.chatService.onTypingNotification$.subscribe({
       next: (notification: ChatNotification) => {
         this.handleTypingNotification(notification);
@@ -141,7 +183,6 @@ export class Chat implements OnInit, OnDestroy {
     });
     this.subscriptions.push(typingSub);
 
-    // Changement de statut utilisateur
     const statusSub = this.chatService.onUserStatusChange$.subscribe({
       next: (notification: ChatNotification) => {
         this.handleUserStatusChange(notification);
@@ -157,22 +198,76 @@ export class Chat implements OnInit, OnDestroy {
   selectConversation(conversation: Conversation) {
     this.selectedConversation = conversation;
     conversation.unreadCount = 0;
-
-    // Charger les messages
     this.loadMessages(conversation.id);
-
-    // S'abonner aux notifications de cette conversation
     this.chatService.subscribeToConversation(conversation.id);
   }
 
   searchConversations() {
     if (this.searchTerm.trim()) {
-      this.filteredConversations = this.conversations.filter(conv =>
-        conv.name.toLowerCase().includes(this.searchTerm.toLowerCase())
-      );
+      const sub = this.chatService.searchConversations(this.searchTerm).subscribe({
+        next: (results) => {
+          this.filteredConversations = results.map((conv: any) => ({
+            id: conv.id,
+            name: conv.name,
+            avatar: conv.avatar,
+            lastMessage: conv.lastMessage?.content || '',
+            lastMessageTime: conv.lastMessage?.createdAt ? new Date(conv.lastMessage.createdAt) : new Date(),
+            unreadCount: conv.unreadCount || 0,
+            isOnline: conv.isOnline || false,
+            isGroup: conv.isGroup,
+            participants: conv.participants || []
+          }));
+        },
+        error: () => {
+          this.filteredConversations = this.conversations.filter(conv =>
+            conv.name.toLowerCase().includes(this.searchTerm.toLowerCase())
+          );
+        }
+      });
+      this.subscriptions.push(sub);
     } else {
       this.filteredConversations = [...this.conversations];
     }
+  }
+
+  openNewConversationDialog() {
+    this.showNewConversationDialog = true;
+    this.newConversationName = '';
+    this.isGroupConversation = false;
+    this.selectedParticipants = [];
+
+    // Recharger les employés si nécessaire
+    if (this.availableEmployes.length === 0) {
+      this.loadEmployes();
+    }
+  }
+
+  createConversation() {
+    if (!this.newConversationName.trim() || this.selectedParticipants.length === 0) {
+      return;
+    }
+
+    const participantIds = this.selectedParticipants.map(p => p.id);
+
+    const sub = this.chatService.createConversation(
+      participantIds,
+      this.isGroupConversation,
+      this.newConversationName
+    ).subscribe({
+      next: (response) => {
+        console.log('✅ Conversation créée:', response);
+        this.showNewConversationDialog = false;
+        this.newConversationName = '';
+        this.isGroupConversation = false;
+        this.selectedParticipants = [];
+        this.loadConversations();
+      },
+      error: (error) => {
+        console.error('❌ Erreur lors de la création:', error);
+        alert('Erreur lors de la création de la conversation. Veuillez réessayer.');
+      }
+    });
+    this.subscriptions.push(sub);
   }
 
   // ============================================
@@ -187,7 +282,6 @@ export class Chat implements OnInit, OnDestroy {
     const content = this.newMessage;
     this.newMessage = '';
 
-    // Arrêter l'indicateur de frappe
     this.chatService.sendStopTypingNotification(this.selectedConversation.id);
 
     const sub = this.chatService.sendMessage(
@@ -195,21 +289,21 @@ export class Chat implements OnInit, OnDestroy {
       content
     ).subscribe({
       next: (response) => {
+        const msgData = response.data;
         const message: Message = {
-          id: response.data["id"],
-          senderId: response.data["senderId"],
-          senderName: response.data["senderName"],
-          senderAvatar: response.data["senderAvatar"],
-          content: response.data["content"],
-          timestamp: new Date(response.data["createdAt"] || response.data["timestamp"] || Date.now()),
+          id: msgData.id,
+          senderId: msgData.senderId,
+          senderName: msgData.senderName,
+          senderAvatar: msgData.senderAvatar,
+          content: msgData.content,
+          timestamp: new Date(msgData.createdAt || Date.now()),
           isRead: false,
           type: 'text',
-          conversationId: response.data["conversationId"]
+          conversationId: this.selectedConversation!.id
         };
 
         this.messages.push(message);
 
-        // Mettre à jour la conversation
         if (this.selectedConversation) {
           this.selectedConversation.lastMessage = content;
           this.selectedConversation.lastMessageTime = new Date();
@@ -219,7 +313,7 @@ export class Chat implements OnInit, OnDestroy {
       },
       error: (error) => {
         console.error('Erreur lors de l\'envoi du message:', error);
-        this.newMessage = content; // Restaurer le message
+        this.newMessage = content;
       }
     });
     this.subscriptions.push(sub);
@@ -229,7 +323,6 @@ export class Chat implements OnInit, OnDestroy {
     if (this.selectedConversation && this.newMessage.trim()) {
       this.chatService.sendTypingNotification(this.selectedConversation.id);
 
-      // Arrêter automatiquement après 3 secondes d'inactivité
       clearTimeout(this.typingTimeout);
       this.typingTimeout = setTimeout(() => {
         if (this.selectedConversation) {
@@ -246,27 +339,24 @@ export class Chat implements OnInit, OnDestroy {
   handleNewMessage(notification: ChatNotification) {
     if (!notification.message) return;
 
+    const msgData = notification.message;
     const message: Message = {
-      id: notification.message.id,
-      senderId: notification.message.senderId,
-      senderName: notification.message.senderName,
-      senderAvatar: notification.message.senderAvatar,
-      content: notification.message.content,
-      timestamp: new Date(notification.message.timestamp || Date.now()),
+      id: msgData.id,
+      senderId: msgData.senderId,
+      senderName: msgData.senderName,
+      senderAvatar: msgData.senderAvatar,
+      content: msgData.content,
+      timestamp: new Date(msgData.createdAt || msgData.timestamp || Date.now()),
       isRead: false,
-      type: notification.message.type,
-      conversationId: notification.message.conversationId
+      type: msgData.type,
+      conversationId: notification.conversationId
     };
 
-    // Si c'est la conversation active, ajouter le message
     if (this.selectedConversation?.id === notification.conversationId) {
       this.messages.push(message);
       setTimeout(() => this.scrollToBottom(), 100);
-
-      // Marquer comme lu
       this.chatService.markAsRead(notification.conversationId).subscribe();
     } else {
-      // Sinon, incrémenter le compteur de messages non lus
       const conversation = this.conversations.find(c => c.id === notification.conversationId);
       if (conversation) {
         conversation.unreadCount++;
@@ -300,7 +390,6 @@ export class Chat implements OnInit, OnDestroy {
   }
 
   handleUserStatusChange(notification: ChatNotification) {
-    // Mettre à jour le statut en ligne des conversations
     this.conversations.forEach(conv => {
       if (!conv.isGroup && conv.participants) {
         const participant = conv.participants.find(p => p.username === notification.username);

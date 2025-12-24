@@ -11,7 +11,7 @@ import {
   AuthResponse,
   ApiResponse,
   UserResponse
-} from '../../models/auth.interfaces';
+} from '../../models/auth.model';
 
 @Injectable({
   providedIn: 'root'
@@ -26,7 +26,7 @@ export class AuthService {
     const storedUser = this.getStoredUser();
     this.currentUserSubject = new BehaviorSubject<UserResponse | null>(storedUser);
     this.currentUser$ = this.currentUserSubject.asObservable();
-    
+
     // Log pour vérifier l'URL (peut être retiré en production)
     console.log('🔧 AuthService initialized with API URL:', this.apiUrl);
   }

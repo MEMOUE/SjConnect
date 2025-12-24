@@ -39,6 +39,7 @@ export interface ChatNotification {
   conversationId: number;
   username?: string;
   message?: {
+    createdAt: string;
     id: number;
     senderId: number;
     senderName: string;

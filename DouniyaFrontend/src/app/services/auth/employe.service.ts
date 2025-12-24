@@ -1,19 +1,19 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import {map, Observable} from 'rxjs';
 declare const require: any;
 import { environment } from '../../../environments/environment';
 import {
   CreateEmployeRequest,
   AcceptInvitationRequest,
   ApiResponse,
-  EmployeResponse
-} from '../../models/auth.interfaces';
+  EmployeResponse, EmployeSimple
+} from '../../models/auth.model';
 
 @Injectable({
   providedIn: 'root'
 })
-export class AuthEmployeService {
+export class EmployeService {
   private apiUrl = environment.apiUrl + '/entreprise/employes';
   private authApiUrl = environment.apiUrl + '/auth';
 
@@ -87,5 +87,34 @@ export class AuthEmployeService {
    */
   getEmployeCount(): Observable<number> {
     return this.http.get<number>(`${this.apiUrl}/count`);
+  }
+
+  /**
+   * Récupérer tous les employés de l'entreprise (sans pagination)
+   * Pour utilisation dans le chat
+   */
+  getAllEmployesForChat(): Observable<EmployeSimple[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/all`).pipe(
+      map(employes => employes.map(emp => ({
+        id: emp.id,
+        name: `${emp.prenom} ${emp.nom}`,
+        email: emp.email,
+        poste: emp.poste,
+        departement: emp.departement,
+        avatar: this.getInitials(`${emp.prenom} ${emp.nom}`)
+      })))
+    );
+  }
+
+  /**
+   * Générer les initiales à partir d'un nom
+   */
+  private getInitials(name: string): string {
+    if (!name) return '??';
+    const parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
   }
 }

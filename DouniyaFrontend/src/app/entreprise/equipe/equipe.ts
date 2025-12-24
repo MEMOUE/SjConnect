@@ -2,8 +2,8 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { AuthEmployeService } from '../../services/auth/auth-employe.service';
-import { EmployeResponse } from '../../models/auth.interfaces';
+import { EmployeService } from '../../services/auth/employe.service';
+import { EmployeResponse } from '../../models/auth.model';
 import { MessageService } from 'primeng/api';
 import { ToastModule } from 'primeng/toast';
 
@@ -51,7 +51,7 @@ export class Equipe implements OnInit {
   filterStatut = '';
 
   constructor(
-    private employeService: AuthEmployeService,
+    private employeService: EmployeService,
     private messageService: MessageService,
     private router: Router
   ) {}
