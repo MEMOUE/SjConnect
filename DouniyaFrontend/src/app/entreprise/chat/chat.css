@@ -1,0 +1,243 @@
+/* ============================================
+   CSS MINIMAL POUR DIALOG CHAT - TAILWIND ONLY
+   ============================================ */
+
+/* Animations personnalisées */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse-soft {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+/* ============================================
+   DIALOG - STYLES DE BASE
+   ============================================ */
+
+::ng-deep .p-dialog {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+  0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+  border-radius: 1rem !important;
+}
+
+::ng-deep .p-dialog-header {
+  padding: 1.5rem !important;
+  border-bottom: 1px solid #f3f4f6 !important;
+  background: linear-gradient(to bottom, #ffffff, #fafafa) !important;
+  border-top-left-radius: 1rem !important;
+  border-top-right-radius: 1rem !important;
+}
+
+::ng-deep .p-dialog-content {
+  padding: 1.5rem !important;
+  max-height: calc(90vh - 200px) !important;
+  overflow-y: auto !important;
+}
+
+::ng-deep .p-dialog-footer {
+  padding: 1.25rem 1.5rem !important;
+  border-top: 1px solid #f3f4f6 !important;
+  background-color: #fafafa !important;
+  border-bottom-left-radius: 1rem !important;
+  border-bottom-right-radius: 1rem !important;
+}
+
+/* ============================================
+   MULTISELECT - STYLES ESSENTIELS
+   ============================================ */
+
+/* Container principal */
+::ng-deep .p-multiselect {
+  border: 2px solid #e5e7eb !important;
+  border-radius: 0.75rem !important;
+  transition: all 0.2s ease !important;
+  min-height: 48px !important;
+}
+
+::ng-deep .p-multiselect:hover {
+  border-color: #cbd5e1 !important;
+}
+
+::ng-deep .p-multiselect.p-focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
+/* Label */
+::ng-deep .p-multiselect-label {
+  padding: 0.75rem !important;
+  font-size: 0.875rem !important;
+}
+
+::ng-deep .p-multiselect-label.p-placeholder {
+  color: #9ca3af !important;
+}
+
+/* Trigger */
+::ng-deep .p-multiselect-trigger {
+  width: 2.5rem !important;
+  color: #6b7280 !important;
+}
+
+/* ============================================
+   MULTISELECT PANEL (DROPDOWN)
+   ============================================ */
+
+::ng-deep .p-multiselect-panel {
+  border: 2px solid #e5e7eb !important;
+  border-radius: 0.875rem !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1) !important;
+  margin-top: 0.5rem !important;
+  animation: fadeIn 0.2s ease !important;
+}
+
+/* Header (filtre) */
+::ng-deep .p-multiselect-header {
+  padding: 1rem !important;
+  border-bottom: 1px solid #f3f4f6 !important;
+  background-color: #fafafa !important;
+}
+
+/* Input filtre */
+::ng-deep .p-multiselect-filter {
+  width: 100% !important;
+  padding: 0.625rem 2.5rem 0.625rem 0.75rem !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 0.5rem !important;
+  font-size: 0.875rem !important;
+}
+
+::ng-deep .p-multiselect-filter:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+  outline: none !important;
+}
+
+/* Liste des items */
+::ng-deep .p-multiselect-items-wrapper {
+  max-height: 320px !important;
+  overflow-y: auto !important;
+  padding: 0.5rem !important;
+}
+
+::ng-deep .p-multiselect-items {
+  padding: 0 !important;
+}
+
+/* Item individuel */
+::ng-deep .p-multiselect-item {
+  padding: 0.75rem !important;
+  border-radius: 0.625rem !important;
+  margin-bottom: 0.25rem !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+::ng-deep .p-multiselect-item:hover {
+  background-color: #f9fafb !important;
+}
+
+::ng-deep .p-multiselect-item.p-highlight {
+  background-color: #eff6ff !important;
+  color: #1e40af !important;
+}
+
+/* Checkbox */
+::ng-deep .p-multiselect-item .p-checkbox {
+  margin-right: 0.75rem !important;
+}
+
+::ng-deep .p-multiselect-item .p-checkbox .p-checkbox-box {
+  width: 1.25rem !important;
+  height: 1.25rem !important;
+  border: 2px solid #d1d5db !important;
+  border-radius: 0.375rem !important;
+  transition: all 0.2s ease !important;
+}
+
+::ng-deep .p-multiselect-item .p-checkbox .p-checkbox-box.p-highlight {
+  background-color: #3b82f6 !important;
+  border-color: #3b82f6 !important;
+}
+
+/* ============================================
+   SCROLLBAR PERSONNALISÉE
+   ============================================ */
+
+::ng-deep .p-multiselect-items-wrapper::-webkit-scrollbar {
+  width: 8px !important;
+}
+
+::ng-deep .p-multiselect-items-wrapper::-webkit-scrollbar-track {
+  background: #f3f4f6 !important;
+  border-radius: 4px !important;
+}
+
+::ng-deep .p-multiselect-items-wrapper::-webkit-scrollbar-thumb {
+  background: #cbd5e1 !important;
+  border-radius: 4px !important;
+}
+
+::ng-deep .p-multiselect-items-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8 !important;
+}
+
+::ng-deep .p-dialog-content::-webkit-scrollbar {
+  width: 8px !important;
+}
+
+::ng-deep .p-dialog-content::-webkit-scrollbar-track {
+  background: #f3f4f6 !important;
+  border-radius: 4px !important;
+}
+
+::ng-deep .p-dialog-content::-webkit-scrollbar-thumb {
+  background: #cbd5e1 !important;
+  border-radius: 4px !important;
+}
+
+/* ============================================
+   UTILITAIRES TAILWIND CUSTOMS
+   ============================================ */
+
+.animate-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Animation pulse douce pour le badge compteur */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
