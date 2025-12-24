@@ -1,7 +1,8 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ChatService, Conversation, Message, ChatNotification } from '../../services/chat/chat.service';
+import {ChatService} from '../../services/chat/chat.service';
+import { Conversation, Message, ChatNotification } from '../../models/chat.model';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -195,15 +196,15 @@ export class Chat implements OnInit, OnDestroy {
     ).subscribe({
       next: (response) => {
         const message: Message = {
-          id: response.data.id,
-          senderId: response.data.senderId,
-          senderName: response.data.senderName,
-          senderAvatar: response.data.senderAvatar,
-          content: response.data.content,
-          timestamp: new Date(response.data.createdAt || response.data.timestamp || Date.now()),
+          id: response.data["id"],
+          senderId: response.data["senderId"],
+          senderName: response.data["senderName"],
+          senderAvatar: response.data["senderAvatar"],
+          content: response.data["content"],
+          timestamp: new Date(response.data["createdAt"] || response.data["timestamp"] || Date.now()),
           isRead: false,
           type: 'text',
-          conversationId: response.data.conversationId
+          conversationId: response.data["conversationId"]
         };
 
         this.messages.push(message);

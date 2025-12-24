@@ -38,7 +38,6 @@ public class AuthService {
         if (!passworde.equals(confirmation)) {
             throw new BadRequestException("Les mots de passe ne correspondent pas");
         }
-
     }
 
     @Transactional
