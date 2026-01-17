@@ -5,6 +5,7 @@ import com.duniyabacker.front.dto.response.ApiResponse;
 import com.duniyabacker.front.dto.response.ConversationResponse;
 import com.duniyabacker.front.dto.response.MessageResponse;
 import com.duniyabacker.front.service.ChatService;
+import com.duniyabacker.front.service.FileStorageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,7 +18,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -27,6 +30,7 @@ import java.util.List;
 public class ChatController {
 
     private final ChatService chatService;
+    private final FileStorageService fileStorageService;
 
     /**
      * Créer une nouvelle conversation
@@ -82,6 +86,50 @@ public class ChatController {
     }
 
     /**
+     * Upload un fichier pour le chat
+     */
+    @Operation(summary = "Upload fichier", description = "Upload un fichier pour l'envoyer dans une conversation")
+    @PostMapping("/upload")
+    public ResponseEntity<ApiResponse<FileUploadResponse>> uploadFile(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Parameter(description = "Fichier à uploader") @RequestParam("file") MultipartFile file
+    ) {
+        try {
+            // Valider le fichier
+            if (file.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("Le fichier est vide"));
+            }
+
+            // Limite de 10MB
+            long maxSize = 10 * 1024 * 1024;
+            if (file.getSize() > maxSize) {
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("Le fichier est trop volumineux (max 10MB)"));
+            }
+
+            // Sauvegarder le fichier
+            String filename = fileStorageService.saveFile(file);
+            String fileUrl = fileStorageService.getFileUrl(filename);
+            String fileType = fileStorageService.getFileType(filename);
+
+            FileUploadResponse response = FileUploadResponse.builder()
+                    .filename(file.getOriginalFilename())
+                    .storedFilename(filename)
+                    .fileUrl(fileUrl)
+                    .fileType(fileType)
+                    .fileSize(file.getSize())
+                    .build();
+
+            return ResponseEntity.ok(ApiResponse.success("Fichier uploadé avec succès", response));
+
+        } catch (IOException e) {
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("Erreur lors de l'upload du fichier: " + e.getMessage()));
+        }
+    }
+
+    /**
      * Envoyer un message
      */
     @Operation(summary = "Envoyer un message", description = "Envoyer un nouveau message dans une conversation")
@@ -123,4 +171,17 @@ public class ChatController {
                 messageIds
         ));
     }
+}
+
+/**
+ * DTO pour la réponse d'upload de fichier
+ */
+@lombok.Data
+@lombok.Builder
+class FileUploadResponse {
+    private String filename;
+    private String storedFilename;
+    private String fileUrl;
+    private String fileType;
+    private Long fileSize;
 }

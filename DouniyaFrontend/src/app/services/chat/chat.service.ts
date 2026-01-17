@@ -92,6 +92,19 @@ export class ChatService {
   }
 
   /**
+   * Upload un fichier
+   */
+  uploadFile(file: File): Observable<ApiResponse<any>> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    return this.http.post<ApiResponse<any>>(
+      `${this.apiUrl}/upload`,
+      formData
+    );
+  }
+
+  /**
    * Envoyer un message
    */
   sendMessage(

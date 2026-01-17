@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DialogModule } from 'primeng/dialog';
 import { MultiSelectModule } from 'primeng/multiselect';
+import { FileUploadModule } from 'primeng/fileupload';
 import { ChatService } from '../../services/chat/chat.service';
 import { EmployeService } from '../../services/auth/employe.service';
 import { AuthService } from '../../services/auth/auth.service';
@@ -17,13 +18,15 @@ import {EmployeSimple} from '../../models/auth.model';
     CommonModule,
     FormsModule,
     DialogModule,
-    MultiSelectModule
+    MultiSelectModule,
+    FileUploadModule
   ],
   templateUrl: './chat.html',
   styleUrl: './chat.css'
 })
 export class Chat implements OnInit, OnDestroy {
   @ViewChild('messageContainer') private messageContainer!: ElementRef;
+  @ViewChild('fileInput') private fileInput!: ElementRef;
 
   conversations: Conversation[] = [];
   filteredConversations: Conversation[] = [];
@@ -43,6 +46,20 @@ export class Chat implements OnInit, OnDestroy {
   selectedParticipants: EmployeSimple[] = [];
   availableEmployes: EmployeSimple[] = [];
   isLoadingEmployes = false;
+
+  // Gestion des fichiers
+  selectedFile: File | null = null;
+  showEmojiPicker = false;
+
+  // Emojis populaires
+  popularEmojis = [
+    '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂',
+    '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩',
+    '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪',
+    '👍', '👎', '👌', '✌️', '🤞', '🤝', '👏', '🙌',
+    '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍',
+    '✅', '❌', '⭐', '🔥', '💯', '🎉', '🎊', '🎈'
+  ];
 
   // Indicateur de frappe
   typingUsers: Map<number, string[]> = new Map();
@@ -275,7 +292,7 @@ export class Chat implements OnInit, OnDestroy {
   // ============================================
 
   sendMessage() {
-    if (!this.newMessage.trim() || !this.selectedConversation) {
+    if ((!this.newMessage.trim() && !this.selectedFile) || !this.selectedConversation) {
       return;
     }
 
@@ -283,6 +300,13 @@ export class Chat implements OnInit, OnDestroy {
     this.newMessage = '';
 
     this.chatService.sendStopTypingNotification(this.selectedConversation.id);
+
+    // TODO: Implémenter l'upload de fichier
+    if (this.selectedFile) {
+      // Pour l'instant, on affiche juste le nom du fichier
+      console.log('Fichier sélectionné:', this.selectedFile.name);
+      this.selectedFile = null;
+    }
 
     const sub = this.chatService.sendMessage(
       this.selectedConversation.id,
@@ -330,6 +354,55 @@ export class Chat implements OnInit, OnDestroy {
         }
       }, 3000);
     }
+  }
+
+  // ============================================
+  // GESTION DES FICHIERS ET EMOJIS
+  // ============================================
+
+  openFileSelector() {
+    this.fileInput.nativeElement.click();
+  }
+
+  onFileSelected(event: any) {
+    const file = event.target.files[0];
+    if (file) {
+      // Vérifier la taille du fichier (max 10MB)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        alert('Le fichier est trop volumineux. Taille maximale : 10MB');
+        return;
+      }
+
+      this.selectedFile = file;
+      console.log('Fichier sélectionné:', file.name, 'Taille:', this.formatFileSize(file.size));
+
+      // Afficher le nom du fichier dans le champ de message
+      this.newMessage = `📎 ${file.name}`;
+    }
+  }
+
+  removeSelectedFile() {
+    this.selectedFile = null;
+    this.newMessage = '';
+    this.fileInput.nativeElement.value = '';
+  }
+
+  toggleEmojiPicker() {
+    this.showEmojiPicker = !this.showEmojiPicker;
+  }
+
+  addEmoji(emoji: string) {
+    this.newMessage += emoji;
+    this.showEmojiPicker = false;
+  }
+
+  formatFileSize(bytes: number): string {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   }
 
   // ============================================

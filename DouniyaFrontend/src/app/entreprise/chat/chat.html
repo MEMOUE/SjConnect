@@ -114,13 +114,45 @@
             <span class="text-xs font-semibold text-gray-700">{{message.senderName}}</span>
             <span class="text-xs text-gray-500">{{formatTime(message.timestamp)}}</span>
           </div>
+
           <div [class.bg-blue-600]="message.senderId === currentUserId"
                [class.text-white]="message.senderId === currentUserId"
                [class.bg-white]="message.senderId !== currentUserId"
                [class.text-gray-900]="message.senderId !== currentUserId"
                class="px-4 py-3 rounded-lg shadow-sm">
-            <p class="text-sm">{{message.content}}</p>
+
+            <!-- Message avec fichier IMAGE -->
+            <div *ngIf="message.type?.toUpperCase() === 'IMAGE' && message.fileUrl" class="space-y-2">
+              <img [src]="message.fileUrl"
+                   [alt]="message.fileName || 'Image'"
+                   class="max-w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                   style="max-height: 300px;">
+              <p *ngIf="message.content" class="text-sm">{{message.content}}</p>
+            </div>
+
+            <!-- Message avec fichier FILE -->
+            <div *ngIf="message.type?.toUpperCase() === 'FILE' && message.fileUrl" class="space-y-2">
+              <a [href]="message.fileUrl"
+                 target="_blank"
+                 class="flex items-center gap-3 p-3 rounded-lg transition-colors"
+                 [class.bg-blue-700]="message.senderId === currentUserId"
+                 [class.bg-gray-100]="message.senderId !== currentUserId"
+                 [class.text-white]="message.senderId === currentUserId"
+                 [class.text-gray-900]="message.senderId !== currentUserId">
+                <i class="pi pi-file text-2xl"></i>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium truncate">{{message.fileName || 'Fichier'}}</p>
+                  <p class="text-xs opacity-75">Cliquez pour télécharger</p>
+                </div>
+                <i class="pi pi-download"></i>
+              </a>
+              <p *ngIf="message.content" class="text-sm">{{message.content}}</p>
+            </div>
+
+            <!-- Message texte simple -->
+            <p *ngIf="message.type?.toUpperCase() === 'TEXT'" class="text-sm">{{message.content}}</p>
           </div>
+
           <div *ngIf="message.senderId === currentUserId" class="flex items-center justify-end space-x-2 mt-1">
             <span class="text-xs text-gray-500">{{formatTime(message.timestamp)}}</span>
             <i [class.text-blue-600]="message.isRead"
@@ -144,23 +176,68 @@
 
     <!-- Input pour nouveau message -->
     <div class="bg-white border-t border-gray-200 p-4">
-      <div class="flex items-center space-x-3">
-        <button class="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+      <!-- Input fichier caché -->
+      <input #fileInput
+             type="file"
+             (change)="onFileSelected($event)"
+             class="hidden"
+             accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip">
+
+      <!-- Indicateur de fichier sélectionné -->
+      <div *ngIf="selectedFile" class="mb-2 flex items-center gap-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+        <i class="pi pi-file text-blue-600"></i>
+        <span class="flex-1 text-sm text-blue-800 truncate">{{selectedFile.name}}</span>
+        <span class="text-xs text-blue-600">{{formatFileSize(selectedFile.size)}}</span>
+        <button (click)="removeSelectedFile()"
+                class="p-1 text-red-600 hover:bg-red-100 rounded transition-colors">
+          <i class="pi pi-times text-sm"></i>
+        </button>
+      </div>
+
+      <div class="flex items-center space-x-3 relative">
+        <button (click)="openFileSelector()"
+                title="Joindre un fichier"
+                class="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
           <i class="pi pi-paperclip text-xl"></i>
         </button>
-        <button class="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-          <i class="pi pi-image text-xl"></i>
+
+        <button (click)="toggleEmojiPicker()"
+                title="Ajouter un emoji"
+                class="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+          <i class="pi pi-face-smile text-xl"></i>
         </button>
+
+        <!-- Sélecteur d'emojis -->
+        <div *ngIf="showEmojiPicker"
+             class="absolute bottom-full left-0 mb-2 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-72 z-50">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-sm font-semibold text-gray-700">Emojis</span>
+            <button (click)="showEmojiPicker = false"
+                    class="p-1 text-gray-400 hover:text-gray-600 rounded transition-colors">
+              <i class="pi pi-times text-sm"></i>
+            </button>
+          </div>
+          <div class="grid grid-cols-8 gap-1 max-h-48 overflow-y-auto">
+            <button *ngFor="let emoji of popularEmojis"
+                    (click)="addEmoji(emoji)"
+                    class="p-2 text-2xl hover:bg-gray-100 rounded transition-colors">
+              {{emoji}}
+            </button>
+          </div>
+        </div>
+
         <input [(ngModel)]="newMessage"
                (keyup.enter)="sendMessage()"
                (input)="onTyping()"
                type="text"
                placeholder="Écrivez votre message..."
-               class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+               [disabled]="!!selectedFile"
+               class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed">
+
         <button (click)="sendMessage()"
-                [disabled]="!newMessage.trim()"
-                [class.opacity-50]="!newMessage.trim()"
-                [class.cursor-not-allowed]="!newMessage.trim()"
+                [disabled]="!newMessage.trim() && !selectedFile"
+                [class.opacity-50]="!newMessage.trim() && !selectedFile"
+                [class.cursor-not-allowed]="!newMessage.trim() && !selectedFile"
                 class="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:hover:bg-blue-600">
           <i class="pi pi-send"></i>
         </button>
