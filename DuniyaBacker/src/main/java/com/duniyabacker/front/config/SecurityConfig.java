@@ -52,6 +52,7 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/api/auth/login/**"
                         ).permitAll()
+                        .requestMatchers("/api/shared/**").authenticated()
                         // Endpoints pour les entreprises uniquement
                         .requestMatchers("/api/entreprise/**").hasRole("ENTREPRISE")
                         // Endpoints pour les employés

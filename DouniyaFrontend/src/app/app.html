@@ -1,84 +1,88 @@
 <header class="bg-white shadow-md sticky top-0 z-50">
   <nav class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
     <div class="flex h-16 justify-between items-center">
-      <div class="flex items-center">
-        <a href="/" class="flex items-center space-x-2">
-          <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-            <span class="text-white font-bold text-xl">DC</span>
-          </div>
-          <span class="text-2xl font-bold text-blue-600">DouniyaConnect</span>
-        </a>
-      </div>
 
+      <!-- Logo -->
+      <a routerLink="/" class="flex items-center space-x-2">
+        <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+          <span class="text-white font-bold text-xl">DC</span>
+        </div>
+        <span class="text-2xl font-bold text-blue-600">DouniyaConnect</span>
+      </a>
+
+      <!-- Menu Desktop -->
       <div class="hidden md:flex items-center space-x-8">
-        <a routerLink="/" routerLinkActive="text-blue-600 border-b-2 border-blue-600" [routerLinkActiveOptions]="routerLinkActiveOptions" class="text-gray-700 hover:text-blue-600 font-medium transition-colors duration-200 py-2">
+        <a routerLink="/" routerLinkActive="text-blue-600 border-b-2 border-blue-600"
+           [routerLinkActiveOptions]="routerLinkActiveOptions"
+           class="text-gray-700 hover:text-blue-600 font-medium py-2">
           Accueil
         </a>
-        <a routerLink="/dashboard-entreprise" routerLinkActive="text-blue-600 border-b-2 border-blue-600" class="text-gray-700 hover:text-blue-600 font-medium transition-colors duration-200 py-2">
+        <a routerLink="/dashboard-entreprise" class="text-gray-700 hover:text-blue-600 font-medium py-2">
           Entreprises
         </a>
-        <a routerLink="/entreprise/reseau" routerLinkActive="text-blue-600 border-b-2 border-blue-600" class="text-gray-700 hover:text-blue-600 font-medium transition-colors duration-200 py-2">
+        <a routerLink="/entreprise/reseau" class="text-gray-700 hover:text-blue-600 font-medium py-2">
           Réseau
         </a>
-        <a routerLink="/entreprise/marketplace" routerLinkActive="text-blue-600 border-b-2 border-blue-600" class="text-gray-700 hover:text-blue-600 font-medium transition-colors duration-200 py-2">
+        <a routerLink="/entreprise/marketplace" class="text-gray-700 hover:text-blue-600 font-medium py-2">
           Marketplace
         </a>
-        <a routerLink="/a-propos" routerLinkActive="text-blue-600 border-b-2 border-blue-600" class="text-gray-700 hover:text-blue-600 font-medium transition-colors duration-200 py-2">
+        <a routerLink="/a-propos" class="text-gray-700 hover:text-blue-600 font-medium py-2">
           À propos
         </a>
       </div>
 
-      <!-- Boutons Desktop - MISE À JOUR -->
+      <!-- Actions Desktop -->
       <div class="hidden md:flex items-center space-x-4">
-        <button routerLink="/connexion" class="px-4 py-2 text-blue-600 hover:text-blue-700 font-medium transition-colors duration-200">
-          Connexion
-        </button>
-        <button routerLink="/inscription-entreprise" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors duration-200 shadow-sm">
-          S'inscrire
-        </button>
-      </div>
-
-      <div class="md:hidden">
-        <button (click)="toggleMobileMenu()" class="inline-flex items-center justify-center p-2 rounded-md text-gray-700 hover:text-blue-600 hover:bg-blue-50 transition-colors duration-200">
-          <span class="sr-only">Ouvrir le menu</span>
-          <svg *ngIf="!mobileMenuOpen()" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-          </svg>
-          <svg *ngIf="mobileMenuOpen()" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-          </svg>
-        </button>
-      </div>
-    </div>
-
-    <div *ngIf="mobileMenuOpen()" class="md:hidden py-4 border-t border-gray-200">
-      <div class="flex flex-col space-y-4">
-        <a routerLink="/" (click)="closeMobileMenu()" routerLinkActive="text-blue-600 bg-blue-50" [routerLinkActiveOptions]="routerLinkActiveOptions" class="px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg font-medium transition-colors duration-200">
-          Accueil
-        </a>
-        <a routerLink="/dashboard-entreprise" (click)="closeMobileMenu()" routerLinkActive="text-blue-600 bg-blue-50" class="px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg font-medium transition-colors duration-200">
-          Entreprises
-        </a>
-        <a routerLink="/reseau" (click)="closeMobileMenu()" routerLinkActive="text-blue-600 bg-blue-50" class="px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg font-medium transition-colors duration-200">
-          Réseau
-        </a>
-        <a routerLink="/marketplace" (click)="closeMobileMenu()" routerLinkActive="text-blue-600 bg-blue-50" class="px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg font-medium transition-colors duration-200">
-          Marketplace
-        </a>
-        <a routerLink="/a-propos" (click)="closeMobileMenu()" routerLinkActive="text-blue-600 bg-blue-50" class="px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg font-medium transition-colors duration-200">
-          À propos
-        </a>
-
-        <!-- Boutons Mobile - MISE À JOUR -->
-        <div class="pt-4 border-t border-gray-200 space-y-2">
-          <button routerLink="/connexion" (click)="closeMobileMenu()" class="w-full px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg font-medium transition-colors duration-200 text-left">
+        <ng-container *ngIf="!isAuthenticated(); else connectedDesktop">
+          <button routerLink="/connexion" class="text-blue-600 font-medium">
             Connexion
           </button>
-          <button routerLink="/inscription-entreprise" (click)="closeMobileMenu()" class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors duration-200">
+          <button routerLink="/inscription-entreprise"
+                  class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
             S'inscrire
           </button>
-        </div>
+        </ng-container>
+
+        <ng-template #connectedDesktop>
+          <button (click)="logout()"
+                  class="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
+            Déconnexion
+          </button>
+        </ng-template>
       </div>
+
+      <!-- Mobile toggle -->
+      <button class="md:hidden p-2" (click)="toggleMobileMenu()">
+        <svg *ngIf="!mobileMenuOpen()" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+        <svg *ngIf="mobileMenuOpen()" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Mobile menu -->
+    <div *ngIf="mobileMenuOpen()" class="md:hidden mt-4 space-y-2">
+      <a routerLink="/" (click)="closeMobileMenu()" class="block px-4 py-2">Accueil</a>
+
+      <ng-container *ngIf="!isAuthenticated(); else connectedMobile">
+        <button routerLink="/connexion" (click)="closeMobileMenu()"
+                class="w-full text-left px-4 py-2 text-blue-600">
+          Connexion
+        </button>
+        <button routerLink="/inscription-entreprise" (click)="closeMobileMenu()"
+                class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg">
+          S'inscrire
+        </button>
+      </ng-container>
+
+      <ng-template #connectedMobile>
+        <button (click)="logout(); closeMobileMenu()"
+                class="w-full px-4 py-2 bg-red-500 text-white rounded-lg">
+          Déconnexion
+        </button>
+      </ng-template>
     </div>
   </nav>
 </header>

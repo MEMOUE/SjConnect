@@ -2,7 +2,10 @@ package com.duniyabacker.front.controller;
 
 import com.duniyabacker.front.entity.shared.SharedResource;
 import com.duniyabacker.front.service.SharedSpaceService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -15,10 +18,13 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/shared")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
+@Tag(name = "Espace Partagé", description = "Gestion des fichiers et dossiers partagés")
 public class SharedSpaceController {
 
     private final SharedSpaceService service;
 
+    @Operation(summary = "Créer un dossier")
     @PostMapping("/folder")
     public ResponseEntity<SharedResource> createFolder(
             @AuthenticationPrincipal UserDetails user,
@@ -28,10 +34,11 @@ public class SharedSpaceController {
         return ResponseEntity.ok(service.createFolder(user.getUsername(), name, description, parentId));
     }
 
-    @PostMapping("/file")
+    @Operation(summary = "Upload un fichier")
+    @PostMapping(value = "/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<SharedResource> uploadFile(
             @AuthenticationPrincipal UserDetails user,
-            @RequestParam MultipartFile file,
+            @RequestParam("file") MultipartFile file,
             @RequestParam(required = false) String description,
             @RequestParam(required = false) Long parentId) throws IOException {
         return ResponseEntity.ok(service.uploadFile(user.getUsername(), file, description, parentId));
