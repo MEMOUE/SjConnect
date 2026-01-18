@@ -1,91 +1,133 @@
-<div class="max-w-7xl mx-auto p-6 space-y-6">
+<div class="max-w-7xl mx-auto p-6 space-y-6 bg-gray-100 min-h-screen">
 
   <!-- Header -->
-  <div class="flex justify-between items-center">
-    <h1 class="text-2xl font-semibold">📁 Espace B2B</h1>
+  <div class="flex justify-between items-center bg-white rounded-xl shadow px-6 py-4">
+    <h1 class="text-2xl font-bold text-gray-800">
+      Espace B2B
+    </h1>
 
     <div class="flex gap-2">
-      <button pButton label="Dossier" icon="pi pi-folder-plus"
-              class="p-button-sm" (click)="showNewFolder = true"></button>
-      <button pButton label="Fichier" icon="pi pi-upload"
+      <button pButton label="Nouveau dossier"
+              icon="pi pi-folder-plus"
+              class="p-button-sm p-button-primary"
+              (click)="showNewFolder = true">
+      </button>
+
+      <button pButton label="Uploader fichier"
+              icon="pi pi-upload"
               class="p-button-sm p-button-secondary"
-              (click)="showUpload = true"></button>
+              (click)="showUpload = true">
+      </button>
     </div>
   </div>
 
   <!-- Stats -->
-  <div class="grid grid-cols-3 gap-4">
-    <div class="bg-white rounded-xl shadow p-4">
-      📁 <span class="font-semibold">{{ stats.folders }}</span> dossiers
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+    <div class="bg-white rounded-xl shadow p-6 border-l-4 border-blue-500">
+      <p class="text-sm text-gray-500 mb-1">Dossiers</p>
+      <p class="text-2xl font-bold text-gray-800">
+        {{ stats.folders }}
+      </p>
     </div>
-    <div class="bg-white rounded-xl shadow p-4">
-      📄 <span class="font-semibold">{{ stats.files }}</span> fichiers
+
+    <div class="bg-white rounded-xl shadow p-6 border-l-4 border-green-500">
+      <p class="text-sm text-gray-500 mb-1">Fichiers</p>
+      <p class="text-2xl font-bold text-gray-800">
+        {{ stats.files }}
+      </p>
     </div>
-    <div class="bg-white rounded-xl shadow p-4">
-      💾 {{ formatSize(stats.storage) }}
+
+    <div class="bg-white rounded-xl shadow p-6 border-l-4 border-purple-500">
+      <p class="text-sm text-gray-500 mb-1">Stockage</p>
+      <p class="text-2xl font-bold text-gray-800">
+        {{ formatSize(stats.storage) }}
+      </p>
     </div>
+
   </div>
 
   <!-- Search -->
   <div class="flex justify-end">
-    <input pInputText [(ngModel)]="searchQuery"
-           placeholder="Rechercher..."
-           class="w-64" (keyup.enter)="doSearch()" />
+    <span class="p-input-icon-left">
+      <i class="pi pi-search"></i>
+      <input pInputText
+             [(ngModel)]="searchQuery"
+             placeholder="Rechercher un fichier ou dossier"
+             class="w-72">
+    </span>
   </div>
 
   <!-- Table -->
-  <p-table [value]="resources" responsiveLayout="scroll"
-           class="shadow rounded-xl">
+  <div class="bg-white rounded-xl shadow overflow-hidden">
 
-    <ng-template pTemplate="header">
-      <tr>
-        <th>Nom</th>
-        <th>Taille</th>
-        <th class="text-right">Actions</th>
-      </tr>
-    </ng-template>
+    <p-table [value]="resources"
+             responsiveLayout="scroll"
+             [paginator]="true"
+             [rows]="10"
+             class="text-sm">
 
-    <ng-template pTemplate="body" let-r>
-      <tr>
-        <td class="cursor-pointer"
-            (dblclick)="r.type === 'FOLDER' && loadFolder(r)">
-          <i class="pi"
-             [ngClass]="r.type === 'FOLDER' ? 'pi-folder' : 'pi-file'"
-             class="mr-2"></i>
-          {{ r.name }}
-        </td>
+      <ng-template pTemplate="header">
+        <tr class="bg-gray-50 text-gray-700">
+          <th class="py-3 px-4">Nom</th>
+          <th class="py-3 px-4">Taille</th>
+          <th class="py-3 px-4 text-right">Actions</th>
+        </tr>
+      </ng-template>
 
-        <td>
-          {{ r.type === 'FILE' ? formatSize(r.fileSize!) : '' }}
-        </td>
+      <ng-template pTemplate="body" let-r>
+        <tr class="hover:bg-gray-50 transition">
 
-        <td class="text-right">
-<!--          <button pButton icon="pi pi-trash"-->
-<!--                  class="p-button-rounded p-button-text p-button-danger"-->
-<!--                  (click)="confirmDelete(r)">-->
-<!--            -->
-<!--          </button>-->
-        </td>
-      </tr>
-    </ng-template>
+          <td class="py-3 px-4 cursor-pointer"
+              (dblclick)="r.type === 'FOLDER' && loadFolder(r)">
+            <i class="pi mr-2 text-blue-600"
+               [ngClass]="r.type === 'FOLDER' ? 'pi-folder' : 'pi-file'"></i>
+            <span class="font-medium text-gray-800">
+              {{ r.name }}
+            </span>
+          </td>
 
-  </p-table>
+          <td class="py-3 px-4 text-gray-600">
+            {{ r.type === 'FILE' ? formatSize(r.fileSize!) : '-' }}
+          </td>
+
+          <td class="py-3 px-4 text-right">
+<!--            <button pButton icon="pi pi-trash"-->
+<!--                    class="p-button-rounded p-button-text p-button-danger"-->
+<!--                    (click)="confirmDelete(r)">-->
+<!--            </button>-->
+          </td>
+
+        </tr>
+      </ng-template>
+
+    </p-table>
+
+  </div>
 
   <!-- Dialog Folder -->
   <p-dialog header="Nouveau dossier"
             [(visible)]="showNewFolder"
-            [modal]="true" [style]="{width:'30rem'}">
+            [modal]="true"
+            [style]="{ width: '32rem' }">
 
-    <input pInputText [(ngModel)]="folderName"
-           placeholder="Nom du dossier"
-           class="w-full mb-4" />
+    <div class="space-y-4">
+      <input pInputText
+             [(ngModel)]="folderName"
+             placeholder="Nom du dossier"
+             class="w-full">
 
-    <div class="flex justify-end gap-2">
-      <button pButton label="Annuler"
-              class="p-button-text"
-              (click)="showNewFolder=false"></button>
-      <button pButton label="Créer"
-              (click)="createFolder()"></button>
+      <div class="flex justify-end gap-2">
+        <button pButton label="Annuler"
+                class="p-button-text"
+                (click)="showNewFolder = false">
+        </button>
+
+        <button pButton label="Créer"
+                class="p-button-primary"
+                (click)="createFolder()">
+        </button>
+      </div>
     </div>
 
   </p-dialog>
