@@ -1,6 +1,13 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ProjetB2BService } from '../../services/projet-b2b/projet-b2b.service';
+import {
+  ProjetB2B,
+  CreateProjetB2BRequest,
+  ProjetB2BStats,
+  PartenaireDTO
+} from '../../models/projet-b2b.model';
 
 interface Project {
   id: string;
@@ -71,170 +78,22 @@ export class ProjetB2b implements OnInit {
   searchTerm: string = '';
   filterStatus: string = 'all';
   newMessage: string = '';
+  loading: boolean = false;
 
-  projects: Project[] = [
-    {
-      id: 'P001',
-      name: 'Plateforme Fintech Collaborative',
-      description: 'Développement d\'une solution de paiement B2B innovante',
-      status: 'active',
-      progress: 65,
-      startDate: '2024-09-01',
-      endDate: '2025-03-31',
-      category: 'Technologie',
-      priority: 'high',
-      budget: 500000,
-      documents: 24,
-      tasks: 18,
-      icon: '💳',
-      partners: [
-        { id: 'PA1', name: 'TechCorp', logo: '🏢', role: 'Développement', status: 'active' },
-        { id: 'PA2', name: 'FinanceHub', logo: '🏦', role: 'Financement', status: 'active' }
-      ]
-    },
-    {
-      id: 'P002',
-      name: 'Programme de Formation Inter-entreprises',
-      description: 'Formation continue pour employés des entreprises partenaires',
-      status: 'active',
-      progress: 45,
-      startDate: '2024-10-01',
-      endDate: '2025-06-30',
-      category: 'Formation',
-      priority: 'medium',
-      budget: 150000,
-      documents: 12,
-      tasks: 8,
-      icon: '📚',
-      partners: [
-        { id: 'PA3', name: 'EduTech', logo: '🎓', role: 'Formation', status: 'active' },
-        { id: 'PA4', name: 'HR Solutions', logo: '👥', role: 'RH', status: 'active' }
-      ]
-    },
-    {
-      id: 'P003',
-      name: 'Initiative Développement Durable',
-      description: 'Projet RSE commun pour réduire l\'empreinte carbone',
-      status: 'pending',
-      progress: 20,
-      startDate: '2024-11-15',
-      endDate: '2026-12-31',
-      category: 'RSE',
-      priority: 'high',
-      budget: 800000,
-      documents: 8,
-      tasks: 15,
-      icon: '🌱',
-      partners: [
-        { id: 'PA5', name: 'GreenTech', logo: '♻️', role: 'Conseil', status: 'active' },
-        { id: 'PA6', name: 'EcoSolutions', logo: '🌍', role: 'Mise en œuvre', status: 'active' }
-      ]
-    },
-    {
-      id: 'P004',
-      name: 'Supply Chain Optimization',
-      description: 'Optimisation de la chaîne logistique inter-entreprises',
-      status: 'completed',
-      progress: 100,
-      startDate: '2023-06-01',
-      endDate: '2024-05-31',
-      category: 'Logistique',
-      priority: 'medium',
-      budget: 350000,
-      documents: 45,
-      tasks: 32,
-      icon: '📦',
-      partners: [
-        { id: 'PA7', name: 'LogiPro', logo: '🚚', role: 'Logistique', status: 'active' },
-        { id: 'PA8', name: 'DataAnalytics', logo: '📊', role: 'Analyse', status: 'active' }
-      ]
-    }
-  ];
+  // Modal & Form
+  showCreateModal: boolean = false;
+  editingProject: Project | null = null;
+  progressValue: number = 0;
 
-  documents: Document[] = [
-    {
-      id: 'D001',
-      name: 'Cahier des charges technique.pdf',
-      type: 'PDF',
-      size: '2.4 MB',
-      uploadedBy: 'TechCorp',
-      uploadDate: '2024-10-15',
-      projectId: 'P001',
-      icon: '📄'
-    },
-    {
-      id: 'D002',
-      name: 'Présentation financière Q3.pptx',
-      type: 'PowerPoint',
-      size: '5.1 MB',
-      uploadedBy: 'FinanceHub',
-      uploadDate: '2024-10-20',
-      projectId: 'P001',
-      icon: '📊'
-    },
-    {
-      id: 'D003',
-      name: 'Contrat partenariat.docx',
-      type: 'Word',
-      size: '856 KB',
-      uploadedBy: 'HR Solutions',
-      uploadDate: '2024-10-10',
-      projectId: 'P002',
-      icon: '📝'
-    }
-  ];
+  projectForm: CreateProjetB2BRequest = this.getEmptyForm();
 
-  tasks: Task[] = [
-    {
-      id: 'T001',
-      title: 'Finaliser l\'architecture système',
-      description: 'Compléter le design de l\'architecture technique',
-      status: 'in-progress',
-      assignedTo: 'TechCorp',
-      dueDate: '2024-11-15',
-      priority: 'high',
-      projectId: 'P001'
-    },
-    {
-      id: 'T002',
-      title: 'Révision budgétaire',
-      description: 'Revoir et valider le budget pour Q4',
-      status: 'review',
-      assignedTo: 'FinanceHub',
-      dueDate: '2024-11-10',
-      priority: 'high',
-      projectId: 'P001'
-    },
-    {
-      id: 'T003',
-      title: 'Créer modules de formation',
-      description: 'Développer les 5 premiers modules de formation',
-      status: 'todo',
-      assignedTo: 'EduTech',
-      dueDate: '2024-11-30',
-      priority: 'medium',
-      projectId: 'P002'
-    }
-  ];
+  // Données du backend
+  projetsBackend: ProjetB2B[] = [];
 
-  messages: Message[] = [
-    {
-      id: 'M001',
-      sender: 'Jean Dupont (TechCorp)',
-      content: 'La nouvelle version du prototype est prête pour les tests.',
-      timestamp: '2024-11-02 10:30',
-      projectId: 'P001',
-      avatar: '👤'
-    },
-    {
-      id: 'M002',
-      sender: 'Marie Martin (FinanceHub)',
-      content: 'Le budget a été approuvé par le comité de direction.',
-      timestamp: '2024-11-02 09:15',
-      projectId: 'P001',
-      avatar: '👩'
-    }
-  ];
+  projects: Project[] = [];
+  documents: Document[] = [];
+  tasks: Task[] = [];
+  messages: Message[] = [];
 
   stats = {
     activeProjects: 0,
@@ -243,9 +102,339 @@ export class ProjetB2b implements OnInit {
     totalBudget: 0
   };
 
+  constructor(private projetService: ProjetB2BService) {}
+
   ngOnInit(): void {
-    this.calculateStats();
+    this.loadProjets();
+    this.loadStats();
   }
+
+  // ============================================
+  // HELPER POUR FORMULAIRE VIDE
+  // ============================================
+
+  private getEmptyForm(): CreateProjetB2BRequest {
+    return {
+      nom: '',
+      description: '',
+      categorie: '',
+      priorite: 'MOYENNE',
+      dateDebut: '',
+      dateFin: '',
+      budget: 0,
+      icone: '📁',
+      partenaires: [], // Toujours initialisé comme tableau vide
+      participantIds: []
+    };
+  }
+
+  // ============================================
+  // CHARGEMENT DES DONNÉES
+  // ============================================
+
+  loadProjets(): void {
+    this.loading = true;
+    console.log('🔄 Chargement des projets...');
+
+    this.projetService.getMesProjets().subscribe({
+      next: (projets) => {
+        console.log('✅ Projets chargés:', projets);
+        this.projetsBackend = projets;
+        this.projects = this.mapProjetsToProjects(projets);
+        this.loading = false;
+      },
+      error: (error) => {
+        console.error('❌ Erreur lors du chargement des projets:', error);
+        this.loading = false;
+        this.initDemoData();
+      }
+    });
+  }
+
+  loadStats(): void {
+    this.projetService.getStats().subscribe({
+      next: (stats) => {
+        console.log('✅ Stats chargées:', stats);
+        this.stats = {
+          activeProjects: stats.projetsActifs,
+          totalPartners: stats.totalPartenaires,
+          completionRate: stats.tauxCompletion,
+          totalBudget: stats.budgetTotal
+        };
+      },
+      error: (error) => {
+        console.error('❌ Erreur lors du chargement des stats:', error);
+        this.calculateStats();
+      }
+    });
+  }
+
+  // ============================================
+  // MAPPING BACKEND -> FRONTEND
+  // ============================================
+
+  mapProjetsToProjects(projets: ProjetB2B[]): Project[] {
+    return projets.map(p => ({
+      id: p.id.toString(),
+      name: p.nom,
+      description: p.description || '',
+      status: this.mapStatutToStatus(p.statut),
+      progress: p.progression,
+      startDate: p.dateDebut || '',
+      endDate: p.dateFin || '',
+      partners: p.partenaires?.map(pa => ({
+        id: pa.id.toString(),
+        name: pa.nom,
+        logo: pa.logo || '🏢',
+        role: pa.role,
+        status: pa.statut === 'ACTIF' ? 'active' : 'inactive'
+      })) || [],
+      category: p.categorie,
+      priority: this.mapPrioriteToLocal(p.priorite),
+      budget: p.budget,
+      documents: 0,
+      tasks: 0,
+      icon: p.icone || '📁'
+    }));
+  }
+
+  mapStatutToStatus(statut: string): 'active' | 'completed' | 'pending' | 'archived' {
+    const mapping: any = {
+      'ACTIF': 'active',
+      'TERMINE': 'completed',
+      'EN_ATTENTE': 'pending',
+      'ARCHIVE': 'archived',
+      'EN_PAUSE': 'pending'
+    };
+    return mapping[statut] || 'pending';
+  }
+
+  mapPrioriteToLocal(priorite: string): 'high' | 'medium' | 'low' {
+    const mapping: any = {
+      'HAUTE': 'high',
+      'CRITIQUE': 'high',
+      'MOYENNE': 'medium',
+      'BASSE': 'low'
+    };
+    return mapping[priorite] || 'medium';
+  }
+
+  mapStatusToStatut(status: string): string {
+    const mapping: any = {
+      'active': 'ACTIF',
+      'completed': 'TERMINE',
+      'pending': 'EN_ATTENTE',
+      'archived': 'ARCHIVE'
+    };
+    return mapping[status] || 'EN_ATTENTE';
+  }
+
+  // ============================================
+  // ACTIONS CRUD
+  // ============================================
+
+  saveProject(): void {
+    if (!this.projectForm.nom || !this.projectForm.categorie) {
+      alert('Veuillez remplir tous les champs obligatoires');
+      return;
+    }
+
+    if (this.editingProject) {
+      // Mise à jour
+      const id = parseInt(this.editingProject.id);
+      this.projetService.updateProjet(id, this.projectForm).subscribe({
+        next: (response) => {
+          console.log('✅ Projet mis à jour:', response);
+          alert('Projet modifié avec succès !');
+          this.closeModal();
+          this.loadProjets();
+        },
+        error: (error) => {
+          console.error('❌ Erreur modification projet:', error);
+          alert('Erreur lors de la modification du projet');
+        }
+      });
+    } else {
+      // Création
+      this.projetService.createProjet(this.projectForm).subscribe({
+        next: (response) => {
+          console.log('✅ Projet créé:', response);
+          alert('Projet créé avec succès !');
+          this.closeModal();
+          this.loadProjets();
+        },
+        error: (error) => {
+          console.error('❌ Erreur création projet:', error);
+          alert('Erreur lors de la création du projet');
+        }
+      });
+    }
+  }
+
+  editProject(project: Project): void {
+    this.editingProject = project;
+    this.projectForm = {
+      nom: project.name,
+      description: project.description,
+      categorie: project.category,
+      priorite: this.mapLocalPriorityToBackend(project.priority),
+      dateDebut: project.startDate,
+      dateFin: project.endDate,
+      budget: project.budget,
+      icone: project.icon,
+      partenaires: project.partners.map(p => ({
+        nom: p.name,
+        role: p.role,
+        logo: p.logo
+      })),
+      participantIds: []
+    };
+    this.showCreateModal = true;
+  }
+
+  mapLocalPriorityToBackend(priority: string): string {
+    const mapping: any = {
+      'high': 'HAUTE',
+      'medium': 'MOYENNE',
+      'low': 'BASSE'
+    };
+    return mapping[priority] || 'MOYENNE';
+  }
+
+  confirmDeleteProject(project: Project): void {
+    if (confirm(`Êtes-vous sûr de vouloir supprimer le projet "${project.name}" ?`)) {
+      const id = parseInt(project.id);
+      this.projetService.deleteProjet(id).subscribe({
+        next: () => {
+          console.log('✅ Projet supprimé');
+          alert('Projet supprimé avec succès !');
+          this.selectedProject = null;
+          this.loadProjets();
+        },
+        error: (error) => {
+          console.error('❌ Erreur suppression projet:', error);
+          alert('Erreur lors de la suppression du projet');
+        }
+      });
+    }
+  }
+
+  updateProgress(): void {
+    if (!this.selectedProject) return;
+
+    const id = parseInt(this.selectedProject.id);
+    this.projetService.updateProgression(id, this.progressValue).subscribe({
+      next: () => {
+        console.log('✅ Progression mise à jour');
+        this.loadProjets();
+        if (this.selectedProject) {
+          this.selectedProject.progress = this.progressValue;
+        }
+      },
+      error: (error) => {
+        console.error('❌ Erreur mise à jour progression:', error);
+        alert('Erreur lors de la mise à jour de la progression');
+      }
+    });
+  }
+
+  changeStatus(status: string): void {
+    if (!this.selectedProject) return;
+
+    const id = parseInt(this.selectedProject.id);
+    const statut = this.mapStatusToStatut(status);
+
+    this.projetService.updateStatut(id, statut).subscribe({
+      next: () => {
+        console.log('✅ Statut mis à jour');
+        this.loadProjets();
+        if (this.selectedProject) {
+          this.selectedProject.status = status as any;
+        }
+      },
+      error: (error) => {
+        console.error('❌ Erreur mise à jour statut:', error);
+        alert('Erreur lors de la mise à jour du statut');
+      }
+    });
+  }
+
+  // ============================================
+  // GESTION DU FORMULAIRE
+  // ============================================
+
+  addPartnerToForm(): void {
+    // S'assurer que partenaires existe
+    if (!this.projectForm.partenaires) {
+      this.projectForm.partenaires = [];
+    }
+
+    this.projectForm.partenaires.push({
+      nom: '',
+      role: '',
+      logo: '🏢'
+    });
+  }
+
+  removePartner(index: number): void {
+    // S'assurer que partenaires existe avant de supprimer
+    if (this.projectForm.partenaires && this.projectForm.partenaires.length > index) {
+      this.projectForm.partenaires.splice(index, 1);
+    }
+  }
+
+  closeModal(): void {
+    this.showCreateModal = false;
+    this.editingProject = null;
+    this.resetForm();
+  }
+
+  resetForm(): void {
+    this.projectForm = this.getEmptyForm();
+  }
+
+  addPartner(): void {
+    alert('Fonctionnalité à implémenter : Ajouter un partenaire');
+  }
+
+  // ============================================
+  // RECHERCHE ET FILTRAGE
+  // ============================================
+
+  onSearchChange(): void {
+    if (this.searchTerm.length >= 3) {
+      this.projetService.searchProjets(this.searchTerm).subscribe({
+        next: (projets) => {
+          this.projects = this.mapProjetsToProjects(projets);
+        },
+        error: (error) => {
+          console.error('❌ Erreur recherche:', error);
+        }
+      });
+    } else if (this.searchTerm.length === 0) {
+      this.loadProjets();
+    }
+  }
+
+  onFilterChange(): void {
+    if (this.filterStatus === 'all') {
+      this.loadProjets();
+    } else {
+      const statut = this.mapStatusToStatut(this.filterStatus);
+      this.projetService.filterByStatut(statut).subscribe({
+        next: (projets) => {
+          this.projects = this.mapProjetsToProjects(projets);
+        },
+        error: (error) => {
+          console.error('❌ Erreur filtrage:', error);
+        }
+      });
+    }
+  }
+
+  // ============================================
+  // MÉTHODES EXISTANTES
+  // ============================================
 
   calculateStats(): void {
     this.stats.activeProjects = this.projects.filter(p => p.status === 'active').length;
@@ -253,7 +442,7 @@ export class ProjetB2b implements OnInit {
       this.projects.flatMap(p => p.partners.map(pa => pa.id))
     ).size;
     const totalProgress = this.projects.reduce((sum, p) => sum + p.progress, 0);
-    this.stats.completionRate = Math.round(totalProgress / this.projects.length);
+    this.stats.completionRate = Math.round(totalProgress / this.projects.length) || 0;
     this.stats.totalBudget = this.projects.reduce((sum, p) => sum + p.budget, 0);
   }
 
@@ -268,6 +457,7 @@ export class ProjetB2b implements OnInit {
 
   selectProject(project: Project): void {
     this.selectedProject = project;
+    this.progressValue = project.progress;
     this.activeTab = 'projects';
   }
 
@@ -337,15 +527,36 @@ export class ProjetB2b implements OnInit {
     alert(`Téléchargement de ${doc.name}`);
   }
 
-  addNewProject(): void {
-    alert('Formulaire de création de projet');
-  }
-
   addNewDocument(): void {
-    alert('Upload de document');
+    alert('Upload de document - À implémenter');
   }
 
   addNewTask(): void {
-    alert('Création de tâche');
+    alert('Création de tâche - À implémenter');
+  }
+
+  initDemoData(): void {
+    this.projects = [
+      {
+        id: 'P001',
+        name: 'Plateforme Fintech Collaborative',
+        description: 'Développement d\'une solution de paiement B2B innovante',
+        status: 'active',
+        progress: 65,
+        startDate: '2024-09-01',
+        endDate: '2025-03-31',
+        category: 'Technologie',
+        priority: 'high',
+        budget: 500000,
+        documents: 24,
+        tasks: 18,
+        icon: '💳',
+        partners: [
+          { id: 'PA1', name: 'TechCorp', logo: '🏢', role: 'Développement', status: 'active' },
+          { id: 'PA2', name: 'FinanceHub', logo: '🏦', role: 'Financement', status: 'active' }
+        ]
+      }
+    ];
+    this.calculateStats();
   }
 }
