@@ -1,7 +1,6 @@
 package com.duniyabacker.front.service;
 
 import com.duniyabacker.front.dto.request.CreateProjetB2BRequest;
-import com.duniyabacker.front.dto.request.PartenaireRequest;
 import com.duniyabacker.front.dto.response.ApiResponse;
 import com.duniyabacker.front.entity.User;
 import com.duniyabacker.front.entity.b2b.PartenaireProjet;
@@ -55,11 +54,11 @@ public class ProjetB2BService {
         }
 
         if (request.getPartenaires() != null) {
-            for (PartenaireRequest partenaireReq : request.getPartenaires()) {
+            for (CreateProjetB2BRequest.PartenaireDTO partenaireDTO : request.getPartenaires()) {
                 PartenaireProjet partenaire = PartenaireProjet.builder()
-                        .nom(partenaireReq.getNom())
-                        .role(partenaireReq.getRole())
-                        .logo(partenaireReq.getLogo())
+                        .nom(partenaireDTO.getNom())
+                        .role(partenaireDTO.getRole())
+                        .logo(partenaireDTO.getLogo())
                         .statut(PartenaireProjet.StatutPartenaire.ACTIF)
                         .build();
                 projet.addPartenaire(partenaire);

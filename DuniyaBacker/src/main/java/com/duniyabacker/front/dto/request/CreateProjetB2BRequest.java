@@ -8,9 +8,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.duniyabacker.front.dto.request.PartenaireRequest;
-
-
 @Data
 public class CreateProjetB2BRequest {
 
@@ -34,7 +31,22 @@ public class CreateProjetB2BRequest {
 
     private String icone = "📁";
 
-    private List<PartenaireRequest> partenaires = new ArrayList<>();
+    private List<PartenaireDTO> partenaires = new ArrayList<>();
 
     private List<Long> participantIds = new ArrayList<>();
+
+    /**
+     * DTO interne pour les partenaires du projet
+     */
+    @Data
+    public static class PartenaireDTO {
+
+        @NotBlank(message = "Le nom du partenaire est requis")
+        private String nom;
+
+        @NotBlank(message = "Le rôle du partenaire est requis")
+        private String role;
+
+        private String logo = "🏢";
+    }
 }
