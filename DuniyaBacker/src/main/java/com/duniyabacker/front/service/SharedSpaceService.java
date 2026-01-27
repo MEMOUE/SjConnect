@@ -1,5 +1,6 @@
 package com.duniyabacker.front.service;
 
+import com.duniyabacker.front.dto.response.SharedResourceResponse;
 import com.duniyabacker.front.entity.User;
 import com.duniyabacker.front.entity.auth.*;
 import com.duniyabacker.front.entity.shared.SharedResource;
@@ -14,6 +15,7 @@ import java.io.IOException;
 import java.nio.file.*;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -27,7 +29,7 @@ public class SharedSpaceService {
 
     // Créer dossier
     @Transactional
-    public SharedResource createFolder(String username, String name, String desc, Long parentId) {
+    public SharedResourceResponse createFolder(String username, String name, String desc, Long parentId) {
         User user = getUser(username);
         Entreprise entreprise = getEntreprise(user);
 
@@ -40,12 +42,13 @@ public class SharedSpaceService {
                 .parent(parentId != null ? repo.findById(parentId).orElse(null) : null)
                 .build();
 
-        return repo.save(folder);
+        SharedResource saved = repo.save(folder);
+        return mapToResponse(saved);
     }
 
     // Upload fichier
     @Transactional
-    public SharedResource uploadFile(String username, MultipartFile file, String desc, Long parentId) throws IOException {
+    public SharedResourceResponse uploadFile(String username, MultipartFile file, String desc, Long parentId) throws IOException {
         User user = getUser(username);
         Entreprise entreprise = getEntreprise(user);
 
@@ -63,28 +66,41 @@ public class SharedSpaceService {
                 .parent(parentId != null ? repo.findById(parentId).orElse(null) : null)
                 .build();
 
-        return repo.save(resource);
+        SharedResource saved = repo.save(resource);
+        return mapToResponse(saved);
     }
 
     // Liste ressources
-    public List<SharedResource> getRootResources(String username) {
+    public List<SharedResourceResponse> getRootResources(String username) {
         User user = getUser(username);
-        return repo.findByEntrepriseAndParentIsNull(getEntreprise(user));
+        return repo.findByEntrepriseAndParentIsNull(getEntreprise(user))
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
-    public List<SharedResource> getChildren(Long parentId) {
+    public List<SharedResourceResponse> getChildren(Long parentId) {
         SharedResource parent = repo.findById(parentId).orElseThrow();
-        return repo.findByParent(parent);
+        return repo.findByParent(parent)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
-    public List<SharedResource> search(String username, String query) {
+    public List<SharedResourceResponse> search(String username, String query) {
         User user = getUser(username);
-        return repo.findByEntrepriseAndNameContainingIgnoreCase(getEntreprise(user), query);
+        return repo.findByEntrepriseAndNameContainingIgnoreCase(getEntreprise(user), query)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
-    public List<SharedResource> getMyResources(String username) {
+    public List<SharedResourceResponse> getMyResources(String username) {
         User user = getUser(username);
-        return repo.findAccessible(getEntreprise(user), user.getId());
+        return repo.findAccessible(getEntreprise(user), user.getId())
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
     // Partager
@@ -114,6 +130,28 @@ public class SharedSpaceService {
         );
     }
 
+    // Mapper entité -> DTO
+    private SharedResourceResponse mapToResponse(SharedResource resource) {
+        String ownerName = getUserDisplayName(resource.getOwner());
+
+        return SharedResourceResponse.builder()
+                .id(resource.getId())
+                .name(resource.getName())
+                .type(resource.getType().name())
+                .description(resource.getDescription())
+                .filePath(resource.getFilePath())
+                .fileSize(resource.getFileSize())
+                .fileType(resource.getFileType())
+                .ownerId(resource.getOwner().getId())
+                .ownerName(ownerName)
+                .parentId(resource.getParent() != null ? resource.getParent().getId() : null)
+                .parentName(resource.getParent() != null ? resource.getParent().getName() : null)
+                .publicAccess(resource.isPublicAccess())
+                .createdAt(resource.getCreatedAt())
+                .updatedAt(resource.getUpdatedAt())
+                .build();
+    }
+
     // Helpers
     private User getUser(String username) {
         return userRepo.findByUsername(username).orElseThrow();
@@ -123,6 +161,19 @@ public class SharedSpaceService {
         if (user instanceof Entreprise) return (Entreprise) user;
         if (user instanceof Employe) return ((Employe) user).getEntreprise();
         throw new RuntimeException("Type utilisateur invalide");
+    }
+
+    private String getUserDisplayName(User user) {
+        if (user instanceof Entreprise) {
+            return ((Entreprise) user).getNomEntreprise();
+        } else if (user instanceof Particulier) {
+            Particulier p = (Particulier) user;
+            return p.getPrenom() + " " + p.getNom();
+        } else if (user instanceof Employe) {
+            Employe e = (Employe) user;
+            return e.getPrenom() + " " + e.getNom();
+        }
+        return user.getUsername();
     }
 
     private String saveFile(MultipartFile file) throws IOException {
