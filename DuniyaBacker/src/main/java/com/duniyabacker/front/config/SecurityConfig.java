@@ -51,7 +51,8 @@ public class SecurityConfig {
                                 "/swagger-ui.html/**",
                                 "/v3/api-docs/**",
                                 "/api/auth/login/**",
-                                "/api/projets-b2b/**"
+                                "/api/projets-b2b/**",
+                                "api/projets-b2b"
                         ).permitAll()
                         .requestMatchers("/api/shared/**").authenticated()
 //                        .requestMatchers("api/projets-b2b/**").authenticated()
