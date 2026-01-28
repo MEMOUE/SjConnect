@@ -52,7 +52,10 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/api/auth/login/**",
                                 "/api/projets-b2b/**",
-                                "api/projets-b2b"
+                                "api/projets-b2b",
+                                "/api/shared/view/**",
+                                "/uploads/**",           
+                                "/uploads/shared/**"
                         ).permitAll()
                         .requestMatchers("/api/shared/**").authenticated()
 //                        .requestMatchers("api/projets-b2b/**").authenticated()

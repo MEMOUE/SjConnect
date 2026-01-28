@@ -187,4 +187,10 @@ public class SharedSpaceService {
     }
 
     public record Stats(long folders, long files, long storage) {}
+
+    public SharedResourceResponse getResourceById(Long id) {
+        SharedResource resource = repo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Ressource non trouvée"));
+        return mapToResponse(resource);
+    }
 }

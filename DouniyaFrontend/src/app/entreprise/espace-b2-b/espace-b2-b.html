@@ -142,7 +142,7 @@
           <td class="py-4 px-6 cursor-pointer" (dblclick)="r.type === 'FOLDER' && loadFolder(r)">
             <div class="flex items-center gap-3">
               <i class="pi text-xl shadow-sm"
-                 [ngClass]="r.type === 'FOLDER' ? 'pi-folder text-amber-400' : 'pi-file text-blue-400'"></i>
+                 [ngClass]="r.type === 'FOLDER' ? 'pi-folder text-amber-400' : getFileIcon(r.name)"></i>
               <span class="font-semibold text-gray-700 group-hover:text-blue-700 transition-colors">{{ r.name }}</span>
             </div>
           </td>
@@ -159,17 +159,52 @@
           </td>
           <td class="py-4 px-6 text-right">
             <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <!-- Actions pour les DOSSIERS -->
               <button
                 *ngIf="r.type === 'FOLDER'"
                 (click)="loadFolder(r)"
                 class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                pTooltip="Ouvrir le dossier">
+                pTooltip="Ouvrir le dossier"
+                tooltipPosition="top">
                 <i class="pi pi-folder-open"></i>
               </button>
+
+              <!-- Actions pour les FICHIERS -->
+              <ng-container *ngIf="r.type === 'FILE'">
+                <!-- Bouton Visualiser -->
+                <button
+                  (click)="viewFile(r)"
+                  class="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
+                  pTooltip="Visualiser"
+                  tooltipPosition="top">
+                  <i class="pi pi-eye"></i>
+                </button>
+
+                <!-- Bouton Télécharger -->
+                <button
+                  (click)="downloadFile(r)"
+                  class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                  pTooltip="Télécharger"
+                  tooltipPosition="top">
+                  <i class="pi pi-download"></i>
+                </button>
+
+                <!-- Bouton Partager -->
+                <button
+                  (click)="shareFile(r)"
+                  class="p-2 text-purple-600 hover:bg-purple-100 rounded-lg transition-colors"
+                  pTooltip="Partager"
+                  tooltipPosition="top">
+                  <i class="pi pi-share-alt"></i>
+                </button>
+              </ng-container>
+
+              <!-- Bouton Supprimer (pour tous) -->
               <button
                 (click)="confirmDelete(r)"
                 class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                pTooltip="Supprimer">
+                pTooltip="Supprimer"
+                tooltipPosition="top">
                 <i class="pi pi-trash"></i>
               </button>
             </div>
