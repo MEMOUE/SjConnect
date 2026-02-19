@@ -16,6 +16,7 @@ import { Reseau } from './entreprise/reseau/reseau';
 import { ProjetB2b } from './entreprise/projet-b2b/projet-b2b';
 import { AuthGuard, EntrepriseGuard } from './guard/auth-guard';
 import {Chat} from './entreprise/chat/chat';
+import { VerifyEmail } from './auth/verify-email/verify-email';
 
 export const routes: Routes = [
   // Routes publiques
@@ -34,6 +35,10 @@ export const routes: Routes = [
     component: NewEmployer,
     canActivate: [EntrepriseGuard]
   },
+  {
+  path: 'verify-email',
+  component: VerifyEmail
+},
   {
     path: 'dashboard-entreprise',
     component: DashboardEntreprise,

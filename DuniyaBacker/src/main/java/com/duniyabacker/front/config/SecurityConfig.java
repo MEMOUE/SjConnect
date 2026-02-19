@@ -51,15 +51,18 @@ public class SecurityConfig {
                                 "/swagger-ui.html/**",
                                 "/v3/api-docs/**",
                                 "/api/auth/login/**",
+                                "/api/auth/verify-email/**",
                                 "/api/projets-b2b/**",
                                 "api/projets-b2b",
                                 "/api/shared/view/**",
                                 "/uploads/**",           
-                                "/uploads/shared/**"
+                                "/uploads/shared/**",
+                                "/api/shared/download/**"
                         ).permitAll()
                         .requestMatchers("/api/shared/**").authenticated()
-//                        .requestMatchers("api/projets-b2b/**").authenticated()
-                        // Endpoints pour les entreprises uniquement
+                        .requestMatchers("/api/shared/view/**").permitAll()
+                        .requestMatchers("/api/shared/download/**").permitAll()
+
                         .requestMatchers("/api/entreprise/**").hasRole("ENTREPRISE")
                         // Endpoints pour les employés
                         .requestMatchers("/api/employe/**").hasAnyRole("ENTREPRISE", "EMPLOYE")

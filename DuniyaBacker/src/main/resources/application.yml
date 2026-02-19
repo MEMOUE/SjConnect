@@ -5,11 +5,11 @@ spring:
   datasource:
     url: jdbc:mysql://localhost:3306/duniya?useSSL=false&serverTimezone=UTC&createDatabaseIfNotExist=true
     username: root
-    password:
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    password: 123456789
 
   jpa:
-    database-platform: org.hibernate.dialect.MySQL8Dialect
+    database-platform: org.hibernate.dialect.MySQLDialect
+
     hibernate:
       ddl-auto: update
     show-sql: true
@@ -19,16 +19,18 @@ spring:
 
   mail:
     host: mail.duniyaconnect.com
-    port: 587
+    port: 465
     username: no-reply@duniyaconnect.com
-    password: ${MAIL_PASSWORD}
+    password: Passer@123  #${MAIL_PASSWORD}  # Passer@123
     properties:
       mail:
         smtp:
           auth: true
-          starttls:
+          ssl:
             enable: true
-            required: true
+          starttls:
+            enable: false
+            required: false
         transport:
           protocol: smtp
 

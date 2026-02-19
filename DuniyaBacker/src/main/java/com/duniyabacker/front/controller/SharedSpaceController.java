@@ -130,7 +130,7 @@ public class SharedSpaceController {
             return ResponseEntity.notFound().build();
         }
 
-        Path filePath = Paths.get("uploads/shared").resolve(resource.getFilePath()).normalize();
+        Path filePath = Paths.get("uploads").resolve(resource.getFilePath()).normalize();
         Resource fileResource = new UrlResource(filePath.toUri());
 
         if (!fileResource.exists()) {
@@ -167,7 +167,7 @@ public class SharedSpaceController {
             return ResponseEntity.notFound().build();
         }
 
-        Path filePath = Paths.get("uploads/shared").resolve(resource.getFilePath()).normalize();
+        Path filePath = Paths.get("uploads").resolve(resource.getFilePath()).normalize();
         Resource fileResource = new UrlResource(filePath.toUri());
 
         if (!fileResource.exists()) {

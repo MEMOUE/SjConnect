@@ -1,0 +1,31 @@
+<div class="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center">
+  <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
+    
+    <div *ngIf="status === 'loading'">
+      <i class="pi pi-spin pi-spinner text-blue-600 text-5xl mb-4"></i>
+      <p class="text-gray-600">Vérification en cours...</p>
+    </div>
+
+    <div *ngIf="status === 'success'">
+      <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <i class="pi pi-check text-green-600 text-3xl"></i>
+      </div>
+      <h2 class="text-xl font-bold text-gray-900 mb-2">Email vérifié !</h2>
+      <p class="text-gray-600 mb-4">{{ message }}</p>
+      <p class="text-sm text-gray-400">Redirection vers la connexion...</p>
+    </div>
+
+    <div *ngIf="status === 'error'">
+      <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <i class="pi pi-times text-red-600 text-3xl"></i>
+      </div>
+      <h2 class="text-xl font-bold text-gray-900 mb-2">Erreur de vérification</h2>
+      <p class="text-gray-600 mb-6">{{ message }}</p>
+      <button routerLink="/connexion"
+              class="bg-blue-600 text-white px-6 py-2 rounded-lg">
+        Aller à la connexion
+      </button>
+    </div>
+
+  </div>
+</div>
