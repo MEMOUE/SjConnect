@@ -1,6 +1,7 @@
 package com.duniyabacker.front.entity.b2b;
 
 import com.duniyabacker.front.entity.User;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -52,12 +53,20 @@ public class ProjetB2B {
 
     private String icone = "📁";
 
-    // Créateur du projet
+    // Créateur : on expose seulement l'id et le username pour éviter la sérialisation profonde
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "createur_id", nullable = false)
+    @JsonIgnore   // ← évite la sérialisation du User complet (mot de passe, tokens…)
     private User createur;
 
-    // Participants au projet (utilisateurs ayant accès)
+    // Champ calculé exposé au frontend
+    @Transient
+    private Long createurId;
+
+    @Transient
+    private String createurUsername;
+
+    // Participants : non exposés dans la liste (évite la sérialisation N+1 et les données sensibles)
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "projet_participants",
@@ -65,9 +74,10 @@ public class ProjetB2B {
             inverseJoinColumns = @JoinColumn(name = "user_id")
     )
     @Builder.Default
+    @JsonIgnore   // ← participants jamais sérialisés directement
     private Set<User> participants = new HashSet<>();
 
-    // Partenaires du projet
+    // Partenaires : toujours inclus dans la réponse
     @OneToMany(mappedBy = "projet", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<PartenaireProjet> partenaires = new ArrayList<>();
@@ -92,6 +102,11 @@ public class ProjetB2B {
     // Méthodes utilitaires
     public void addParticipant(User user) {
         participants.add(user);
+        // Synchroniser les champs @Transient
+        if (this.createur != null && user.getId().equals(this.createur.getId())) {
+            this.createurId       = user.getId();
+            this.createurUsername = user.getUsername();
+        }
     }
 
     public void removeParticipant(User user) {
@@ -108,18 +123,19 @@ public class ProjetB2B {
         partenaire.setProjet(null);
     }
 
+    // Appelé par le service pour peupler les champs @Transient avant sérialisation
+    public void initTransientFields() {
+        if (this.createur != null) {
+            this.createurId       = this.createur.getId();
+            this.createurUsername = this.createur.getUsername();
+        }
+    }
+
     public enum StatutProjet {
-        EN_ATTENTE,
-        ACTIF,
-        EN_PAUSE,
-        TERMINE,
-        ARCHIVE
+        EN_ATTENTE, ACTIF, EN_PAUSE, TERMINE, ARCHIVE
     }
 
     public enum PrioriteProjet {
-        BASSE,
-        MOYENNE,
-        HAUTE,
-        CRITIQUE
+        BASSE, MOYENNE, HAUTE, CRITIQUE
     }
 }

@@ -2,68 +2,32 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ProjetB2BService } from '../../services/projet-b2b/projet-b2b.service';
-import {
-  ProjetB2B,
-  CreateProjetB2BRequest,
-  ProjetB2BStats,
-  PartenaireDTO
-} from '../../models/projet-b2b.model';
+import { ProjetB2B, CreateProjetB2BRequest } from '../../models/projet-b2b.model';
 
 interface Project {
-  id: string;
-  name: string;
-  description: string;
+  id: string; name: string; description: string;
   status: 'active' | 'completed' | 'pending' | 'archived';
-  progress: number;
-  startDate: string;
-  endDate: string;
-  partners: Partner[];
-  category: string;
-  priority: 'high' | 'medium' | 'low';
-  budget: number;
-  documents: number;
-  tasks: number;
-  icon: string;
+  progress: number; startDate: string; endDate: string;
+  partners: Partner[]; category: string;
+  priority: 'high' | 'medium' | 'low'; budget: number; icon: string;
 }
+interface Partner { id: string; name: string; logo: string; role: string; }
+interface Doc { id: string; name: string; icon: string; size: string; uploadedBy: string; uploadDate: string; projectId: string; }
+interface Task { id: string; title: string; description: string; status: string; assignedTo: string; dueDate: string; priority: string; projectId: string; }
+interface ChatMessage { id: string; sender: string; content: string; timestamp: string; projectId: string; }
+interface Toast { id: number; type: 'success' | 'error' | 'info'; message: string; }
 
-interface Partner {
-  id: string;
-  name: string;
-  logo: string;
-  role: string;
-  status: 'active' | 'inactive';
-}
-
-interface Document {
-  id: string;
-  name: string;
-  type: string;
-  size: string;
-  uploadedBy: string;
-  uploadDate: string;
-  projectId: string;
-  icon: string;
-}
-
-interface Task {
-  id: string;
-  title: string;
-  description: string;
-  status: 'todo' | 'in-progress' | 'review' | 'done';
-  assignedTo: string;
-  dueDate: string;
-  priority: 'high' | 'medium' | 'low';
-  projectId: string;
-}
-
-interface Message {
-  id: string;
-  sender: string;
-  content: string;
-  timestamp: string;
-  projectId: string;
-  avatar: string;
-}
+const STATUS_OPTIONS = [
+  { value: 'pending',   label: 'En attente', icon: 'pi pi-clock',        cls: 'bg-amber-50 text-amber-700 hover:bg-amber-100' },
+  { value: 'active',    label: 'Actif',       icon: 'pi pi-play-circle',  cls: 'bg-green-50 text-green-700 hover:bg-green-100' },
+  { value: 'completed', label: 'Termine',     icon: 'pi pi-check-circle', cls: 'bg-blue-50 text-blue-700 hover:bg-blue-100'   },
+  { value: 'archived',  label: 'Archive',     icon: 'pi pi-inbox',        cls: 'bg-slate-100 text-slate-600 hover:bg-slate-200'},
+];
+const TABS = [
+  { key: 'documents', label: 'Documents', icon: 'pi pi-file' },
+  { key: 'tasks',     label: 'Taches',    icon: 'pi pi-check-square' },
+  { key: 'messages',  label: 'Messages',  icon: 'pi pi-comments' },
+];
 
 @Component({
   selector: 'app-projet-b2b',
@@ -73,490 +37,292 @@ interface Message {
   styleUrl: './projet-b2b.css'
 })
 export class ProjetB2b implements OnInit {
-  activeTab: 'projects' | 'documents' | 'tasks' | 'messages' = 'projects';
-  selectedProject: Project | null = null;
-  searchTerm: string = '';
-  filterStatus: string = 'all';
-  newMessage: string = '';
-  loading: boolean = false;
-
-  // Modal & Form
-  showCreateModal: boolean = false;
+  loading = false;
+  saving = false;
+  showCreateModal = false;
   editingProject: Project | null = null;
-  progressValue: number = 0;
+  selectedProject: Project | null = null;
+  activeTab = 'documents';
+  searchTerm = '';
+  filterStatus = 'all';
+  newMessage = '';
+  progressValue = 0;
 
-  projectForm: CreateProjetB2BRequest = this.getEmptyForm();
+  toasts: Toast[] = [];
+  private toastCounter = 0;
 
-  // Données du backend
-  projetsBackend: ProjetB2B[] = [];
+  readonly statusOptions = STATUS_OPTIONS;
+  readonly tabs = TABS;
 
   projects: Project[] = [];
-  documents: Document[] = [];
+  documents: Doc[] = [];
   tasks: Task[] = [];
-  messages: Message[] = [];
-
-  stats = {
-    activeProjects: 0,
-    totalPartners: 0,
-    completionRate: 0,
-    totalBudget: 0
-  };
+  messages: ChatMessage[] = [];
+  stats = { activeProjects: 0, totalPartners: 0, completionRate: 0, totalBudget: 0 };
+  projectForm: CreateProjetB2BRequest = this.emptyForm();
 
   constructor(private projetService: ProjetB2BService) {}
 
-  ngOnInit(): void {
-    this.loadProjets();
-    this.loadStats();
+  ngOnInit(): void { this.loadProjets(); this.loadStats(); }
+
+  // ---- Toast -------------------------------------------------------
+  showToast(type: 'success' | 'error' | 'info', message: string): void {
+    const id = ++this.toastCounter;
+    this.toasts.push({ id, type, message });
+    setTimeout(() => this.dismissToast(id), 4000);
+  }
+  dismissToast(id: number): void { this.toasts = this.toasts.filter(t => t.id !== id); }
+  getToastClass(type: string): string {
+    const m: Record<string, string> = { success: 'bg-green-600', error: 'bg-red-600', info: 'bg-blue-600' };
+    return m[type] ?? 'bg-slate-700';
+  }
+  getToastIcon(type: string): string {
+    const m: Record<string, string> = { success: 'pi pi-check-circle', error: 'pi pi-times-circle', info: 'pi pi-info-circle' };
+    return m[type] ?? 'pi pi-bell';
   }
 
-  // ============================================
-  // HELPER POUR FORMULAIRE VIDE
-  // ============================================
-
-  private getEmptyForm(): CreateProjetB2BRequest {
-    return {
-      nom: '',
-      description: '',
-      categorie: '',
-      priorite: 'MOYENNE',
-      dateDebut: '',
-      dateFin: '',
-      budget: 0,
-      icone: '📁',
-      partenaires: [], // Toujours initialisé comme tableau vide
-      participantIds: []
-    };
-  }
-
-  // ============================================
-  // CHARGEMENT DES DONNÉES
-  // ============================================
-
+  // ---- Load --------------------------------------------------------
   loadProjets(): void {
     this.loading = true;
-    console.log('🔄 Chargement des projets...');
-
     this.projetService.getMesProjets().subscribe({
-      next: (projets) => {
-        console.log('✅ Projets chargés:', projets);
-        this.projetsBackend = projets;
-        this.projects = this.mapProjetsToProjects(projets);
+      next: projets => {
+        this.projects = this.mapProjets(projets);
         this.loading = false;
+        this.calcStats();
       },
-      error: (error) => {
-        console.error('❌ Erreur lors du chargement des projets:', error);
+      error: err => {
+        console.error('Erreur chargement projets:', err);
         this.loading = false;
-        this.initDemoData();
+        this.showToast('error', 'Impossible de charger les projets');
+        if (this.projects.length === 0) { this.initDemo(); }
       }
     });
   }
 
   loadStats(): void {
     this.projetService.getStats().subscribe({
-      next: (stats) => {
-        console.log('✅ Stats chargées:', stats);
+      next: s => {
         this.stats = {
-          activeProjects: stats.projetsActifs,
-          totalPartners: stats.totalPartenaires,
-          completionRate: stats.tauxCompletion,
-          totalBudget: stats.budgetTotal
+          activeProjects: s.projetsActifs    ?? 0,
+          totalPartners:  s.totalPartenaires ?? 0,
+          completionRate: s.tauxCompletion   ?? 0,
+          totalBudget:    s.budgetTotal      ?? 0,
         };
       },
-      error: (error) => {
-        console.error('❌ Erreur lors du chargement des stats:', error);
-        this.calculateStats();
-      }
+      error: () => this.calcStats()
     });
   }
 
-  // ============================================
-  // MAPPING BACKEND -> FRONTEND
-  // ============================================
-
-  mapProjetsToProjects(projets: ProjetB2B[]): Project[] {
-    return projets.map(p => ({
-      id: p.id.toString(),
-      name: p.nom,
+  // ---- Mapping -----------------------------------------------------
+  private mapProjets(list: ProjetB2B[]): Project[] {
+    return list.map(p => ({
+      id:          String(p.id),
+      name:        p.nom,
       description: p.description || '',
-      status: this.mapStatutToStatus(p.statut),
-      progress: p.progression,
-      startDate: p.dateDebut || '',
-      endDate: p.dateFin || '',
-      partners: p.partenaires?.map(pa => ({
-        id: pa.id.toString(),
-        name: pa.nom,
-        logo: pa.logo || '🏢',
-        role: pa.role,
-        status: pa.statut === 'ACTIF' ? 'active' : 'inactive'
-      })) || [],
-      category: p.categorie,
-      priority: this.mapPrioriteToLocal(p.priorite),
-      budget: p.budget,
-      documents: 0,
-      tasks: 0,
-      icon: p.icone || '📁'
+      status:      this.mapStatut(p.statut),
+      progress:    p.progression ?? 0,
+      startDate:   p.dateDebut   || '',
+      endDate:     p.dateFin     || '',
+      category:    p.categorie,
+      priority:    this.mapPriorite(p.priorite),
+      budget:      p.budget      ?? 0,
+      icon:        p.icone       || '📁',
+      partners: (p.partenaires || []).map(pa => ({
+        id: String(pa.id), name: pa.nom, logo: pa.logo || '🏢', role: pa.role
+      }))
     }));
   }
 
-  mapStatutToStatus(statut: string): 'active' | 'completed' | 'pending' | 'archived' {
-    const mapping: any = {
-      'ACTIF': 'active',
-      'TERMINE': 'completed',
-      'EN_ATTENTE': 'pending',
-      'ARCHIVE': 'archived',
-      'EN_PAUSE': 'pending'
+  private mapStatut(s: string): 'active' | 'completed' | 'pending' | 'archived' {
+    const m: Record<string, 'active' | 'completed' | 'pending' | 'archived'> = {
+      ACTIF: 'active', TERMINE: 'completed', EN_ATTENTE: 'pending', EN_PAUSE: 'pending', ARCHIVE: 'archived'
     };
-    return mapping[statut] || 'pending';
+    return m[s] ?? 'pending';
+  }
+  private mapPriorite(p: string): 'high' | 'medium' | 'low' {
+    const m: Record<string, 'high' | 'medium' | 'low'> = { HAUTE: 'high', CRITIQUE: 'high', MOYENNE: 'medium', BASSE: 'low' };
+    return m[p] ?? 'medium';
+  }
+  private mapStatutBack(s: string): string {
+    const m: Record<string, string> = { active: 'ACTIF', completed: 'TERMINE', pending: 'EN_ATTENTE', archived: 'ARCHIVE' };
+    return m[s] ?? 'EN_ATTENTE';
+  }
+  private mapPrioriteBack(p: string): string {
+    const m: Record<string, string> = { high: 'HAUTE', medium: 'MOYENNE', low: 'BASSE' };
+    return m[p] ?? 'MOYENNE';
   }
 
-  mapPrioriteToLocal(priorite: string): 'high' | 'medium' | 'low' {
-    const mapping: any = {
-      'HAUTE': 'high',
-      'CRITIQUE': 'high',
-      'MOYENNE': 'medium',
-      'BASSE': 'low'
-    };
-    return mapping[priorite] || 'medium';
-  }
-
-  mapStatusToStatut(status: string): string {
-    const mapping: any = {
-      'active': 'ACTIF',
-      'completed': 'TERMINE',
-      'pending': 'EN_ATTENTE',
-      'archived': 'ARCHIVE'
-    };
-    return mapping[status] || 'EN_ATTENTE';
-  }
-
-  // ============================================
-  // ACTIONS CRUD
-  // ============================================
-
+  // ---- CRUD --------------------------------------------------------
   saveProject(): void {
-    if (!this.projectForm.nom || !this.projectForm.categorie) {
-      alert('Veuillez remplir tous les champs obligatoires');
-      return;
-    }
-
+    if (!this.projectForm.nom || !this.projectForm.categorie || this.saving) { return; }
+    this.saving = true;
     if (this.editingProject) {
-      // Mise à jour
-      const id = parseInt(this.editingProject.id);
-      this.projetService.updateProjet(id, this.projectForm).subscribe({
-        next: (response) => {
-          console.log('✅ Projet mis à jour:', response);
-          alert('Projet modifié avec succès !');
-          this.closeModal();
-          this.loadProjets();
+      this.projetService.updateProjet(+this.editingProject.id, this.projectForm).subscribe({
+        next: () => {
+          this.showToast('success', 'Projet "' + this.projectForm.nom + '" mis a jour');
+          this.closeModal(); this.loadProjets(); this.saving = false;
         },
-        error: (error) => {
-          console.error('❌ Erreur modification projet:', error);
-          alert('Erreur lors de la modification du projet');
-        }
+        error: err => { console.error(err); this.showToast('error', 'Erreur mise a jour'); this.saving = false; }
       });
     } else {
-      // Création
       this.projetService.createProjet(this.projectForm).subscribe({
-        next: (response) => {
-          console.log('✅ Projet créé:', response);
-          alert('Projet créé avec succès !');
-          this.closeModal();
-          this.loadProjets();
+        next: resp => {
+          const name = resp?.data?.nom ?? this.projectForm.nom;
+          this.showToast('success', 'Projet "' + name + '" cree avec succes');
+          this.closeModal(); this.loadProjets(); this.saving = false;
         },
-        error: (error) => {
-          console.error('❌ Erreur création projet:', error);
-          alert('Erreur lors de la création du projet');
-        }
+        error: err => { console.error(err); this.showToast('error', 'Erreur creation projet'); this.saving = false; }
       });
     }
   }
 
-  editProject(project: Project): void {
-    this.editingProject = project;
+  editProject(p: Project): void {
+    this.editingProject = p;
     this.projectForm = {
-      nom: project.name,
-      description: project.description,
-      categorie: project.category,
-      priorite: this.mapLocalPriorityToBackend(project.priority),
-      dateDebut: project.startDate,
-      dateFin: project.endDate,
-      budget: project.budget,
-      icone: project.icon,
-      partenaires: project.partners.map(p => ({
-        nom: p.name,
-        role: p.role,
-        logo: p.logo
-      })),
+      nom: p.name, description: p.description, categorie: p.category,
+      priorite: this.mapPrioriteBack(p.priority), dateDebut: p.startDate, dateFin: p.endDate,
+      budget: p.budget, icone: p.icon,
+      partenaires: p.partners.map(pa => ({ nom: pa.name, role: pa.role, logo: pa.logo })),
       participantIds: []
     };
     this.showCreateModal = true;
   }
 
-  mapLocalPriorityToBackend(priority: string): string {
-    const mapping: any = {
-      'high': 'HAUTE',
-      'medium': 'MOYENNE',
-      'low': 'BASSE'
-    };
-    return mapping[priority] || 'MOYENNE';
-  }
-
-  confirmDeleteProject(project: Project): void {
-    if (confirm(`Êtes-vous sûr de vouloir supprimer le projet "${project.name}" ?`)) {
-      const id = parseInt(project.id);
-      this.projetService.deleteProjet(id).subscribe({
-        next: () => {
-          console.log('✅ Projet supprimé');
-          alert('Projet supprimé avec succès !');
-          this.selectedProject = null;
-          this.loadProjets();
-        },
-        error: (error) => {
-          console.error('❌ Erreur suppression projet:', error);
-          alert('Erreur lors de la suppression du projet');
-        }
-      });
-    }
+  confirmDeleteProject(p: Project): void {
+    if (!confirm('Supprimer "' + p.name + '" ?')) { return; }
+    this.projetService.deleteProjet(+p.id).subscribe({
+      next: () => {
+        this.showToast('success', 'Projet "' + p.name + '" supprime');
+        if (this.selectedProject?.id === p.id) { this.selectedProject = null; }
+        this.loadProjets();
+      },
+      error: err => { console.error(err); this.showToast('error', 'Erreur suppression'); }
+    });
   }
 
   updateProgress(): void {
-    if (!this.selectedProject) return;
-
-    const id = parseInt(this.selectedProject.id);
-    this.projetService.updateProgression(id, this.progressValue).subscribe({
+    if (!this.selectedProject) { return; }
+    this.projetService.updateProgression(+this.selectedProject.id, this.progressValue).subscribe({
       next: () => {
-        console.log('✅ Progression mise à jour');
+        this.selectedProject!.progress = this.progressValue;
+        this.showToast('success', 'Progression : ' + this.progressValue + '%');
         this.loadProjets();
-        if (this.selectedProject) {
-          this.selectedProject.progress = this.progressValue;
-        }
       },
-      error: (error) => {
-        console.error('❌ Erreur mise à jour progression:', error);
-        alert('Erreur lors de la mise à jour de la progression');
-      }
+      error: err => { console.error(err); this.showToast('error', 'Erreur progression'); }
     });
   }
 
   changeStatus(status: string): void {
-    if (!this.selectedProject) return;
-
-    const id = parseInt(this.selectedProject.id);
-    const statut = this.mapStatusToStatut(status);
-
-    this.projetService.updateStatut(id, statut).subscribe({
+    if (!this.selectedProject) { return; }
+    this.projetService.updateStatut(+this.selectedProject.id, this.mapStatutBack(status)).subscribe({
       next: () => {
-        console.log('✅ Statut mis à jour');
+        this.selectedProject!.status = status as any;
+        this.showToast('info', 'Statut -> ' + this.getStatusLabel(status));
         this.loadProjets();
-        if (this.selectedProject) {
-          this.selectedProject.status = status as any;
-        }
       },
-      error: (error) => {
-        console.error('❌ Erreur mise à jour statut:', error);
-        alert('Erreur lors de la mise à jour du statut');
-      }
+      error: err => { console.error(err); this.showToast('error', 'Erreur statut'); }
     });
   }
 
-  // ============================================
-  // GESTION DU FORMULAIRE
-  // ============================================
-
+  // ---- Form helpers ------------------------------------------------
+  private emptyForm(): CreateProjetB2BRequest {
+    return { nom: '', description: '', categorie: '', priorite: 'MOYENNE', dateDebut: '', dateFin: '', budget: 0, icone: '📁', partenaires: [], participantIds: [] };
+  }
   addPartnerToForm(): void {
-    // S'assurer que partenaires existe
-    if (!this.projectForm.partenaires) {
-      this.projectForm.partenaires = [];
-    }
-
-    this.projectForm.partenaires.push({
-      nom: '',
-      role: '',
-      logo: '🏢'
-    });
+    if (!this.projectForm.partenaires) { this.projectForm.partenaires = []; }
+    this.projectForm.partenaires.push({ nom: '', role: '', logo: '🏢' });
   }
+  removePartner(i: number): void { this.projectForm.partenaires?.splice(i, 1); }
+  closeModal(): void { this.showCreateModal = false; this.editingProject = null; this.projectForm = this.emptyForm(); }
 
-  removePartner(index: number): void {
-    // S'assurer que partenaires existe avant de supprimer
-    if (this.projectForm.partenaires && this.projectForm.partenaires.length > index) {
-      this.projectForm.partenaires.splice(index, 1);
-    }
-  }
-
-  closeModal(): void {
-    this.showCreateModal = false;
-    this.editingProject = null;
-    this.resetForm();
-  }
-
-  resetForm(): void {
-    this.projectForm = this.getEmptyForm();
-  }
-
-  addPartner(): void {
-    alert('Fonctionnalité à implémenter : Ajouter un partenaire');
-  }
-
-  // ============================================
-  // RECHERCHE ET FILTRAGE
-  // ============================================
-
+  // ---- Search / filter ---------------------------------------------
   onSearchChange(): void {
     if (this.searchTerm.length >= 3) {
       this.projetService.searchProjets(this.searchTerm).subscribe({
-        next: (projets) => {
-          this.projects = this.mapProjetsToProjects(projets);
-        },
-        error: (error) => {
-          console.error('❌ Erreur recherche:', error);
-        }
+        next: p => this.projects = this.mapProjets(p), error: e => console.error(e)
       });
-    } else if (this.searchTerm.length === 0) {
-      this.loadProjets();
-    }
+    } else if (this.searchTerm.length === 0) { this.loadProjets(); }
   }
-
   onFilterChange(): void {
-    if (this.filterStatus === 'all') {
-      this.loadProjets();
-    } else {
-      const statut = this.mapStatusToStatut(this.filterStatus);
-      this.projetService.filterByStatut(statut).subscribe({
-        next: (projets) => {
-          this.projects = this.mapProjetsToProjects(projets);
-        },
-        error: (error) => {
-          console.error('❌ Erreur filtrage:', error);
-        }
+    if (this.filterStatus === 'all') { this.loadProjets(); }
+    else {
+      this.projetService.filterByStatut(this.mapStatutBack(this.filterStatus)).subscribe({
+        next: p => this.projects = this.mapProjets(p), error: e => console.error(e)
       });
     }
   }
-
-  // ============================================
-  // MÉTHODES EXISTANTES
-  // ============================================
-
-  calculateStats(): void {
-    this.stats.activeProjects = this.projects.filter(p => p.status === 'active').length;
-    this.stats.totalPartners = new Set(
-      this.projects.flatMap(p => p.partners.map(pa => pa.id))
-    ).size;
-    const totalProgress = this.projects.reduce((sum, p) => sum + p.progress, 0);
-    this.stats.completionRate = Math.round(totalProgress / this.projects.length) || 0;
-    this.stats.totalBudget = this.projects.reduce((sum, p) => sum + p.budget, 0);
-  }
-
   getFilteredProjects(): Project[] {
-    return this.projects.filter(project => {
-      const matchesSearch = project.name.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
-        project.description.toLowerCase().includes(this.searchTerm.toLowerCase());
-      const matchesStatus = this.filterStatus === 'all' || project.status === this.filterStatus;
-      return matchesSearch && matchesStatus;
+    const q = this.searchTerm.toLowerCase();
+    return this.projects.filter(p => {
+      const matchSearch = !q || p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q);
+      const matchStatus = this.filterStatus === 'all' || p.status === this.filterStatus;
+      return matchSearch && matchStatus;
     });
   }
 
-  selectProject(project: Project): void {
-    this.selectedProject = project;
-    this.progressValue = project.progress;
-    this.activeTab = 'projects';
-  }
-
-  getProjectDocuments(projectId: string): Document[] {
-    return this.documents.filter(d => d.projectId === projectId);
-  }
-
-  getProjectTasks(projectId: string): Task[] {
-    return this.tasks.filter(t => t.projectId === projectId);
-  }
-
-  getProjectMessages(projectId: string): Message[] {
-    return this.messages.filter(m => m.projectId === projectId);
-  }
-
-  getStatusClass(status: string): string {
-    const classes: { [key: string]: string } = {
-      'active': 'bg-green-100 text-green-800',
-      'completed': 'bg-blue-100 text-blue-800',
-      'pending': 'bg-yellow-100 text-yellow-800',
-      'archived': 'bg-gray-100 text-gray-800',
-      'todo': 'bg-gray-100 text-gray-800',
-      'in-progress': 'bg-blue-100 text-blue-800',
-      'review': 'bg-yellow-100 text-yellow-800',
-      'done': 'bg-green-100 text-green-800',
-      'high': 'bg-red-100 text-red-800',
-      'medium': 'bg-yellow-100 text-yellow-800',
-      'low': 'bg-green-100 text-green-800'
-    };
-    return classes[status] || 'bg-gray-100 text-gray-800';
-  }
-
-  getStatusLabel(status: string): string {
-    const labels: { [key: string]: string } = {
-      'active': 'En cours',
-      'completed': 'Terminé',
-      'pending': 'En attente',
-      'archived': 'Archivé',
-      'todo': 'À faire',
-      'in-progress': 'En cours',
-      'review': 'En révision',
-      'done': 'Terminé',
-      'high': 'Haute',
-      'medium': 'Moyenne',
-      'low': 'Basse'
-    };
-    return labels[status] || status;
-  }
+  // ---- Selection ---------------------------------------------------
+  selectProject(p: Project): void { this.selectedProject = p; this.progressValue = p.progress; this.activeTab = 'documents'; }
+  getProjectDocuments(id: string): Doc[]         { return this.documents.filter(d => d.projectId === id); }
+  getProjectTasks(id: string):     Task[]        { return this.tasks.filter(t => t.projectId === id); }
+  getProjectMessages(id: string):  ChatMessage[] { return this.messages.filter(m => m.projectId === id); }
 
   sendMessage(): void {
-    if (!this.newMessage.trim() || !this.selectedProject) return;
-
-    const message: Message = {
-      id: `M${Date.now()}`,
-      sender: 'Vous',
-      content: this.newMessage,
-      timestamp: new Date().toLocaleString('fr-FR'),
-      projectId: this.selectedProject.id,
-      avatar: '👤'
-    };
-
-    this.messages.unshift(message);
+    if (!this.newMessage.trim() || !this.selectedProject) { return; }
+    this.messages.unshift({
+      id: 'M' + Date.now(), sender: 'Vous', content: this.newMessage,
+      timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+      projectId: this.selectedProject.id
+    });
     this.newMessage = '';
   }
 
-  downloadDocument(doc: Document): void {
-    alert(`Téléchargement de ${doc.name}`);
+  // ---- Style helpers -----------------------------------------------
+  getStatusBadge(status: string): string {
+    const m: Record<string, string> = {
+      active: 'bg-green-100 text-green-700', completed: 'bg-blue-100 text-blue-700',
+      pending: 'bg-amber-100 text-amber-700', archived: 'bg-slate-100 text-slate-500',
+      'in-progress': 'bg-blue-100 text-blue-700', done: 'bg-green-100 text-green-700',
+      todo: 'bg-slate-100 text-slate-500', review: 'bg-purple-100 text-purple-700',
+    };
+    return m[status] ?? 'bg-slate-100 text-slate-500';
+  }
+  getPriorityBadge(priority: string): string {
+    const m: Record<string, string> = { high: 'bg-red-100 text-red-700', medium: 'bg-amber-100 text-amber-700', low: 'bg-green-100 text-green-700' };
+    return m[priority] ?? 'bg-slate-100 text-slate-500';
+  }
+  getStatusLabel(status: string): string {
+    const m: Record<string, string> = {
+      active: 'Actif', completed: 'Termine', pending: 'En attente', archived: 'Archive',
+      'in-progress': 'En cours', done: 'Termine', todo: 'A faire', review: 'En revision',
+    };
+    return m[status] ?? status;
+  }
+  getPriorityLabel(p: string): string {
+    return ({ high: 'Haute', medium: 'Moyenne', low: 'Basse' } as Record<string, string>)[p] ?? p;
   }
 
-  addNewDocument(): void {
-    alert('Upload de document - À implémenter');
+  addNewDocument(): void { this.showToast('info', 'Upload document a implementer'); }
+  addNewTask():     void { this.showToast('info', 'Creation tache a implementer'); }
+  downloadDocument(doc: Doc): void { this.showToast('info', 'Telechargement : ' + doc.name); }
+
+  private calcStats(): void {
+    const ps = this.projects;
+    this.stats.activeProjects = ps.filter(p => p.status === 'active').length;
+    this.stats.totalPartners  = new Set(ps.flatMap(p => p.partners.map(pa => pa.id))).size;
+    this.stats.completionRate = ps.length ? Math.round(ps.reduce((s, p) => s + p.progress, 0) / ps.length) : 0;
+    this.stats.totalBudget    = ps.reduce((s, p) => s + p.budget, 0);
   }
 
-  addNewTask(): void {
-    alert('Création de tâche - À implémenter');
-  }
-
-  initDemoData(): void {
-    this.projects = [
-      {
-        id: 'P001',
-        name: 'Plateforme Fintech Collaborative',
-        description: 'Développement d\'une solution de paiement B2B innovante',
-        status: 'active',
-        progress: 65,
-        startDate: '2024-09-01',
-        endDate: '2025-03-31',
-        category: 'Technologie',
-        priority: 'high',
-        budget: 500000,
-        documents: 24,
-        tasks: 18,
-        icon: '💳',
-        partners: [
-          { id: 'PA1', name: 'TechCorp', logo: '🏢', role: 'Développement', status: 'active' },
-          { id: 'PA2', name: 'FinanceHub', logo: '🏦', role: 'Financement', status: 'active' }
-        ]
-      }
-    ];
-    this.calculateStats();
+  private initDemo(): void {
+    this.projects = [{
+      id: 'P001', name: 'Plateforme Fintech (demo)', description: 'Solution de paiement B2B',
+      status: 'active', progress: 65, startDate: '2024-09-01', endDate: '2025-03-31',
+      category: 'Technologie', priority: 'high', budget: 500000, icon: '💳',
+      partners: [
+        { id: 'PA1', name: 'TechCorp',   logo: '🏢', role: 'Developpement' },
+        { id: 'PA2', name: 'FinanceHub', logo: '🏦', role: 'Financement' }
+      ]
+    }];
+    this.calcStats();
   }
 }

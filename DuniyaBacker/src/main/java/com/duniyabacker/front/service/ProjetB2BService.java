@@ -71,14 +71,26 @@ public class ProjetB2BService {
         return ApiResponse.success("Projet créé avec succès", projet);
     }
 
+    // ── CORRECTION PRINCIPALE : @Transactional(readOnly = true) sur toutes les méthodes de lecture ──
+
+    @Transactional(readOnly = true)
     public List<ProjetB2B> getMesProjets(String username) {
         User user = getUserByUsername(username);
-        return projetRepository.findByUserIdAsCreatorOrParticipant(user.getId());
+        List<ProjetB2B> projets = projetRepository.findByUserIdAsCreatorOrParticipant(user.getId());
+        // Forcer l'initialisation des collections lazy DANS la session Hibernate ouverte
+        projets.forEach(p -> {
+            p.getPartenaires().size();   // force l'initialisation dans la session Hibernate
+            p.initTransientFields();     // peuple createurId / createurUsername
+        });
+        return projets;
     }
 
+    @Transactional(readOnly = true)
     public ProjetB2B getProjetById(String username, Long projetId) {
         User user = getUserByUsername(username);
-        return getProjetWithAccessCheck(projetId, user.getId());
+        ProjetB2B projet = getProjetWithAccessCheck(projetId, user.getId());
+        projet.getPartenaires().size(); // init lazy
+        return projet;
     }
 
     @Transactional
@@ -100,6 +112,7 @@ public class ProjetB2BService {
         projet.setIcone(request.getIcone());
 
         projetRepository.save(projet);
+        projet.getPartenaires().size();
         log.info("Projet B2B mis à jour: {}", projet.getNom());
 
         return ApiResponse.success("Projet mis à jour avec succès", projet);
@@ -114,8 +127,8 @@ public class ProjetB2BService {
             ProjetB2B.StatutProjet statut = ProjetB2B.StatutProjet.valueOf(statutStr.toUpperCase());
             projet.setStatut(statut);
             projetRepository.save(projet);
+            projet.getPartenaires().size();
             log.info("Statut du projet {} mis à jour: {}", projetId, statut);
-
             return ApiResponse.success("Statut mis à jour", projet);
         } catch (IllegalArgumentException e) {
             throw new BadRequestException("Statut invalide: " + statutStr);
@@ -132,12 +145,12 @@ public class ProjetB2BService {
         ProjetB2B projet = getProjetWithAccessCheck(projetId, user.getId());
 
         projet.setProgression(progression);
-
         if (progression == 100) {
             projet.setStatut(ProjetB2B.StatutProjet.TERMINE);
         }
 
         projetRepository.save(projet);
+        projet.getPartenaires().size();
         log.info("Progression du projet {} mise à jour: {}%", projetId, progression);
 
         return ApiResponse.success("Progression mise à jour", projet);
@@ -157,6 +170,7 @@ public class ProjetB2BService {
 
         projet.addParticipant(participant);
         projetRepository.save(projet);
+        projet.getPartenaires().size();
         log.info("Participant {} ajouté au projet {}", participantId, projetId);
 
         return ApiResponse.success("Participant ajouté", projet);
@@ -170,7 +184,6 @@ public class ProjetB2BService {
         if (!projet.getCreateur().getId().equals(user.getId())) {
             throw new ForbiddenException("Seul le créateur peut retirer des participants");
         }
-
         if (participantId.equals(user.getId())) {
             throw new BadRequestException("Le créateur ne peut pas être retiré du projet");
         }
@@ -180,6 +193,7 @@ public class ProjetB2BService {
 
         projet.removeParticipant(participant);
         projetRepository.save(projet);
+        projet.getPartenaires().size();
         log.info("Participant {} retiré du projet {}", participantId, projetId);
 
         return ApiResponse.success("Participant retiré", projet);
@@ -200,51 +214,46 @@ public class ProjetB2BService {
         return ApiResponse.success("Projet supprimé avec succès");
     }
 
+    @Transactional(readOnly = true)
     public Map<String, Object> getStats(String username) {
         User user = getUserByUsername(username);
         List<ProjetB2B> projets = projetRepository.findByUserIdAsCreatorOrParticipant(user.getId());
+        projets.forEach(p -> p.getPartenaires().size());
 
-        long totalProjets = projets.size();
+        long totalProjets  = projets.size();
         long projetsActifs = projets.stream()
-                .filter(p -> p.getStatut() == ProjetB2B.StatutProjet.ACTIF)
-                .count();
-
+                .filter(p -> p.getStatut() == ProjetB2B.StatutProjet.ACTIF).count();
         long totalPartenaires = projets.stream()
                 .flatMap(p -> p.getPartenaires().stream())
-                .map(PartenaireProjet::getId)
-                .distinct()
-                .count();
-
-        double avgProgress = projets.stream()
-                .mapToInt(ProjetB2B::getProgression)
-                .average()
-                .orElse(0);
-
-        long budgetTotal = projets.stream()
-                .mapToLong(ProjetB2B::getBudget)
-                .sum();
+                .map(PartenaireProjet::getId).distinct().count();
+        double avgProgress = projets.stream().mapToInt(ProjetB2B::getProgression).average().orElse(0);
+        long budgetTotal   = projets.stream().mapToLong(ProjetB2B::getBudget).sum();
 
         Map<String, Object> stats = new HashMap<>();
-        stats.put("totalProjets", totalProjets);
-        stats.put("projetsActifs", projetsActifs);
+        stats.put("totalProjets",     totalProjets);
+        stats.put("projetsActifs",    projetsActifs);
         stats.put("totalPartenaires", totalPartenaires);
-        stats.put("tauxCompletion", (long) avgProgress);
-        stats.put("budgetTotal", budgetTotal);
-
+        stats.put("tauxCompletion",   (long) avgProgress);
+        stats.put("budgetTotal",      budgetTotal);
         return stats;
     }
 
+    @Transactional(readOnly = true)
     public List<ProjetB2B> searchProjets(String username, String searchTerm) {
         User user = getUserByUsername(username);
-        return projetRepository.searchProjets(user.getId(), searchTerm);
+        List<ProjetB2B> projets = projetRepository.searchProjets(user.getId(), searchTerm);
+        projets.forEach(p -> p.getPartenaires().size());
+        return projets;
     }
 
+    @Transactional(readOnly = true)
     public List<ProjetB2B> filterByStatut(String username, String statutStr) {
         User user = getUserByUsername(username);
-
         try {
             ProjetB2B.StatutProjet statut = ProjetB2B.StatutProjet.valueOf(statutStr.toUpperCase());
-            return projetRepository.findByUserIdAndStatut(user.getId(), statut);
+            List<ProjetB2B> projets = projetRepository.findByUserIdAndStatut(user.getId(), statut);
+            projets.forEach(p -> p.getPartenaires().size());
+            return projets;
         } catch (IllegalArgumentException e) {
             throw new BadRequestException("Statut invalide: " + statutStr);
         }
@@ -258,11 +267,9 @@ public class ProjetB2BService {
     private ProjetB2B getProjetWithAccessCheck(Long projetId, Long userId) {
         ProjetB2B projet = projetRepository.findById(projetId)
                 .orElseThrow(() -> new ResourceNotFoundException("Projet non trouvé"));
-
         if (!projetRepository.hasUserAccess(projetId, userId)) {
             throw new ForbiddenException("Vous n'avez pas accès à ce projet");
         }
-
         return projet;
     }
 }
