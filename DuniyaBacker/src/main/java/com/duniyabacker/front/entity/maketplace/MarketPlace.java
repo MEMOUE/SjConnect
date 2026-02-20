@@ -14,6 +14,6 @@ import lombok.*;
 @AllArgsConstructor
 public class MarketPlace extends Message {
 
-    @Column(name = "secteur_activite", nullable = false)
+    @Column(name = "secteur_activite") // todo, nullable = false
     private String secteurActivite;
 }
