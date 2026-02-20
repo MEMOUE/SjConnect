@@ -124,7 +124,7 @@ public class EmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            helper.setFrom("noreply@duniyaconnect.com");
+            helper.setFrom(fromEmail);  // ← utilise ${spring.mail.username} au lieu du hardcodé
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(htmlContent, true);

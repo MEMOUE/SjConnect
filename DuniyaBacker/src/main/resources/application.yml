@@ -21,7 +21,7 @@ spring:
     host: mail.duniyaconnect.com
     port: 465
     username: no-reply@duniyaconnect.com
-    password: Passer@123  #${MAIL_PASSWORD}  # Passer@123
+    password: Passer@123
     properties:
       mail:
         smtp:
