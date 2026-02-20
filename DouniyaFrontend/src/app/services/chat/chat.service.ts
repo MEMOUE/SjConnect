@@ -4,113 +4,80 @@ import { Observable, BehaviorSubject, Subject } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse, ChatNotification, Conversation, Message } from '../../models/chat.model';
 
+// ── Installation requise pour le temps réel ──────────────────────
+// npm install @stomp/stompjs sockjs-client
+// npm install --save-dev @types/sockjs-client
+// ─────────────────────────────────────────────────────────────────
+
 @Injectable({
   providedIn: 'root'
 })
 export class ChatService {
   private apiUrl = environment.apiUrl + '/chat';
+  private wsUrl  = environment.apiUrl.replace('/api', '') + '/ws';
 
-  // Observables pour WebSocket
-  private isConnectedSubject = new BehaviorSubject<boolean>(false);
-  public isConnected$ = this.isConnectedSubject.asObservable();
-
-  private messageReceivedSubject = new Subject<ChatNotification>();
-  public onMessageReceived$ = this.messageReceivedSubject.asObservable();
-
+  private isConnectedSubject        = new BehaviorSubject<boolean>(false);
+  public  isConnected$              = this.isConnectedSubject.asObservable();
+  private messageReceivedSubject    = new Subject<ChatNotification>();
+  public  onMessageReceived$        = this.messageReceivedSubject.asObservable();
   private typingNotificationSubject = new Subject<ChatNotification>();
-  public onTypingNotification$ = this.typingNotificationSubject.asObservable();
+  public  onTypingNotification$     = this.typingNotificationSubject.asObservable();
+  private userStatusChangeSubject   = new Subject<ChatNotification>();
+  public  onUserStatusChange$       = this.userStatusChangeSubject.asObservable();
 
-  private userStatusChangeSubject = new Subject<ChatNotification>();
-  public onUserStatusChange$ = this.userStatusChangeSubject.asObservable();
-
-  // WebSocket connection (TODO: implémenter avec STOMP)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private stompClient: any = null;
+  private subscribedConversations   = new Set<number>();
 
-  constructor(private http: HttpClient) {
-    console.log('💬 ChatService initialized with API URL:', this.apiUrl);
-  }
+  constructor(private http: HttpClient) {}
 
   // ============================================
-  // GESTION DES CONVERSATIONS
+  // CONVERSATIONS
   // ============================================
 
-  /**
-   * Obtenir la liste des conversations (paginée)
-   */
-  getConversations(page: number = 0, size: number = 20): Observable<any> {
+  getConversations(page = 0, size = 30): Observable<any> {
     const params = new HttpParams()
       .set('page', page.toString())
       .set('size', size.toString())
       .set('sort', 'updatedAt,desc');
-
     return this.http.get<any>(`${this.apiUrl}/conversations`, { params });
   }
 
-  /**
-   * Créer une nouvelle conversation
-   */
   createConversation(
     participantIds: number[],
-    isGroup: boolean = false,
+    isGroup = false,
     name?: string
   ): Observable<ApiResponse<Conversation>> {
     return this.http.post<ApiResponse<Conversation>>(
       `${this.apiUrl}/conversations`,
-      {
-        name: name || 'Nouvelle conversation',
-        isGroup: isGroup,
-        participantIds: participantIds
-      }
+      { name: name || 'Nouvelle conversation', isGroup, participantIds }
     );
   }
 
-  /**
-   * Rechercher des conversations
-   */
   searchConversations(searchTerm: string): Observable<Conversation[]> {
     const params = new HttpParams().set('q', searchTerm);
     return this.http.get<Conversation[]>(`${this.apiUrl}/conversations/search`, { params });
   }
 
   // ============================================
-  // GESTION DES MESSAGES
+  // MESSAGES
   // ============================================
 
-  /**
-   * Obtenir les messages d'une conversation (paginé)
-   */
-  getMessages(conversationId: number, page: number = 0, size: number = 50): Observable<any> {
+  getMessages(conversationId: number, page = 0, size = 50): Observable<any> {
     const params = new HttpParams()
       .set('page', page.toString())
       .set('size', size.toString())
       .set('sort', 'createdAt,desc');
-
     return this.http.get<any>(
       `${this.apiUrl}/conversations/${conversationId}/messages`,
       { params }
     );
   }
 
-  /**
-   * Upload un fichier
-   */
-  uploadFile(file: File): Observable<ApiResponse<any>> {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    return this.http.post<ApiResponse<any>>(
-      `${this.apiUrl}/upload`,
-      formData
-    );
-  }
-
-  /**
-   * Envoyer un message
-   */
   sendMessage(
     conversationId: number,
     content: string,
-    type: string = 'TEXT',
+    type = 'TEXT',
     fileUrl?: string,
     fileName?: string,
     parentMessageId?: number
@@ -118,17 +85,9 @@ export class ChatService {
     let params = new HttpParams()
       .set('content', content)
       .set('type', type);
-
-    if (fileUrl) {
-      params = params.set('fileUrl', fileUrl);
-    }
-    if (fileName) {
-      params = params.set('fileName', fileName);
-    }
-    if (parentMessageId) {
-      params = params.set('parentMessageId', parentMessageId.toString());
-    }
-
+    if (fileUrl)         params = params.set('fileUrl', fileUrl);
+    if (fileName)        params = params.set('fileName', fileName);
+    if (parentMessageId) params = params.set('parentMessageId', parentMessageId.toString());
     return this.http.post<ApiResponse<Message>>(
       `${this.apiUrl}/conversations/${conversationId}/messages`,
       null,
@@ -136,18 +95,15 @@ export class ChatService {
     );
   }
 
-  /**
-   * Marquer les messages comme lus
-   */
+  uploadFile(file: File): Observable<ApiResponse<any>> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<ApiResponse<any>>(`${this.apiUrl}/upload`, formData);
+  }
+
   markAsRead(conversationId: number, messageIds?: number[]): Observable<ApiResponse<void>> {
     let params = new HttpParams();
-
-    if (messageIds && messageIds.length > 0) {
-      messageIds.forEach(id => {
-        params = params.append('messageIds', id.toString());
-      });
-    }
-
+    messageIds?.forEach(id => { params = params.append('messageIds', id.toString()); });
     return this.http.post<ApiResponse<void>>(
       `${this.apiUrl}/conversations/${conversationId}/read`,
       null,
@@ -156,85 +112,121 @@ export class ChatService {
   }
 
   // ============================================
-  // WEBSOCKET (À implémenter avec STOMP)
+  // WEBSOCKET — import dynamique (pas d'erreur TS si packages absents)
   // ============================================
 
-  /**
-   * Se connecter au WebSocket
-   */
   connect(): void {
-    console.log('🔌 WebSocket connection (STOMP)');
-
-    // TODO: Implémenter avec @stomp/stompjs et SockJS
-    // const socket = new SockJS(`${environment.apiUrl}/ws`);
-    // this.stompClient = Stomp.over(socket);
-    // this.stompClient.connect({}, (frame: any) => {
-    //   console.log('Connected: ' + frame);
-    //   this.isConnectedSubject.next(true);
-    //
-    //   // S'abonner aux topics globaux
-    //   this.stompClient.subscribe('/user/queue/messages', (message: any) => {
-    //     const notification = JSON.parse(message.body);
-    //     this.messageReceivedSubject.next(notification);
-    //   });
-    // });
-
-    // Simulation pour l'instant
-    setTimeout(() => {
-      this.isConnectedSubject.next(true);
-      console.log('✅ WebSocket connected (simulated)');
-    }, 1000);
+    import('@stomp/stompjs')
+      .then(({ Client }) =>
+        import('sockjs-client').then(SockJSModule => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const SockJS = (SockJSModule as any).default ?? SockJSModule;
+          this.initStomp(Client, SockJS);
+        }).catch(() => this.fallbackConnect())
+      )
+      .catch(() => this.fallbackConnect());
   }
 
-  /**
-   * Se déconnecter du WebSocket
-   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private initStomp(Client: any, SockJS: any): void {
+    const token = localStorage.getItem('accessToken');
+
+    this.stompClient = new Client({
+      webSocketFactory: () => new SockJS(this.wsUrl),
+      connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
+      reconnectDelay: 5000,
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000,
+
+      onConnect: () => {
+        this.isConnectedSubject.next(true);
+        console.log('✅ WebSocket STOMP connecté');
+
+        this.stompClient.subscribe('/user/queue/messages', (msg: { body: string }) => {
+          try {
+            const notif: ChatNotification = JSON.parse(msg.body);
+            if (notif.type === 'NEW_MESSAGE') this.messageReceivedSubject.next(notif);
+          } catch { /* ignore */ }
+        });
+
+        this.stompClient.subscribe('/topic/public', (msg: { body: string }) => {
+          try {
+            const notif: ChatNotification = JSON.parse(msg.body);
+            if (notif.type === 'USER_ONLINE' || notif.type === 'USER_OFFLINE') {
+              this.userStatusChangeSubject.next(notif);
+            }
+          } catch { /* ignore */ }
+        });
+      },
+
+      onDisconnect: () => {
+        this.isConnectedSubject.next(false);
+      },
+
+      onStompError: () => {
+        this.isConnectedSubject.next(false);
+      },
+
+      onWebSocketError: () => {
+        this.fallbackConnect();
+      }
+    });
+
+    this.stompClient.activate();
+  }
+
+  private fallbackConnect(): void {
+    console.warn(
+      '⚠️ WebSocket temps réel désactivé.\n' +
+      '   Pour l\'activer :\n' +
+      '   npm install @stomp/stompjs sockjs-client\n' +
+      '   npm install --save-dev @types/sockjs-client'
+    );
+    setTimeout(() => this.isConnectedSubject.next(true), 400);
+  }
+
   disconnect(): void {
-    if (this.stompClient) {
-      this.stompClient.disconnect();
-    }
+    if (this.stompClient?.active) this.stompClient.deactivate();
     this.isConnectedSubject.next(false);
-    console.log('🔌 WebSocket disconnected');
+    this.subscribedConversations.clear();
   }
 
-  /**
-   * S'abonner aux notifications d'une conversation
-   */
   subscribeToConversation(conversationId: number): void {
-    console.log(`📨 Subscribed to conversation ${conversationId}`);
+    if (!this.stompClient?.active || this.subscribedConversations.has(conversationId)) return;
 
-    // TODO: Implémenter avec STOMP
-    // this.stompClient.subscribe(`/topic/conversation/${conversationId}`, (message: any) => {
-    //   const notification = JSON.parse(message.body);
-    //   if (notification.type === 'NEW_MESSAGE') {
-    //     this.messageReceivedSubject.next(notification);
-    //   } else if (notification.type === 'USER_TYPING' || notification.type === 'USER_STOP_TYPING') {
-    //     this.typingNotificationSubject.next(notification);
-    //   }
-    // });
+    this.stompClient.subscribe(
+      `/topic/conversation/${conversationId}`,
+      (msg: { body: string }) => {
+        try {
+          const notif: ChatNotification = JSON.parse(msg.body);
+          if (notif.type === 'NEW_MESSAGE') {
+            this.messageReceivedSubject.next(notif);
+          } else if (notif.type === 'USER_TYPING' || notif.type === 'USER_STOP_TYPING') {
+            this.typingNotificationSubject.next(notif);
+          }
+        } catch { /* ignore */ }
+      }
+    );
+    this.subscribedConversations.add(conversationId);
   }
 
-  /**
-   * Envoyer une notification de frappe
-   */
   sendTypingNotification(conversationId: number): void {
-    console.log(`⌨️ Typing notification for conversation ${conversationId}`);
-
-    // TODO: Implémenter avec STOMP
-    // this.stompClient.send('/app/chat.typing', {}, JSON.stringify({
-    //   conversationId: conversationId
-    // }));
+    if (!this.stompClient?.active) return;
+    try {
+      this.stompClient.publish({
+        destination: '/app/chat.typing',
+        body: JSON.stringify({ conversationId })
+      });
+    } catch { /* ignore */ }
   }
 
-  /**
-   * Arrêter la notification de frappe
-   */
   sendStopTypingNotification(conversationId: number): void {
-    console.log(`⌨️ Stop typing notification for conversation ${conversationId}`);
-
-    // TODO: Implémenter avec STOMP
-    // this.stompClient.send('/app/chat.stopTyping', {}, JSON.stringify({
-    //   conversationId: conversationId
-    // }));
+    if (!this.stompClient?.active) return;
+    try {
+      this.stompClient.publish({
+        destination: '/app/chat.stopTyping',
+        body: JSON.stringify({ conversationId })
+      });
+    } catch { /* ignore */ }
   }
 }

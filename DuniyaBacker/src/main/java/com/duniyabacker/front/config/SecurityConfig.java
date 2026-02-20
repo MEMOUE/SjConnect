@@ -54,6 +54,7 @@ public class SecurityConfig {
                                 "/api/auth/verify-email/**",
                                 "/api/projets-b2b/**",
                                 "api/projets-b2b",
+                                "/api/chat/conversations/**",
                                 "/api/shared/view/**",
                                 "/uploads/**",           
                                 "/uploads/shared/**",

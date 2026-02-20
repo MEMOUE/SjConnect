@@ -1,15 +1,16 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DialogModule } from 'primeng/dialog';
 import { MultiSelectModule } from 'primeng/multiselect';
-import { FileUploadModule } from 'primeng/fileupload';
+import { ToastModule } from 'primeng/toast';
+import { MessageService } from 'primeng/api';
 import { ChatService } from '../../services/chat/chat.service';
 import { EmployeService } from '../../services/auth/employe.service';
 import { AuthService } from '../../services/auth/auth.service';
 import { Conversation, Message, ChatNotification } from '../../models/chat.model';
 import { Subscription } from 'rxjs';
-import {EmployeSimple} from '../../models/auth.model';
+import { EmployeSimple } from '../../models/auth.model';
 
 @Component({
   selector: 'app-chat',
@@ -19,15 +20,19 @@ import {EmployeSimple} from '../../models/auth.model';
     FormsModule,
     DialogModule,
     MultiSelectModule,
-    FileUploadModule
+    ToastModule
   ],
+  providers: [MessageService],
   templateUrl: './chat.html',
   styleUrl: './chat.css'
 })
-export class Chat implements OnInit, OnDestroy {
+export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   @ViewChild('messageContainer') private messageContainer!: ElementRef;
   @ViewChild('fileInput') private fileInput!: ElementRef;
 
+  // ============================================
+  // ÉTAT PRINCIPAL
+  // ============================================
   conversations: Conversation[] = [];
   filteredConversations: Conversation[] = [];
   selectedConversation: Conversation | null = null;
@@ -38,46 +43,61 @@ export class Chat implements OnInit, OnDestroy {
 
   isLoading = false;
   isConnected = false;
+  private shouldScrollToBottom = false;
 
-  // Dialog nouvelle conversation
+  // ============================================
+  // DIALOG NOUVELLE CONVERSATION
+  // ============================================
   showNewConversationDialog = false;
-  newConversationName = '';
   isGroupConversation = false;
+  groupName = '';
   selectedParticipants: EmployeSimple[] = [];
   availableEmployes: EmployeSimple[] = [];
   isLoadingEmployes = false;
+  isCreatingConversation = false;
 
-  // Gestion des fichiers
+  // ============================================
+  // GESTION DES FICHIERS
+  // ============================================
   selectedFile: File | null = null;
+  isUploadingFile = false;
   showEmojiPicker = false;
+  isSendingMessage = false;
 
-  // Emojis populaires
+  // ============================================
+  // EMOJIS POPULAIRES
+  // ============================================
   popularEmojis = [
-    '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂',
-    '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩',
-    '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪',
+    '😀', '😃', '😄', '😁', '😅', '🤣', '😂', '🙂',
+    '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😋',
+    '😛', '😜', '🤪', '😎', '🥳', '😴', '🤔', '🤗',
     '👍', '👎', '👌', '✌️', '🤞', '🤝', '👏', '🙌',
     '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍',
-    '✅', '❌', '⭐', '🔥', '💯', '🎉', '🎊', '🎈'
+    '✅', '❌', '⭐', '🔥', '💯', '🎉', '🎊', '🎈',
+    '📎', '📁', '📊', '📈', '💡', '🔔', '📱', '💻'
   ];
 
-  // Indicateur de frappe
+  // ============================================
+  // INDICATEUR DE FRAPPE
+  // ============================================
   typingUsers: Map<number, string[]> = new Map();
-  typingTimeout: any;
+  private typingTimeout: ReturnType<typeof setTimeout> | null = null;
 
-  // ID de l'utilisateur actuel
-  currentUserId: number = 1;
+  // ============================================
+  // UTILISATEUR ACTUEL
+  // ============================================
+  currentUserId: number = 0;
 
   private subscriptions: Subscription[] = [];
 
   constructor(
     private chatService: ChatService,
     private employeService: EmployeService,
-    private authService: AuthService
+    private authService: AuthService,
+    private messageService: MessageService
   ) {}
 
-  ngOnInit() {
-    // Récupérer l'utilisateur actuel
+  ngOnInit(): void {
     const currentUser = this.authService.getCurrentUserValue();
     if (currentUser) {
       this.currentUserId = currentUser.id;
@@ -89,25 +109,37 @@ export class Chat implements OnInit, OnDestroy {
     this.loadEmployes();
   }
 
-  ngOnDestroy() {
+  ngAfterViewChecked(): void {
+    if (this.shouldScrollToBottom) {
+      this.scrollToBottom();
+      this.shouldScrollToBottom = false;
+    }
+  }
+
+  ngOnDestroy(): void {
     this.subscriptions.forEach(sub => sub.unsubscribe());
     this.chatService.disconnect();
+    if (this.typingTimeout) {
+      clearTimeout(this.typingTimeout);
+    }
   }
 
   // ============================================
   // CHARGEMENT DES DONNÉES
   // ============================================
 
-  loadConversations() {
+  loadConversations(): void {
     this.isLoading = true;
     const sub = this.chatService.getConversations().subscribe({
       next: (page) => {
         this.conversations = page.content.map((conv: any) => ({
           id: conv.id,
           name: conv.name,
-          avatar: conv.avatar,
+          avatar: conv.avatar || this.getInitials(conv.name),
           lastMessage: conv.lastMessage?.content || '',
-          lastMessageTime: conv.lastMessage?.createdAt ? new Date(conv.lastMessage.createdAt) : new Date(),
+          lastMessageTime: conv.lastMessage?.createdAt
+            ? new Date(conv.lastMessage.createdAt)
+            : new Date(conv.updatedAt || Date.now()),
           unreadCount: conv.unreadCount || 0,
           isOnline: conv.isOnline || false,
           isGroup: conv.isGroup,
@@ -121,30 +153,31 @@ export class Chat implements OnInit, OnDestroy {
         }
       },
       error: (error) => {
-        console.error('Erreur lors du chargement des conversations:', error);
+        console.error('Erreur chargement conversations:', error);
         this.isLoading = false;
+        this.showToast('error', 'Erreur', 'Impossible de charger les conversations');
       }
     });
     this.subscriptions.push(sub);
   }
 
-  loadEmployes() {
+  loadEmployes(): void {
     this.isLoadingEmployes = true;
     const sub = this.employeService.getAllEmployesForChat().subscribe({
       next: (employes) => {
-        this.availableEmployes = employes;
+        // Exclure l'utilisateur courant
+        this.availableEmployes = employes.filter(e => e.id !== this.currentUserId);
         this.isLoadingEmployes = false;
-        console.log('✅ Employés chargés:', employes.length);
       },
       error: (error) => {
-        console.error('Erreur lors du chargement des employés:', error);
+        console.error('Erreur chargement employés:', error);
         this.isLoadingEmployes = false;
       }
     });
     this.subscriptions.push(sub);
   }
 
-  loadMessages(conversationId: number) {
+  loadMessages(conversationId: number): void {
     const sub = this.chatService.getMessages(conversationId).subscribe({
       next: (page) => {
         this.messages = page.content.map((msg: any) => ({
@@ -155,17 +188,18 @@ export class Chat implements OnInit, OnDestroy {
           content: msg.content,
           timestamp: new Date(msg.createdAt || Date.now()),
           isRead: msg.isRead,
-          type: msg.type?.toLowerCase() || 'text',
+          type: (msg.type || 'TEXT').toUpperCase(),
           fileUrl: msg.fileUrl,
           fileName: msg.fileName,
           conversationId: conversationId
         })).reverse();
 
         this.chatService.markAsRead(conversationId).subscribe();
-        setTimeout(() => this.scrollToBottom(), 100);
+        this.shouldScrollToBottom = true;
       },
       error: (error) => {
-        console.error('Erreur lors du chargement des messages:', error);
+        console.error('Erreur chargement messages:', error);
+        this.showToast('error', 'Erreur', 'Impossible de charger les messages');
       }
     });
     this.subscriptions.push(sub);
@@ -175,35 +209,28 @@ export class Chat implements OnInit, OnDestroy {
   // WEBSOCKET
   // ============================================
 
-  connectToWebSocket() {
+  connectToWebSocket(): void {
     this.chatService.connect();
 
     const sub = this.chatService.isConnected$.subscribe(connected => {
       this.isConnected = connected;
-      console.log('WebSocket status:', connected ? 'Connecté' : 'Déconnecté');
     });
     this.subscriptions.push(sub);
   }
 
-  setupWebSocketListeners() {
+  setupWebSocketListeners(): void {
     const msgSub = this.chatService.onMessageReceived$.subscribe({
-      next: (notification: ChatNotification) => {
-        this.handleNewMessage(notification);
-      }
+      next: (notification: ChatNotification) => this.handleNewMessage(notification)
     });
     this.subscriptions.push(msgSub);
 
     const typingSub = this.chatService.onTypingNotification$.subscribe({
-      next: (notification: ChatNotification) => {
-        this.handleTypingNotification(notification);
-      }
+      next: (notification: ChatNotification) => this.handleTypingNotification(notification)
     });
     this.subscriptions.push(typingSub);
 
     const statusSub = this.chatService.onUserStatusChange$.subscribe({
-      next: (notification: ChatNotification) => {
-        this.handleUserStatusChange(notification);
-      }
+      next: (notification: ChatNotification) => this.handleUserStatusChange(notification)
     });
     this.subscriptions.push(statusSub);
   }
@@ -212,76 +239,71 @@ export class Chat implements OnInit, OnDestroy {
   // GESTION DES CONVERSATIONS
   // ============================================
 
-  selectConversation(conversation: Conversation) {
+  selectConversation(conversation: Conversation): void {
     this.selectedConversation = conversation;
     conversation.unreadCount = 0;
+    this.messages = [];
     this.loadMessages(conversation.id);
     this.chatService.subscribeToConversation(conversation.id);
+    this.showEmojiPicker = false;
   }
 
-  searchConversations() {
+  searchConversations(): void {
     if (this.searchTerm.trim()) {
-      const sub = this.chatService.searchConversations(this.searchTerm).subscribe({
-        next: (results) => {
-          this.filteredConversations = results.map((conv: any) => ({
-            id: conv.id,
-            name: conv.name,
-            avatar: conv.avatar,
-            lastMessage: conv.lastMessage?.content || '',
-            lastMessageTime: conv.lastMessage?.createdAt ? new Date(conv.lastMessage.createdAt) : new Date(),
-            unreadCount: conv.unreadCount || 0,
-            isOnline: conv.isOnline || false,
-            isGroup: conv.isGroup,
-            participants: conv.participants || []
-          }));
-        },
-        error: () => {
-          this.filteredConversations = this.conversations.filter(conv =>
-            conv.name.toLowerCase().includes(this.searchTerm.toLowerCase())
-          );
-        }
-      });
-      this.subscriptions.push(sub);
+      const term = this.searchTerm.toLowerCase();
+      this.filteredConversations = this.conversations.filter(conv =>
+        conv.name.toLowerCase().includes(term)
+      );
     } else {
       this.filteredConversations = [...this.conversations];
     }
   }
 
-  openNewConversationDialog() {
+  openNewConversationDialog(): void {
     this.showNewConversationDialog = true;
-    this.newConversationName = '';
     this.isGroupConversation = false;
+    this.groupName = '';
     this.selectedParticipants = [];
 
-    // Recharger les employés si nécessaire
     if (this.availableEmployes.length === 0) {
       this.loadEmployes();
     }
   }
 
-  createConversation() {
-    if (!this.newConversationName.trim() || this.selectedParticipants.length === 0) {
-      return;
+  createConversation(): void {
+    if (this.selectedParticipants.length === 0 || this.isCreatingConversation) return;
+
+    // Générer le nom automatiquement si non groupe ou nom vide
+    let conversationName: string;
+    if (this.isGroupConversation && this.groupName.trim()) {
+      conversationName = this.groupName.trim();
+    } else if (this.selectedParticipants.length === 1) {
+      conversationName = this.selectedParticipants[0].name;
+    } else {
+      conversationName = this.selectedParticipants.map(p => p.name.split(' ')[0]).join(', ');
     }
 
     const participantIds = this.selectedParticipants.map(p => p.id);
+    this.isCreatingConversation = true;
 
     const sub = this.chatService.createConversation(
       participantIds,
       this.isGroupConversation,
-      this.newConversationName
+      conversationName
     ).subscribe({
       next: (response) => {
-        console.log('✅ Conversation créée:', response);
         this.showNewConversationDialog = false;
-        this.newConversationName = '';
         this.isGroupConversation = false;
+        this.groupName = '';
         this.selectedParticipants = [];
+        this.isCreatingConversation = false;
         this.loadConversations();
+        this.showToast('success', 'Succès', 'Conversation créée avec succès');
       },
       error: (error) => {
-        console.error('❌ Erreur lors de la création:', error);
-        alert('Erreur lors de la création de la conversation. Veuillez réessayer.');
+        console.error('Erreur création conversation:', error);
+        this.isCreatingConversation = false;
+        this.showToast('error', 'Erreur', 'Impossible de créer la conversation');
       }
     });
     this.subscriptions.push(sub);
@@ -291,26 +313,30 @@ export class Chat implements OnInit, OnDestroy {
   // GESTION DES MESSAGES
   // ============================================
 
-  sendMessage() {
-    if ((!this.newMessage.trim() && !this.selectedFile) || !this.selectedConversation) {
+  sendMessage(): void {
+    if ((!this.newMessage.trim() && !this.selectedFile) || !this.selectedConversation || this.isSendingMessage) {
       return;
     }
 
-    const content = this.newMessage;
-    this.newMessage = '';
-
+    if (this.typingTimeout) clearTimeout(this.typingTimeout);
     this.chatService.sendStopTypingNotification(this.selectedConversation.id);
 
-    // TODO: Implémenter l'upload de fichier
     if (this.selectedFile) {
-      // Pour l'instant, on affiche juste le nom du fichier
-      console.log('Fichier sélectionné:', this.selectedFile.name);
-      this.selectedFile = null;
+      this.sendFileMessage();
+    } else {
+      this.sendTextMessage(this.newMessage.trim());
     }
+  }
+
+  private sendTextMessage(content: string): void {
+    if (!this.selectedConversation) return;
+    this.newMessage = '';
+    this.isSendingMessage = true;
 
     const sub = this.chatService.sendMessage(
       this.selectedConversation.id,
-      content
+      content,
+      'TEXT'
     ).subscribe({
       next: (response) => {
         const msgData = response.data;
@@ -322,32 +348,108 @@ export class Chat implements OnInit, OnDestroy {
           content: msgData.content,
           timestamp: new Date(msgData.createdAt || Date.now()),
           isRead: false,
-          type: 'text',
+          type: 'TEXT',
           conversationId: this.selectedConversation!.id
         };
-
         this.messages.push(message);
-
-        if (this.selectedConversation) {
-          this.selectedConversation.lastMessage = content;
-          this.selectedConversation.lastMessageTime = new Date();
-        }
-
-        setTimeout(() => this.scrollToBottom(), 100);
+        this.updateConversationLastMessage(content);
+        this.shouldScrollToBottom = true;
+        this.isSendingMessage = false;
       },
       error: (error) => {
-        console.error('Erreur lors de l\'envoi du message:', error);
+        console.error('Erreur envoi message:', error);
         this.newMessage = content;
+        this.isSendingMessage = false;
+        this.showToast('error', 'Erreur', 'Impossible d\'envoyer le message');
       }
     });
     this.subscriptions.push(sub);
   }
 
-  onTyping() {
-    if (this.selectedConversation && this.newMessage.trim()) {
+  private sendFileMessage(): void {
+    if (!this.selectedFile || !this.selectedConversation) return;
+    const file = this.selectedFile;
+    const caption = this.newMessage.trim();
+    const conversationId = this.selectedConversation.id;
+
+    this.isUploadingFile = true;
+    this.isSendingMessage = true;
+
+    const uploadSub = this.chatService.uploadFile(file).subscribe({
+      next: (uploadResponse) => {
+        const fileData = uploadResponse.data;
+        const isImage = file.type.startsWith('image/');
+        const msgType = isImage ? 'IMAGE' : 'FILE';
+
+        const msgSub = this.chatService.sendMessage(
+          conversationId,
+          caption || file.name,
+          msgType,
+          fileData.fileUrl,
+          fileData.filename
+        ).subscribe({
+          next: (response) => {
+            const msgData = response.data;
+            const message: Message = {
+              id: msgData.id,
+              senderId: msgData.senderId,
+              senderName: msgData.senderName,
+              senderAvatar: msgData.senderAvatar,
+              content: msgData.content,
+              timestamp: new Date(msgData.createdAt || Date.now()),
+              isRead: false,
+              type: msgType,
+              fileUrl: msgData.fileUrl || fileData.fileUrl,
+              fileName: msgData.fileName || fileData.filename,
+              conversationId: conversationId
+            };
+            this.messages.push(message);
+            this.updateConversationLastMessage(`📎 ${file.name}`);
+            this.shouldScrollToBottom = true;
+            this.removeSelectedFile();
+            this.isUploadingFile = false;
+            this.isSendingMessage = false;
+          },
+          error: (error) => {
+            console.error('Erreur envoi message fichier:', error);
+            this.isUploadingFile = false;
+            this.isSendingMessage = false;
+            this.showToast('error', 'Erreur', 'Impossible d\'envoyer le fichier');
+          }
+        });
+        this.subscriptions.push(msgSub);
+      },
+      error: (error) => {
+        console.error('Erreur upload fichier:', error);
+        this.isUploadingFile = false;
+        this.isSendingMessage = false;
+        this.showToast('error', 'Erreur', 'Impossible d\'uploader le fichier');
+      }
+    });
+    this.subscriptions.push(uploadSub);
+  }
+
+  private updateConversationLastMessage(content: string): void {
+    if (this.selectedConversation) {
+      this.selectedConversation.lastMessage = content;
+      this.selectedConversation.lastMessageTime = new Date();
+      // Remonter la conversation en haut de la liste
+      const idx = this.conversations.findIndex(c => c.id === this.selectedConversation!.id);
+      if (idx > 0) {
+        const conv = this.conversations.splice(idx, 1)[0];
+        this.conversations.unshift(conv);
+        this.filteredConversations = [...this.conversations];
+      }
+    }
+  }
+
+  onTyping(): void {
+    if (!this.selectedConversation) return;
+
+    if (this.newMessage.trim()) {
       this.chatService.sendTypingNotification(this.selectedConversation.id);
 
-      clearTimeout(this.typingTimeout);
+      if (this.typingTimeout) clearTimeout(this.typingTimeout);
       this.typingTimeout = setTimeout(() => {
         if (this.selectedConversation) {
           this.chatService.sendStopTypingNotification(this.selectedConversation.id);
@@ -356,60 +458,82 @@ export class Chat implements OnInit, OnDestroy {
     }
   }
 
+  onEnterKey(event: Event): void {
+    // Shift+Enter = nouvelle ligne, Enter = envoyer
+    const keyEvent = event as KeyboardEvent;
+    if (!keyEvent.shiftKey) {
+      event.preventDefault();
+      this.sendMessage();
+    }
+  }
+
   // ============================================
   // GESTION DES FICHIERS ET EMOJIS
   // ============================================
 
-  openFileSelector() {
-    this.fileInput.nativeElement.click();
+  openFileSelector(): void {
+    this.fileInput?.nativeElement.click();
   }
 
-  onFileSelected(event: any) {
-    const file = event.target.files[0];
-    if (file) {
-      // Vérifier la taille du fichier (max 10MB)
-      const maxSize = 10 * 1024 * 1024; // 10MB
-      if (file.size > maxSize) {
-        alert('Le fichier est trop volumineux. Taille maximale : 10MB');
-        return;
-      }
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
 
-      this.selectedFile = file;
-      console.log('Fichier sélectionné:', file.name, 'Taille:', this.formatFileSize(file.size));
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      this.showToast('warn', 'Fichier trop volumineux', 'Taille maximale : 10 MB');
+      return;
+    }
 
-      // Afficher le nom du fichier dans le champ de message
-      this.newMessage = `📎 ${file.name}`;
+    this.selectedFile = file;
+    // Réinitialiser l'input pour permettre de resélectionner le même fichier
+    input.value = '';
+  }
+
+  removeSelectedFile(): void {
+    this.selectedFile = null;
+    this.newMessage = '';
+    if (this.fileInput) {
+      this.fileInput.nativeElement.value = '';
     }
   }
 
-  removeSelectedFile() {
-    this.selectedFile = null;
-    this.newMessage = '';
-    this.fileInput.nativeElement.value = '';
-  }
-
-  toggleEmojiPicker() {
+  toggleEmojiPicker(): void {
     this.showEmojiPicker = !this.showEmojiPicker;
   }
 
-  addEmoji(emoji: string) {
+  addEmoji(emoji: string): void {
     this.newMessage += emoji;
     this.showEmojiPicker = false;
   }
 
   formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    if (bytes === 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
+  }
+
+  getFileIcon(fileName: string): string {
+    if (!fileName) return 'pi-file';
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    const iconMap: Record<string, string> = {
+      pdf: 'pi-file-pdf',
+      doc: 'pi-file-word', docx: 'pi-file-word',
+      xls: 'pi-file-excel', xlsx: 'pi-file-excel',
+      zip: 'pi-file-import', rar: 'pi-file-import',
+      mp4: 'pi-video', avi: 'pi-video', mov: 'pi-video',
+      mp3: 'pi-volume-up', wav: 'pi-volume-up',
+    };
+    return iconMap[ext || ''] || 'pi-file';
   }
 
   // ============================================
-  // GESTION DES NOTIFICATIONS
+  // GESTION DES NOTIFICATIONS WEBSOCKET
   // ============================================
 
-  handleNewMessage(notification: ChatNotification) {
+  handleNewMessage(notification: ChatNotification): void {
     if (!notification.message) return;
 
     const msgData = notification.message;
@@ -421,13 +545,16 @@ export class Chat implements OnInit, OnDestroy {
       content: msgData.content,
       timestamp: new Date(msgData.createdAt || msgData.timestamp || Date.now()),
       isRead: false,
-      type: msgData.type,
+      type: (msgData.type || 'TEXT').toUpperCase(),
       conversationId: notification.conversationId
     };
 
     if (this.selectedConversation?.id === notification.conversationId) {
-      this.messages.push(message);
-      setTimeout(() => this.scrollToBottom(), 100);
+      // Éviter les doublons (si le message a été ajouté optimistiquement)
+      if (!this.messages.find(m => m.id === message.id)) {
+        this.messages.push(message);
+        this.shouldScrollToBottom = true;
+      }
       this.chatService.markAsRead(notification.conversationId).subscribe();
     } else {
       const conversation = this.conversations.find(c => c.id === notification.conversationId);
@@ -439,10 +566,8 @@ export class Chat implements OnInit, OnDestroy {
     }
   }
 
-  handleTypingNotification(notification: ChatNotification) {
-    if (!this.selectedConversation || notification.conversationId !== this.selectedConversation.id) {
-      return;
-    }
+  handleTypingNotification(notification: ChatNotification): void {
+    if (!this.selectedConversation || notification.conversationId !== this.selectedConversation.id) return;
 
     if (!this.typingUsers.has(notification.conversationId)) {
       this.typingUsers.set(notification.conversationId, []);
@@ -455,14 +580,12 @@ export class Chat implements OnInit, OnDestroy {
         users.push(notification.username);
       }
     } else if (notification.type === 'USER_STOP_TYPING' && notification.username) {
-      const index = users.indexOf(notification.username);
-      if (index > -1) {
-        users.splice(index, 1);
-      }
+      const idx = users.indexOf(notification.username);
+      if (idx > -1) users.splice(idx, 1);
     }
   }
 
-  handleUserStatusChange(notification: ChatNotification) {
+  handleUserStatusChange(notification: ChatNotification): void {
     this.conversations.forEach(conv => {
       if (!conv.isGroup && conv.participants) {
         const participant = conv.participants.find(p => p.username === notification.username);
@@ -476,43 +599,98 @@ export class Chat implements OnInit, OnDestroy {
   getTypingIndicator(conversationId: number): string {
     const users = this.typingUsers.get(conversationId) || [];
     if (users.length === 0) return '';
-    if (users.length === 1) return `${users[0]} est en train d'écrire...`;
-    return `${users.length} personnes sont en train d'écrire...`;
+    if (users.length === 1) return `${users[0]} écrit...`;
+    return `${users.length} personnes écrivent...`;
   }
 
   // ============================================
   // UTILITAIRES
   // ============================================
 
-  formatTime(date: Date): string {
+  formatTime(date: Date | string | null | undefined): string {
+    if (!date) return '';
+    const d = date instanceof Date ? date : new Date(date);
+    if (isNaN(d.getTime())) return '';
+
     const now = new Date();
-    const diff = now.getTime() - date.getTime();
+    const diff = now.getTime() - d.getTime();
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
 
     if (minutes < 1) return 'À l\'instant';
-    if (minutes < 60) return `Il y a ${minutes}min`;
-    if (hours < 24) return `Il y a ${hours}h`;
-    if (days < 7) return `Il y a ${days}j`;
+    if (minutes < 60) return `${minutes}min`;
+    if (hours < 24) return `${hours}h`;
+    if (days === 1) return 'Hier';
+    if (days < 7) return `${days}j`;
+    return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+  }
 
-    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+  formatMessageTime(date: Date | string | null | undefined): string {
+    if (!date) return '';
+    const d = date instanceof Date ? date : new Date(date);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   }
 
   getConversationColor(name: string): string {
-    const colors = ['blue', 'purple', 'green', 'orange', 'pink', 'indigo'];
-    const index = name.length % colors.length;
-    return colors[index];
+    const colors = ['blue', 'violet', 'emerald', 'orange', 'rose', 'indigo', 'teal', 'amber'];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
+  }
+
+  getAvatarClass(name: string): string {
+    const colorMap: Record<string, string> = {
+      blue: 'bg-blue-500',
+      violet: 'bg-violet-500',
+      emerald: 'bg-emerald-500',
+      orange: 'bg-orange-500',
+      rose: 'bg-rose-500',
+      indigo: 'bg-indigo-500',
+      teal: 'bg-teal-500',
+      amber: 'bg-amber-500'
+    };
+    return colorMap[this.getConversationColor(name)] || 'bg-blue-500';
+  }
+
+  getInitials(name: string): string {
+    if (!name) return '?';
+    const parts = name.trim().split(' ').filter(p => p.length > 0);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return name.substring(0, 2).toUpperCase();
   }
 
   scrollToBottom(): void {
     try {
       if (this.messageContainer) {
-        this.messageContainer.nativeElement.scrollTop =
-          this.messageContainer.nativeElement.scrollHeight;
+        const el = this.messageContainer.nativeElement;
+        el.scrollTop = el.scrollHeight;
       }
-    } catch (err) {
-      console.error('Erreur lors du scroll:', err);
-    }
+    } catch (err) { /* ignore */ }
+  }
+
+  trackConversation(_index: number, conv: Conversation): number {
+    return conv.id;
+  }
+
+  trackMessage(_index: number, msg: Message): number {
+    return msg.id;
+  }
+
+  private showToast(severity: string, summary: string, detail: string): void {
+    this.messageService.add({ severity, summary, detail, life: 3000 });
+  }
+
+  get canSend(): boolean {
+    return (!!this.newMessage.trim() || !!this.selectedFile) && !this.isSendingMessage && !this.isUploadingFile;
+  }
+
+  get isGroupValid(): boolean {
+    if (this.selectedParticipants.length === 0) return false;
+    if (this.isGroupConversation && this.selectedParticipants.length > 1 && !this.groupName.trim()) return false;
+    return true;
   }
 }
