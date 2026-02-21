@@ -1,442 +1,426 @@
-<div class="p-6 bg-gray-50 min-h-screen">
-  <!-- Header -->
-  <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
-    <div>
-      <h1 class="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-blue-600">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
-        </svg>
-        Messagerie Entreprises
-      </h1>
-      <p class="text-gray-600">Envoyez des messages aux différents types d'entreprises</p>
-    </div>
-    <div class="flex gap-3">
-      <button
-        (click)="selectAll()"
-        class="px-4 py-2 bg-white text-gray-700 border-2 border-gray-300 rounded-lg font-medium hover:bg-gray-50 hover:border-blue-500 transition-all flex items-center gap-2">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-        </svg>
-        {{ isAllSelected() ? 'Désélectionner' : 'Tout sélectionner' }}
-      </button>
-      <button
-        (click)="clearSelection()"
-        class="px-4 py-2 bg-white text-gray-700 border-2 border-gray-300 rounded-lg font-medium hover:bg-gray-50 hover:border-red-500 transition-all flex items-center gap-2">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-        </svg>
-        Effacer
-      </button>
-    </div>
+<div class="min-h-screen bg-gray-50" (click)="closeTypeDropdown()">
+
+  <!-- ══════════ TOAST ══════════ -->
+  <div *ngIf="toast"
+       class="fixed top-5 right-5 z-50 flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-2xl text-sm font-semibold"
+       [ngClass]="toast.type === 'success' ? 'bg-green-700 text-green-50' : 'bg-red-700 text-red-50'">
+    <i [ngClass]="toast.type === 'success' ? 'pi pi-check-circle' : 'pi pi-times-circle'" class="text-lg"></i>
+    {{ toast.message }}
   </div>
 
-  <!-- Stats Dashboard -->
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-    <!-- Stat 1 -->
-    <div class="bg-white p-5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-4">
-      <div class="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-7 h-7 text-blue-600">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
-        </svg>
-      </div>
-      <div>
-        <p class="text-gray-600 text-sm font-medium">Destinataires sélectionnés</p>
-        <h3 class="text-2xl font-bold text-gray-900">{{ stats.totalRecipients }}</h3>
-        <p class="text-gray-500 text-xs">sur {{ stats.totalCompanies }} entreprises</p>
-      </div>
-    </div>
+  <!-- ══════════ HEADER ══════════ -->
+  <header class="bg-blue-900 text-white shadow-lg sticky top-0 z-40">
+    <div class="max-w-6xl mx-auto px-4 h-16 flex items-center gap-4">
 
-    <!-- Stat 2 -->
-    <div class="bg-white p-5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-4">
-      <div class="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-7 h-7 text-green-600">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
-        </svg>
-      </div>
-      <div>
-        <p class="text-gray-600 text-sm font-medium">Messages envoyés</p>
-        <h3 class="text-2xl font-bold text-gray-900">{{ stats.messagesSent }}</h3>
-        <p class="text-green-600 text-xs font-medium">+5 cette semaine</p>
-      </div>
-    </div>
-
-    <!-- Stat 3 -->
-    <div class="bg-white p-5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-4">
-      <div class="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-7 h-7 text-purple-600">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z" />
-        </svg>
-      </div>
-      <div>
-        <p class="text-gray-600 text-sm font-medium">Taux de réponse</p>
-        <h3 class="text-2xl font-bold text-gray-900">{{ stats.responseRate }}%</h3>
-        <p class="text-green-600 text-xs font-medium">+3% ce mois</p>
-      </div>
-    </div>
-
-    <!-- Stat 4 -->
-    <div class="bg-white p-5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-4">
-      <div class="w-14 h-14 bg-yellow-100 rounded-xl flex items-center justify-center">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-7 h-7 text-yellow-600">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Z" />
-        </svg>
-      </div>
-      <div>
-        <p class="text-gray-600 text-sm font-medium">Types d'entreprises</p>
-        <h3 class="text-2xl font-bold text-gray-900">{{ companyTypes.length }}</h3>
-        <p class="text-gray-500 text-xs">catégories disponibles</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- Main Content -->
-  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-    <!-- Left Sidebar - Company Selection -->
-    <div class="lg:col-span-4">
-      <div class="bg-white rounded-xl shadow-lg overflow-hidden border-2 border-gray-200">
-        <!-- Sidebar Header -->
-        <div class="bg-gradient-to-r from-blue-600 to-blue-700 p-5">
-          <div class="flex justify-between items-center">
-            <h2 class="text-xl font-bold text-white">🏢 Types d'entreprises</h2>
-            <span class="bg-white text-blue-600 px-3 py-1 rounded-full text-sm font-bold shadow-md">
-              {{ getSelectedCount() }} sélectionné(s)
-            </span>
-          </div>
+      <!-- Brand -->
+      <div class="flex items-center gap-3 flex-shrink-0">
+        <div class="w-9 h-9 bg-yellow-400 rounded-lg flex items-center justify-center">
+          <i class="pi pi-chart-line text-blue-900 text-lg"></i>
         </div>
-
-        <!-- Company List -->
-        <div class="p-4 bg-gray-50 max-h-[600px] overflow-y-auto space-y-4">
-          <div
-            *ngFor="let company of companyTypes"
-            class="bg-white rounded-lg overflow-hidden border-2 border-gray-200 hover:shadow-lg transition-all"
-            [style.border-left-color]="company.color"
-            [style.border-left-width]="'6px'">
-
-            <!-- Company Header -->
-            <div
-              (click)="toggleCompanyType(company)"
-              class="p-4 cursor-pointer hover:bg-gray-50 transition-colors border-b-2 border-gray-100">
-              <div class="flex justify-between items-center">
-                <div class="flex items-center gap-3">
-                  <span class="text-3xl">{{ company.icon }}</span>
-                  <span class="font-bold text-gray-900 text-base">{{ company.name }}</span>
-                </div>
-                <div class="flex items-center">
-                  <input
-                    type="checkbox"
-                    [checked]="company.selected"
-                    (click)="$event.stopPropagation()"
-                    class="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-2 focus:ring-blue-500 cursor-pointer">
-                </div>
-              </div>
-            </div>
-
-            <!-- Subtypes -->
-            <div class="p-4 grid grid-cols-3 gap-2 bg-white">
-              <button
-                *ngFor="let subType of company.subTypes"
-                (click)="toggleSubType(company, subType)"
-                [class]="subType.selected
-                  ? 'font-bold text-white shadow-md transform scale-105'
-                  : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:border-blue-500'"
-                [style.background-color]="subType.selected ? company.color : ''"
-                class="px-3 py-2 rounded-lg text-sm font-semibold transition-all hover:shadow-md">
-                {{ subType.name }}
-              </button>
-            </div>
-          </div>
+        <div class="hidden sm:block">
+          <p class="font-bold text-yellow-400 leading-none text-base">DouniyaMarket</p>
+          <p class="text-blue-300 text-xs leading-none mt-0.5">Marketplace financier B2B</p>
         </div>
       </div>
+
+      <!-- Recherche -->
+      <div class="flex-1 mx-2">
+        <div class="relative">
+          <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-blue-300 text-sm"></i>
+          <input
+            [(ngModel)]="searchQuery"
+            (keydown.enter)="onSearch()"
+            placeholder="Rechercher des publications..."
+            class="w-full bg-blue-800 border border-blue-700 text-white placeholder-blue-400
+                   rounded-full pl-9 pr-8 py-2 text-sm outline-none focus:border-yellow-400 transition-colors">
+          <button *ngIf="searchQuery" (click)="clearSearch()"
+                  class="absolute right-3 top-1/2 -translate-y-1/2 text-blue-400 hover:text-white">
+            <i class="pi pi-times text-xs"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Bouton Publier -->
+      <button (click)="toggleForm(); $event.stopPropagation()"
+              class="flex-shrink-0 flex items-center gap-2 bg-yellow-400 hover:bg-yellow-300
+                     text-blue-900 font-bold text-sm px-4 py-2 rounded-full transition-colors">
+        <i [ngClass]="showForm ? 'pi pi-times' : 'pi pi-plus'"></i>
+        <span class="hidden sm:inline">{{ showForm ? 'Fermer' : 'Publier' }}</span>
+      </button>
     </div>
+  </header>
 
-    <!-- Right Content - Chat Interface (WhatsApp Style) -->
-    <div class="lg:col-span-8">
-      <div class="bg-white rounded-xl shadow-lg overflow-hidden border-2 border-gray-200 flex flex-col" style="height: 700px;">
+  <!-- ══════════ FORMULAIRE ══════════ -->
+  <div *ngIf="showForm" class="bg-white border-b border-gray-200 shadow-md"
+       (click)="$event.stopPropagation()">
+    <div class="max-w-3xl mx-auto px-4 py-6">
 
-        <!-- Chat Header -->
-        <div class="bg-gradient-to-r from-green-600 to-green-700 p-4 flex-shrink-0">
-          <div class="flex justify-between items-center">
-            <div>
-              <h3 class="text-xl font-bold text-white flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
-                </svg>
-                Conversation
-              </h3>
-              <p *ngIf="getSelectedCount() > 0" class="text-green-50 text-sm">
-                {{ getSelectedCount() }} destinataire(s)
-              </p>
-            </div>
-            <div class="flex gap-2">
-              <button
-                (click)="saveDraft()"
-                class="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-medium transition-all flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" />
-                </svg>
-                Brouillon
-              </button>
-            </div>
-          </div>
+      <div class="flex items-center gap-3 mb-5">
+        <div class="w-10 h-10 rounded-full bg-blue-900 flex items-center justify-center flex-shrink-0">
+          <i class="pi pi-pencil text-yellow-400"></i>
+        </div>
+        <div>
+          <h2 class="font-bold text-blue-900 text-base">Nouvelle publication</h2>
+          <p class="text-gray-500 text-xs">Partagez une offre ou opportunité financière</p>
+        </div>
+      </div>
+
+      <div class="space-y-4">
+
+        <!-- Titre -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1.5">
+            <i class="pi pi-tag mr-1 text-blue-700"></i>Titre
+            <span class="font-normal text-gray-400 ml-1">(optionnel)</span>
+          </label>
+          <input [(ngModel)]="titre" maxlength="300"
+                 placeholder="Ex : Offre de financement infrastructures T2 2025"
+                 class="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm
+                        outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition">
         </div>
 
-        <!-- Selected Recipients Banner -->
-        <div *ngIf="getSelectedCount() > 0" class="p-3 bg-blue-50 border-b-2 border-blue-200 flex-shrink-0">
-          <div class="flex items-center gap-2 flex-wrap">
-            <span class="text-xs font-bold text-gray-700">👥 Envoi vers:</span>
-            <span
-              *ngFor="let company of getSelectedCompanies()"
-              class="px-2 py-1 bg-blue-600 text-white rounded-full text-xs font-semibold">
-              {{ company }}
-            </span>
-          </div>
+        <!-- Contenu -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1.5">
+            <i class="pi pi-align-left mr-1 text-blue-700"></i>Contenu
+            <span class="text-red-500 ml-1">*</span>
+          </label>
+          <textarea [(ngModel)]="contenu" (ngModelChange)="onContenuChange()"
+                    rows="5" maxlength="2000"
+                    placeholder="Décrivez votre offre, opportunité ou annonce financière..."
+                    class="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm resize-y
+                           outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition"></textarea>
+          <p class="text-right text-xs mt-1"
+             [ngClass]="charCount > 1800 ? 'text-red-500 font-bold' : 'text-gray-400'">
+            {{ charCount }} / {{ MAX_CHARS }}
+          </p>
         </div>
 
-        <!-- Messages Area (Scrollable) -->
-        <div class="flex-1 overflow-y-auto p-4 bg-gray-50" #messagesContainer>
-          <!-- Empty State -->
-          <div *ngIf="messages.length === 0" class="flex flex-col items-center justify-center h-full text-center">
-            <span class="text-6xl mb-4">💬</span>
-            <p class="text-gray-500 font-medium text-lg">Aucun message</p>
-            <p class="text-gray-400 text-sm mt-2">Commencez une conversation</p>
-          </div>
+        <!-- Visibilité types d'entreprises -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1.5">
+            <i class="pi pi-eye mr-1 text-blue-700"></i>Visibilité
+            <span class="font-normal text-gray-400 ml-1">(optionnel — vide = visible par tous)</span>
+          </label>
 
-          <!-- Messages List -->
-          <div class="space-y-3">
-            <div
-              *ngFor="let message of messages"
-              class="flex flex-col animate-fade-in">
+          <div class="relative">
+            <button type="button"
+                    (click)="toggleTypeDropdown(); $event.stopPropagation()"
+                    class="w-full flex items-center justify-between border border-gray-300 rounded-lg
+                           px-3.5 py-2.5 text-sm bg-white hover:border-blue-500 transition text-left">
+              <span class="text-gray-700">
+                <i class="pi pi-building mr-2 text-blue-600"></i>{{ getTypesLabel() }}
+              </span>
+              <i class="pi text-gray-400 transition-transform duration-200"
+                 [ngClass]="showTypeDropdown ? 'pi-chevron-up' : 'pi-chevron-down'"></i>
+            </button>
 
-              <!-- Message Bubble -->
-              <div class="flex items-start gap-3 max-w-[85%] ml-auto">
-                <div class="flex-1">
-                  <!-- Message Header -->
-                  <div class="flex items-center gap-2 mb-1 justify-end">
-                    <span class="text-xs text-gray-500">{{ message.date }} • {{ message.time }}</span>
-                    <span
-                      [class]="message.status === 'sent'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-orange-100 text-orange-700'"
-                      class="px-2 py-0.5 rounded-full text-xs font-bold">
-                      {{ message.status === 'sent' ? '✓ Envoyé' : '📝 Brouillon' }}
-                    </span>
-                  </div>
+            <!-- Dropdown -->
+            <div *ngIf="showTypeDropdown"
+                 (click)="$event.stopPropagation()"
+                 class="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200
+                        rounded-2xl shadow-2xl z-30 overflow-hidden">
 
-                  <!-- Message Content Bubble -->
-                  <div class="bg-white text-gray-800 rounded-2xl rounded-tr-sm p-3 shadow-md border border-gray-200">
-                    <!-- Editable Content -->
-                    <div *ngIf="message.isEditing">
-                      <textarea
-                        [(ngModel)]="message.content"
-                        rows="3"
-                        class="w-full px-2 py-1 border-2 border-white rounded-lg bg-white text-gray-900 text-sm outline-none resize-none"></textarea>
-                      <div class="flex gap-2 mt-2">
-                        <button
-                          (click)="saveEdit(message)"
-                          class="px-3 py-1 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700">
-                          ✓ Sauvegarder
-                        </button>
-                        <button
-                          (click)="cancelEdit(message)"
-                          class="px-3 py-1 bg-gray-300 text-gray-700 rounded-lg text-xs font-bold hover:bg-gray-400">
-                          ✕ Annuler
-                        </button>
-                      </div>
-                    </div>
-
-                    <!-- Normal Content -->
-                    <p *ngIf="!message.isEditing" class="text-sm leading-relaxed whitespace-pre-wrap">{{ message.content }}</p>
-
-                    <!-- Attachments in bubble -->
-                    <div *ngIf="message.attachments && message.attachments.length > 0" class="mt-2 space-y-1">
-                      <div
-                        *ngFor="let attachment of message.attachments"
-                        class="flex items-center gap-2 p-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all border border-gray-300">
-                        <span class="text-xl">{{ attachment.icon }}</span>
-                        <div class="flex-1 min-w-0">
-                          <p class="text-xs font-semibold truncate text-gray-800">{{ attachment.name }}</p>
-                          <p class="text-xs text-gray-600">{{ attachment.size }}</p>
-                        </div>
-                        <button class="text-blue-600 hover:text-blue-800 hover:scale-125 transition-all">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Recipients -->
-                  <div class="flex items-center gap-2 mt-1 text-xs text-gray-500 justify-end">
-                    <span>👥 {{ getRecipientNames(message.recipients) }}</span>
-                  </div>
-                </div>
-
-                <!-- Action Menu -->
-                <div class="flex flex-col gap-1">
-                  <button
-                    (click)="duplicateMessage(message)"
-                    title="Dupliquer"
-                    class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" />
-                    </svg>
-                  </button>
-                  <button
-                    *ngIf="message.status === 'draft'"
-                    (click)="editMessage(message)"
-                    title="Modifier"
-                    class="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-all">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                    </svg>
-                  </button>
-                  <button
-                    (click)="deleteMessage(message)"
-                    title="Supprimer"
-                    class="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-all">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Input Area (Fixed at bottom) -->
-        <div class="flex-shrink-0 border-t-2 border-gray-200 bg-white">
-          <!-- Selected Files Display -->
-          <div *ngIf="selectedFiles.length > 0" class="p-3 bg-blue-50 border-b border-blue-200">
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-xs font-bold text-gray-700">📎 {{ selectedFiles.length }} fichier(s)</span>
-              <button
-                (click)="selectedFiles = []"
-                class="text-xs text-red-600 hover:text-red-800 font-medium">
-                Tout retirer
-              </button>
-            </div>
-            <div class="flex gap-2 overflow-x-auto">
-              <div
-                *ngFor="let file of selectedFiles"
-                class="flex items-center gap-2 p-2 bg-white rounded-lg border border-blue-300 min-w-fit">
-                <span class="text-lg">{{ file.icon }}</span>
-                <div class="min-w-0">
-                  <p class="text-xs font-semibold truncate max-w-[150px]">{{ file.name }}</p>
-                  <p class="text-xs text-gray-500">{{ file.size }}</p>
-                </div>
-                <button
-                  (click)="removeFile(file.id)"
-                  class="text-red-500 hover:text-red-700 transition-all">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Message Input with Toolbar -->
-          <div class="p-3">
-            <!-- Toolbar Row -->
-            <div class="flex items-center gap-2 mb-2">
-              <!-- File Button -->
-              <button
-                (click)="triggerFileInput()"
-                title="Joindre un fichier"
-                class="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-all">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13" />
-                </svg>
-              </button>
-              <input
-                #fileInput
-                type="file"
-                multiple
-                (change)="onFileSelected($event)"
-                class="hidden">
-
-              <!-- Emoji Button -->
-              <div class="relative">
-                <button
-                  (click)="toggleEmojiPicker()"
-                  title="Ajouter un emoji"
-                  class="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-all">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.182 15.182a4.5 4.5 0 0 1-6.364 0M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Z" />
-                  </svg>
-                </button>
-
-                <!-- Emoji Picker -->
-                <div
-                  *ngIf="showEmojiPicker"
-                  class="absolute bottom-full left-0 mb-2 bg-white rounded-xl shadow-2xl border-2 border-gray-200 p-3 z-50">
-                  <div class="flex justify-between items-center mb-2">
-                    <span class="text-xs font-bold text-gray-700">Emojis</span>
-                    <button
-                      (click)="toggleEmojiPicker()"
-                      class="text-gray-500 hover:text-gray-700">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                  <div class="grid grid-cols-8 gap-1">
-                    <button
-                      *ngFor="let emoji of emojis"
-                      (click)="insertEmoji(emoji)"
-                      class="text-xl hover:bg-gray-100 rounded p-1 transition-all">
-                      {{ emoji }}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Input Field -->
-              <div class="flex-1 relative">
-                <input
-                  [(ngModel)]="messageContent"
-                  (keydown.enter)="!$any($event).shiftKey && sendMessage()"
-                  placeholder="Écrivez votre message..."
-                  class="w-full px-4 py-2.5 pr-16 border-2 border-gray-300 rounded-full focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none text-sm text-gray-900 placeholder-gray-400">
-                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-                  {{ messageContent.length }}
+              <!-- Header -->
+              <div class="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-900 to-blue-700">
+                <i class="pi pi-building text-yellow-400 text-base"></i>
+                <p class="text-sm font-bold text-white">Types d'entreprises</p>
+                <span class="ml-auto text-xs bg-white/20 text-white px-2 py-0.5 rounded-full font-semibold">
+                  {{ getTypesSelectionnes().length }} sélectionné(s)
                 </span>
               </div>
 
-              <!-- Send Button -->
-              <button
-                (click)="sendMessage()"
-                [disabled]="(!messageContent.trim() && selectedFiles.length === 0) || getSelectedCount() === 0"
-                [class]="((!messageContent.trim() && selectedFiles.length === 0) || getSelectedCount() === 0)
-                  ? 'bg-gray-300 cursor-not-allowed'
-                  : 'bg-green-600 hover:bg-green-700'"
-                class="p-2.5 text-white rounded-full transition-all">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
-                </svg>
-              </button>
-            </div>
+              <!-- Hint -->
+              <div class="mx-3 mt-3 mb-1 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <i class="pi pi-exclamation-triangle text-amber-500 text-sm mt-0.5 flex-shrink-0"></i>
+                <p class="text-xs text-amber-800 leading-relaxed">
+                  Sélectionnez les types autorisés à voir cette publication.
+                  Laissez <strong>vide</strong> pour une publication <strong>publique</strong>.
+                </p>
+              </div>
 
-            <!-- Quick Info -->
-            <div class="flex items-center justify-between text-xs text-gray-500">
-              <span *ngIf="getSelectedCount() > 0">
-                {{ getSelectedCount() }} destinataire(s) •
-                <span *ngIf="selectedFiles.length > 0">{{ selectedFiles.length }} fichier(s) • </span>
-                Appuyez sur Entrée pour envoyer
-              </span>
-              <span *ngIf="getSelectedCount() === 0" class="text-orange-600 font-medium flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
-                </svg>
-                Sélectionnez des destinataires
-              </span>
+              <!-- Liste types — grille 2 colonnes -->
+              <div class="px-3 pb-2 max-h-72 overflow-y-auto mt-2">
+                <div class="grid grid-cols-2 gap-2">
+                  <label *ngFor="let type of typesEntreprises"
+                         (click)="type.checked = !type.checked"
+                         class="flex items-center gap-2.5 p-2.5 rounded-xl border-2 cursor-pointer transition-all select-none"
+                         [ngClass]="type.checked
+                           ? 'border-blue-600 bg-blue-50 shadow-sm'
+                           : 'border-gray-200 bg-gray-50 hover:border-blue-300 hover:bg-blue-50/50'">
+
+                    <!-- Checkbox visuel -->
+                    <div class="w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all"
+                         [ngClass]="type.checked ? 'bg-blue-700 border-blue-700' : 'border-gray-300 bg-white'">
+                      <i *ngIf="type.checked" class="pi pi-check text-white" style="font-size: 9px"></i>
+                    </div>
+
+                    <!-- Icône + libellé -->
+                    <span class="text-xl leading-none flex-shrink-0">{{ type.icone }}</span>
+                    <span class="text-xs font-semibold leading-tight flex-1"
+                          [ngClass]="type.checked ? 'text-blue-900' : 'text-gray-700'">
+                      {{ type.libelle }}
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Footer actions -->
+              <div class="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
+                <button type="button"
+                        (click)="toutDeselectionner()"
+                        class="text-xs text-gray-500 hover:text-red-600 transition flex items-center gap-1 font-medium">
+                  <i class="pi pi-times-circle"></i> Tout désélectionner
+                </button>
+                <button type="button" (click)="closeTypeDropdown()"
+                        class="flex items-center gap-1.5 bg-blue-900 text-white text-sm font-bold
+                               px-5 py-2 rounded-lg hover:bg-blue-800 transition">
+                  <i class="pi pi-check"></i> Valider
+                </button>
+              </div>
             </div>
+          </div>
+
+          <!-- Tags sélectionnés -->
+          <div *ngIf="getTypesSelectionnes().length > 0" class="flex flex-wrap gap-2 mt-2">
+            <span *ngFor="let type of getTypesSelectionnes()"
+                  class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full border"
+                  [style.background-color]="type.couleur + '15'"
+                  [style.border-color]="type.couleur + '40'"
+                  [style.color]="type.couleur">
+              {{ type.icone }} {{ type.libelle }}
+              <button type="button" (click)="deselectType(type)" class="hover:opacity-70 ml-0.5">
+                <i class="pi pi-times text-xs"></i>
+              </button>
+            </span>
+          </div>
+
+          <!-- Alerte public -->
+          <div *ngIf="getTypesSelectionnes().length === 0"
+               class="mt-2 flex items-center gap-2 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+            <i class="pi pi-globe"></i>
+            Cette publication sera visible par tous les membres de la plateforme.
           </div>
         </div>
 
+        <!-- Pièce jointe -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1.5">
+            <i class="pi pi-paperclip mr-1 text-blue-700"></i>Pièce jointe
+            <span class="font-normal text-gray-400 ml-1">(optionnel)</span>
+          </label>
+
+          <div *ngIf="!mediaFichier"
+               (click)="triggerFileInput()"
+               class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center
+                      cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors group">
+            <i class="pi pi-cloud-upload text-3xl text-gray-400 group-hover:text-blue-600 transition-colors block mb-1"></i>
+            <p class="text-sm font-medium text-gray-600">Cliquez pour joindre un fichier</p>
+            <p class="text-xs text-gray-400 mt-0.5">PDF, Word, Excel, images — max 10 MB</p>
+          </div>
+
+          <div *ngIf="mediaFichier"
+               class="flex items-center gap-3 border border-green-200 rounded-xl px-4 py-3 bg-green-50">
+            <i class="text-2xl"
+               [ngClass]="isMediaImage() ? 'pi pi-image text-blue-500' : 'pi pi-file text-green-600'"></i>
+            <span class="flex-1 text-sm font-medium truncate text-gray-700">{{ mediaNom }}</span>
+            <button type="button" (click)="removeMedia()"
+                    class="text-red-500 hover:text-red-700 transition">
+              <i class="pi pi-trash"></i>
+            </button>
+          </div>
+
+          <div *ngIf="uploadingMedia" class="flex items-center gap-2 text-sm text-blue-700 mt-1.5">
+            <i class="pi pi-spin pi-spinner"></i> Upload en cours...
+          </div>
+
+          <input #fileInput type="file" (change)="onFileSelected($event)" class="hidden">
+        </div>
+
+        <!-- Actions -->
+        <div class="flex justify-end gap-3 pt-2">
+          <button type="button" (click)="toggleForm()"
+                  class="px-5 py-2.5 border border-gray-300 rounded-lg text-sm font-semibold
+                         text-gray-600 hover:bg-gray-100 transition">
+            <i class="pi pi-times mr-1.5"></i>Annuler
+          </button>
+          <button type="button" (click)="publier()"
+                  [disabled]="!contenu.trim() || submitting || uploadingMedia"
+                  class="flex items-center gap-2 px-6 py-2.5 bg-blue-900 text-white rounded-lg
+                         text-sm font-bold hover:bg-blue-800 transition disabled:opacity-50 disabled:cursor-not-allowed">
+            <i *ngIf="submitting" class="pi pi-spin pi-spinner"></i>
+            <i *ngIf="!submitting" class="pi pi-send"></i>
+            {{ submitting ? 'Publication...' : 'Publier' }}
+          </button>
+        </div>
       </div>
     </div>
+  </div>
+
+  <!-- ══════════ LAYOUT PRINCIPAL ══════════ -->
+  <div class="max-w-6xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+
+    <!-- ─── FEED ─── -->
+    <div class="lg:col-span-2 flex flex-col gap-4">
+
+      <!-- Onglets -->
+      <div class="flex bg-white rounded-xl shadow-sm border border-gray-200 p-1 gap-1">
+        <button (click)="switchOnglet('feed')"
+                class="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition"
+                [ngClass]="onglet === 'feed' ? 'bg-blue-900 text-white shadow' : 'text-gray-500 hover:bg-gray-100'">
+          <i class="pi pi-globe"></i> Fil d'actualité
+        </button>
+        <button (click)="switchOnglet('mes-publications')"
+                class="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition"
+                [ngClass]="onglet === 'mes-publications' ? 'bg-blue-900 text-white shadow' : 'text-gray-500 hover:bg-gray-100'">
+          <i class="pi pi-bookmark"></i> Mes publications
+        </button>
+      </div>
+
+      <!-- Loading -->
+      <div *ngIf="loadingFeed"
+           class="flex flex-col items-center gap-3 py-16 bg-white rounded-xl border border-gray-200">
+        <i class="pi pi-spin pi-spinner text-blue-700 text-3xl"></i>
+        <p class="text-gray-500 text-sm">Chargement des publications...</p>
+      </div>
+
+      <!-- Vide -->
+      <div *ngIf="!loadingFeed && publications.length === 0"
+           class="flex flex-col items-center gap-3 py-16 bg-white rounded-xl border border-gray-200 text-center px-6">
+        <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+          <i class="pi pi-inbox text-3xl text-gray-400"></i>
+        </div>
+        <p class="font-bold text-gray-700">Aucune publication</p>
+        <p class="text-gray-400 text-sm">Soyez le premier à publier sur le marketplace</p>
+        <button (click)="toggleForm()"
+                class="mt-2 flex items-center gap-2 bg-blue-900 text-white text-sm font-bold
+                       px-5 py-2.5 rounded-full hover:bg-blue-800 transition">
+          <i class="pi pi-plus"></i> Créer une publication
+        </button>
+      </div>
+
+      <!-- Cards publications -->
+      <div *ngFor="let pub of publications; let i = index"
+           class="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-5 flex flex-col gap-4">
+
+        <!-- En-tête -->
+        <div class="flex items-start gap-3">
+          <div class="w-11 h-11 rounded-full bg-blue-900 text-white flex items-center justify-center
+                      font-bold text-sm flex-shrink-0">
+            {{ getInitiales(pub) }}
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="font-bold text-gray-900 text-sm">{{ pub.auteurNom || 'Entreprise' }}</p>
+            <div class="flex items-center gap-2 mt-1 flex-wrap">
+              <span class="text-xs text-gray-400 flex items-center gap-1">
+                <i class="pi pi-clock"></i>{{ getTimeAgo(pub.createdAt) }}
+              </span>
+              <span class="text-xs px-2 py-0.5 rounded-full font-semibold flex items-center gap-1 border"
+                    [ngClass]="pub.visibleParTous || !pub.typesEntreprisesVisibles.length
+                      ? 'bg-green-50 text-green-700 border-green-200'
+                      : 'bg-blue-50 text-blue-700 border-blue-200'">
+                <i [ngClass]="pub.visibleParTous || !pub.typesEntreprisesVisibles.length
+                  ? 'pi pi-globe' : 'pi pi-lock'"></i>
+                {{ getBadgeVisibilite(pub) }}
+              </span>
+            </div>
+          </div>
+          <button (click)="supprimerPublication(pub, i)"
+                  class="text-gray-300 hover:text-red-500 transition p-1 rounded-lg hover:bg-red-50"
+                  title="Supprimer">
+            <i class="pi pi-trash text-sm"></i>
+          </button>
+        </div>
+
+        <!-- Titre -->
+        <h3 *ngIf="pub.titre" class="font-bold text-blue-900 text-base leading-snug">
+          {{ pub.titre }}
+        </h3>
+
+        <!-- Contenu -->
+        <p class="text-gray-700 text-sm leading-relaxed">{{ pub.contenu }}</p>
+
+        <!-- Média -->
+        <div *ngIf="pub.mediaUrl">
+          <img *ngIf="isImage(pub)" [src]="pub.mediaUrl" [alt]="pub.mediaNom"
+               class="w-full max-h-72 object-cover rounded-xl border border-gray-200">
+          <a *ngIf="!isImage(pub)" [href]="pub.mediaUrl" target="_blank"
+             class="inline-flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-xl
+                    text-sm font-semibold text-blue-800 hover:bg-blue-50 transition">
+            <i class="pi pi-file-pdf text-red-500"></i> {{ pub.mediaNom || 'Télécharger' }}
+            <i class="pi pi-external-link text-xs text-gray-400"></i>
+          </a>
+        </div>
+
+        <!-- Types visibilité -->
+        <div *ngIf="pub.typesEntreprisesVisibles.length" class="flex flex-wrap items-center gap-2">
+          <span class="text-xs text-gray-400 font-semibold flex items-center gap-1">
+            <i class="pi pi-eye"></i> Visible par :
+          </span>
+          <span *ngFor="let code of pub.typesEntreprisesVisibles"
+                class="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border"
+                [style.color]="getCouleurType(code)"
+                [style.background-color]="getCouleurType(code) + '15'"
+                [style.border-color]="getCouleurType(code) + '40'">
+            {{ getIconeType(code) }} {{ getLibelleType(code) }}
+          </span>
+        </div>
+
+        <!-- Footer -->
+        <div class="flex items-center justify-between pt-2 border-t border-gray-100">
+          <span class="text-xs text-gray-400 flex items-center gap-1">
+            <i class="pi pi-eye"></i> {{ pub.nombreVues ?? 0 }} vues
+          </span>
+          <button class="text-xs text-gray-400 hover:text-blue-600 transition flex items-center gap-1">
+            <i class="pi pi-share-alt"></i> Partager
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── SIDEBAR ─── -->
+    <aside class="flex flex-col gap-4">
+
+      <!-- CTA -->
+      <div class="bg-blue-900 rounded-xl p-5 text-white">
+        <div class="flex items-center gap-2 mb-2">
+          <i class="pi pi-megaphone text-yellow-400 text-lg"></i>
+          <h3 class="font-bold text-yellow-400">Publiez sur le marketplace</h3>
+        </div>
+        <p class="text-blue-300 text-sm leading-relaxed mb-4">
+          Partagez vos offres avec les acteurs financiers de la zone UEMOA.
+        </p>
+        <button (click)="toggleForm()"
+                class="w-full bg-yellow-400 text-blue-900 font-bold text-sm py-2.5 rounded-lg
+                       hover:bg-yellow-300 transition flex items-center justify-center gap-2">
+          <i class="pi pi-plus"></i> Nouvelle publication
+        </button>
+      </div>
+
+      <!-- Secteurs -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <h3 class="font-bold text-blue-900 text-sm mb-3 flex items-center gap-2">
+          <i class="pi pi-th-large text-blue-700"></i> Secteurs représentés
+        </h3>
+        <ul class="flex flex-col gap-2">
+          <li *ngFor="let type of typesEntreprises"
+              class="flex items-center gap-2.5 text-sm text-gray-700">
+            <span class="text-base leading-none">{{ type.icone }}</span>
+            <span class="font-medium">{{ type.libelle }}</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- À propos -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <h3 class="font-bold text-blue-900 text-sm mb-2 flex items-center gap-2">
+          <i class="pi pi-info-circle text-blue-700"></i> À propos
+        </h3>
+        <p class="text-gray-500 text-xs leading-relaxed">
+          DouniyaMarket est le premier marketplace B2B financier africain. Il connecte banques, assureurs, SGI, fonds et acteurs de la finance dans la zone UEMOA.
+        </p>
+      </div>
+    </aside>
+
   </div>
 </div>
