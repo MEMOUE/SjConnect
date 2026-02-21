@@ -1,297 +1,500 @@
 <div class="visio-conference-container">
-  <!-- Meeting Room (when in meeting) -->
-  <div class="meeting-room" *ngIf="isInMeeting">
-    <div class="video-grid">
-      <div class="video-tile main-video">
-        <div class="video-content">
-          <span class="video-avatar">👨</span>
-          <span class="video-name">Mohamed Benali (Vous)</span>
-          <span class="video-status" *ngIf="!isVideoOn">📷 Caméra désactivée</span>
+
+  <!-- ══════════ TOAST ══════════ -->
+  <div *ngIf="toast"
+       class="fixed top-5 right-5 z-50 flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-2xl text-sm font-semibold animate-fade-in"
+       [ngClass]="{
+         'bg-green-700 text-green-50': toast.type === 'success',
+         'bg-red-700 text-red-50':     toast.type === 'error',
+         'bg-blue-700 text-blue-50':   toast.type === 'info'
+       }">
+    <i class="text-lg" [ngClass]="{
+         'pi pi-check-circle': toast.type === 'success',
+         'pi pi-times-circle': toast.type === 'error',
+         'pi pi-info-circle':  toast.type === 'info'
+       }"></i>
+    {{ toast.message }}
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       VUE APPEL — Plein écran
+  ═══════════════════════════════════════════════════════ -->
+  <div *ngIf="vue === 'appel'" class="meeting-room">
+
+    <!-- Barre supérieure -->
+    <div class="flex items-center justify-between px-5 py-3 bg-gray-900/90 backdrop-blur border-b border-white/10">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center">
+          <i class="pi pi-video text-blue-900 text-sm"></i>
+        </div>
+        <div>
+          <p class="text-white font-bold text-sm leading-none">{{ meetingActif?.titre }}</p>
+          <p class="text-gray-400 text-xs mt-0.5 flex items-center gap-1">
+            <i class="pi pi-users text-xs"></i>{{ participantsCount }} participant(s)
+          </p>
         </div>
       </div>
-      <div class="video-tile" *ngFor="let participant of participants.slice(0, 3)">
-        <div class="video-content">
-          <span class="video-avatar">{{ participant.avatar }}</span>
-          <span class="video-name">{{ participant.name }}</span>
-          <span class="video-indicators">
-            <span *ngIf="participant.isMuted">🔇</span>
-            <span *ngIf="!participant.isVideoOn">📷</span>
-          </span>
-        </div>
+
+      <!-- Badge EN DIRECT -->
+      <div class="flex items-center gap-2 bg-red-600/20 border border-red-500/30 px-3 py-1.5 rounded-full">
+        <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+        <span class="text-red-400 text-xs font-bold tracking-wider">EN DIRECT</span>
       </div>
-    </div>
 
-    <!-- Meeting Controls -->
-    <div class="meeting-controls">
-      <button
-        class="control-btn"
-        [class.active]="isMuted"
-        (click)="toggleMute()">
-        <span class="control-icon">{{ isMuted ? '🔇' : '🎤' }}</span>
-        <span class="control-label">{{ isMuted ? 'Réactiver' : 'Muet' }}</span>
-      </button>
-
-      <button
-        class="control-btn"
-        [class.active]="!isVideoOn"
-        (click)="toggleVideo()">
-        <span class="control-icon">{{ isVideoOn ? '📹' : '📷' }}</span>
-        <span class="control-label">{{ isVideoOn ? 'Arrêter vidéo' : 'Démarrer vidéo' }}</span>
-      </button>
-
-      <button
-        class="control-btn"
-        [class.active]="isScreenSharing"
-        (click)="toggleScreenShare()">
-        <span class="control-icon">🖥️</span>
-        <span class="control-label">Partager écran</span>
-      </button>
-
-      <button
-        class="control-btn"
-        [class.active]="isRecording"
-        (click)="toggleRecording()">
-        <span class="control-icon">⏺️</span>
-        <span class="control-label">{{ isRecording ? 'Arrêter' : 'Enregistrer' }}</span>
-      </button>
-
-      <button
-        class="control-btn"
-        [class.active]="showParticipants"
-        (click)="toggleParticipants()">
-        <span class="control-icon">👥</span>
-        <span class="control-label">Participants</span>
-      </button>
-
-      <button
-        class="control-btn"
-        [class.active]="showChat"
-        (click)="toggleChat()">
-        <span class="control-icon">💬</span>
-        <span class="control-label">Chat</span>
-      </button>
-
-      <button class="control-btn end-call" (click)="endMeeting()">
-        <span class="control-icon">📞</span>
-        <span class="control-label">Terminer</span>
+      <!-- Copier lien -->
+      <button *ngIf="meetingActif" (click)="copierLien(meetingActif)"
+              class="flex items-center gap-2 border border-white/20 text-white/80 hover:text-white
+                     hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-medium transition-all">
+        <i [ngClass]="lienCopie ? 'pi pi-check text-green-400' : 'pi pi-link'"></i>
+        {{ lienCopie ? 'Copié !' : 'Copier le lien' }}
       </button>
     </div>
 
-    <!-- Sidebar (Participants or Chat) -->
-    <div class="meeting-sidebar" *ngIf="showParticipants || showChat">
-      <!-- Participants Panel -->
-      <div class="sidebar-panel" *ngIf="showParticipants">
-        <div class="panel-header">
-          <h3>Participants ({{ participants.length }})</h3>
-          <button class="close-btn" (click)="toggleParticipants()">✕</button>
+    <!-- Container Jitsi -->
+    <div class="flex-1 relative bg-gray-900 overflow-hidden">
+      <!-- Spinner de connexion -->
+      <div *ngIf="!jitsiPret"
+           class="absolute inset-0 flex flex-col items-center justify-center gap-4 z-10 bg-gray-900">
+        <div class="w-20 h-20 bg-blue-900/60 rounded-full flex items-center justify-center shadow-lg">
+          <i class="pi pi-spin pi-spinner text-yellow-400 text-3xl"></i>
         </div>
-        <div class="participants-list">
-          <div class="participant-item" *ngFor="let participant of participants">
-            <span class="participant-avatar">{{ participant.avatar }}</span>
-            <div class="participant-info">
-              <p class="participant-name">
-                {{ participant.name }}
-                <span class="host-badge" *ngIf="participant.isHost">Hôte</span>
-              </p>
-              <p class="participant-email">{{ participant.email }}</p>
-            </div>
-            <div class="participant-status">
-              <span *ngIf="participant.isMuted">🔇</span>
-              <span *ngIf="!participant.isVideoOn">📷</span>
-            </div>
-          </div>
-        </div>
+        <p class="text-white font-semibold text-lg">Connexion à la salle...</p>
+        <p class="text-gray-400 text-sm font-mono">DouniyaConnect-{{ meetingActif?.roomName }}</p>
+        <p class="text-gray-500 text-xs mt-2">Autoriser l'accès à la caméra et au microphone si demandé</p>
       </div>
+      <div #jitsiContainer class="w-full h-full"></div>
+    </div>
 
-      <!-- Chat Panel -->
-      <div class="sidebar-panel" *ngIf="showChat">
-        <div class="panel-header">
-          <h3>Chat</h3>
-          <button class="close-btn" (click)="toggleChat()">✕</button>
+    <!-- Barre de contrôles -->
+    <div class="flex items-center justify-center gap-3 px-6 py-4 bg-gray-900 border-t border-white/10 flex-wrap">
+
+      <!-- Micro -->
+      <button (click)="toggleMicro()" class="flex flex-col items-center gap-1">
+        <div class="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200"
+             [ngClass]="microActif ? 'bg-white/10 hover:bg-white/20' : 'bg-red-600 hover:bg-red-700'">
+          <i class="pi text-white text-lg" [ngClass]="microActif ? 'pi-microphone' : 'pi-microphone'"></i>
         </div>
-        <div class="chat-messages">
-          <div class="chat-message" *ngFor="let msg of chatMessages">
-            <div class="message-header">
-              <span class="message-sender">{{ msg.sender }}</span>
-              <span class="message-time">{{ msg.time }}</span>
-            </div>
-            <p class="message-content">{{ msg.message }}</p>
-          </div>
+        <span class="text-gray-400 text-xs">{{ microActif ? 'Micro' : 'Micro off' }}</span>
+      </button>
+
+      <!-- Caméra -->
+      <button (click)="toggleCamera()" class="flex flex-col items-center gap-1">
+        <div class="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200"
+             [ngClass]="cameraActive ? 'bg-white/10 hover:bg-white/20' : 'bg-red-600 hover:bg-red-700'">
+          <i class="pi text-white text-lg" [ngClass]="cameraActive ? 'pi-video' : 'pi-video-slash'"></i>
         </div>
-        <div class="chat-input">
-          <input type="text" placeholder="Tapez votre message...">
-          <button>Envoyer</button>
+        <span class="text-gray-400 text-xs">{{ cameraActive ? 'Caméra' : 'Caméra off' }}</span>
+      </button>
+
+      <!-- Partage écran -->
+      <button (click)="togglePartageEcran()" class="flex flex-col items-center gap-1">
+        <div class="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200"
+             [ngClass]="partageEcran ? 'bg-blue-600 hover:bg-blue-700' : 'bg-white/10 hover:bg-white/20'">
+          <i class="pi pi-desktop text-white text-lg"></i>
         </div>
-      </div>
+        <span class="text-gray-400 text-xs">Partager</span>
+      </button>
+
+      <!-- Raccrocher -->
+      <button (click)="terminerAppel()" class="flex flex-col items-center gap-1">
+        <div class="w-14 h-14 rounded-full bg-red-600 hover:bg-red-700 flex items-center
+                    justify-center transition-all duration-200 shadow-lg shadow-red-900/50">
+          <i class="pi pi-phone text-white text-xl" style="transform: rotate(135deg)"></i>
+        </div>
+        <span class="text-gray-400 text-xs">Raccrocher</span>
+      </button>
+
     </div>
   </div>
 
-  <!-- Dashboard (when not in meeting) -->
-  <div class="dashboard" *ngIf="!isInMeeting">
-    <div class="header">
-      <div class="header-content">
-        <h1>📹 Visioconférence</h1>
-        <p class="subtitle">Gérez vos réunions et conférences en ligne</p>
-      </div>
-      <div class="header-actions">
-        <button class="btn-secondary">⚙️ Paramètres</button>
-        <button class="btn-primary" (click)="openNewMeetingForm()">➕ Nouvelle réunion</button>
-      </div>
-    </div>
+  <!-- ══════════════════════════════════════════════════════
+       VUES LISTE / CRÉER / REJOINDRE
+  ═══════════════════════════════════════════════════════ -->
+  <div *ngIf="vue !== 'appel'">
 
-    <!-- Stats Cards -->
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-icon blue">📊</div>
-        <div class="stat-content">
-          <p class="stat-label">Total réunions</p>
-          <h3 class="stat-value">{{ stats.totalMeetings }}</h3>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon green">⏱️</div>
-        <div class="stat-content">
-          <p class="stat-label">Heures ce mois</p>
-          <h3 class="stat-value">{{ stats.hoursThisMonth }}h</h3>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon purple">👥</div>
-        <div class="stat-content">
-          <p class="stat-label">Participants moyens</p>
-          <h3 class="stat-value">{{ stats.avgParticipants }}</h3>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon orange">📅</div>
-        <div class="stat-content">
-          <p class="stat-label">Aujourd'hui</p>
-          <h3 class="stat-value">{{ stats.upcomingToday }}</h3>
-        </div>
-      </div>
-    </div>
+    <!-- ── HEADER ── -->
+    <header class="bg-blue-900 text-white shadow-lg">
+      <div class="max-w-6xl mx-auto px-4 h-16 flex items-center gap-4">
 
-    <!-- View Toggle -->
-    <div class="view-toggle">
-      <button
-        class="toggle-btn"
-        [class.active]="activeView === 'upcoming'"
-        (click)="activeView = 'upcoming'">
-        📅 À venir
-      </button>
-      <button
-        class="toggle-btn"
-        [class.active]="activeView === 'past'"
-        (click)="activeView = 'past'">
-        📝 Historique
-      </button>
-    </div>
-
-    <!-- Meetings List -->
-    <div class="meetings-section">
-      <!-- Upcoming Meetings -->
-      <div class="meetings-list" *ngIf="activeView === 'upcoming'">
-        <div class="meeting-card" *ngFor="let meeting of upcomingMeetings">
-          <div class="meeting-info">
-            <h3 class="meeting-title">{{ meeting.title }}</h3>
-            <div class="meeting-details">
-              <span class="detail-item">📅 {{ meeting.date }}</span>
-              <span class="detail-item">🕐 {{ meeting.time }}</span>
-              <span class="detail-item">⏱️ {{ meeting.duration }} min</span>
-              <span class="detail-item">👥 {{ meeting.participants }} participants</span>
-            </div>
-            <p class="meeting-host">Hôte: {{ meeting.host }}</p>
-            <div class="meeting-link">
-              <input type="text" [value]="meeting.link" readonly>
-              <button class="btn-copy" (click)="copyLink(meeting.link)">📋 Copier</button>
-            </div>
+        <!-- Logo -->
+        <div class="flex items-center gap-3 flex-shrink-0">
+          <div class="w-9 h-9 bg-yellow-400 rounded-lg flex items-center justify-center shadow">
+            <i class="pi pi-video text-blue-900 text-lg"></i>
           </div>
-          <div class="meeting-actions">
-            <button class="btn-action primary" (click)="joinMeeting(meeting)">
-              🎥 Rejoindre
+          <div class="hidden sm:block">
+            <p class="font-bold text-yellow-400 text-sm leading-none">DouniyaMeet</p>
+            <p class="text-blue-300 text-xs leading-none mt-0.5">Visioconférence B2B</p>
+          </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="flex-1 flex items-center justify-center gap-1">
+          <button (click)="vue = 'liste'"
+                  class="px-4 py-1.5 rounded-full text-sm font-semibold transition-all"
+                  [ngClass]="vue === 'liste' ? 'bg-yellow-400 text-blue-900' : 'text-white/70 hover:text-white hover:bg-white/10'">
+            <i class="pi pi-calendar mr-1.5"></i>Réunions
+          </button>
+          <button (click)="vue = 'creer'; resetForm()"
+                  class="px-4 py-1.5 rounded-full text-sm font-semibold transition-all"
+                  [ngClass]="vue === 'creer' ? 'bg-yellow-400 text-blue-900' : 'text-white/70 hover:text-white hover:bg-white/10'">
+            <i class="pi pi-plus mr-1.5"></i>Planifier
+          </button>
+          <button (click)="vue = 'rejoindre'"
+                  class="px-4 py-1.5 rounded-full text-sm font-semibold transition-all"
+                  [ngClass]="vue === 'rejoindre' ? 'bg-yellow-400 text-blue-900' : 'text-white/70 hover:text-white hover:bg-white/10'">
+            <i class="pi pi-sign-in mr-1.5"></i>Rejoindre
+          </button>
+        </div>
+
+        <!-- Démarrer maintenant -->
+        <button (click)="demarrerMaintenant()"
+                class="flex-shrink-0 flex items-center gap-2 bg-green-500 hover:bg-green-400
+                       text-white font-bold text-sm px-4 py-2 rounded-full transition-all shadow">
+          <i class="pi pi-play-circle"></i>
+          <span class="hidden sm:inline">Démarrer</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="max-w-6xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+
+      <!-- ─── CONTENU PRINCIPAL ─── -->
+      <div class="lg:col-span-2">
+
+        <!-- ══ VUE LISTE ══ -->
+        <div *ngIf="vue === 'liste'" class="flex flex-col gap-4">
+
+          <div class="flex items-center justify-between">
+            <h2 class="font-bold text-blue-900 text-lg flex items-center gap-2">
+              <i class="pi pi-calendar text-blue-700"></i> Mes réunions
+            </h2>
+            <button (click)="chargerMeetings()"
+                    class="text-sm text-blue-700 hover:text-blue-900 flex items-center gap-1 font-medium transition-colors">
+              <i class="pi pi-refresh" [ngClass]="loading ? 'pi-spin' : ''"></i> Actualiser
             </button>
-            <button class="btn-action" (click)="editMeeting(meeting)">✏️ Éditer</button>
-            <button class="btn-action delete" (click)="deleteMeeting(meeting)">🗑️</button>
           </div>
-        </div>
 
-        <div class="empty-state" *ngIf="upcomingMeetings.length === 0">
-          <span class="empty-icon">📅</span>
-          <p>Aucune réunion à venir</p>
-        </div>
-      </div>
+          <!-- Loading -->
+          <div *ngIf="loading"
+               class="flex flex-col items-center gap-3 py-16 bg-white rounded-xl border border-gray-200 shadow-sm">
+            <i class="pi pi-spin pi-spinner text-blue-700 text-3xl"></i>
+            <p class="text-gray-500 text-sm">Chargement des réunions...</p>
+          </div>
 
-      <!-- Past Meetings -->
-      <div class="meetings-list" *ngIf="activeView === 'past'">
-        <div class="meeting-card past" *ngFor="let meeting of pastMeetings">
-          <div class="meeting-info">
-            <h3 class="meeting-title">{{ meeting.title }}</h3>
-            <div class="meeting-details">
-              <span class="detail-item">📅 {{ meeting.date }}</span>
-              <span class="detail-item">🕐 {{ meeting.time }}</span>
-              <span class="detail-item">⏱️ {{ meeting.duration }} min</span>
-              <span class="detail-item">👥 {{ meeting.participants }} participants</span>
+          <!-- Vide -->
+          <div *ngIf="!loading && meetings.length === 0"
+               class="flex flex-col items-center gap-4 py-16 bg-white rounded-xl border border-gray-200 shadow-sm text-center">
+            <div class="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center">
+              <i class="pi pi-video text-blue-200 text-4xl"></i>
             </div>
-            <p class="meeting-host">Hôte: {{ meeting.host }}</p>
-            <span class="status-badge completed">✓ Terminée</span>
+            <div>
+              <p class="font-bold text-gray-700 text-lg">Aucune réunion planifiée</p>
+              <p class="text-gray-400 text-sm mt-1">Créez votre première visioconférence</p>
+            </div>
+            <button (click)="vue = 'creer'; resetForm()"
+                    class="flex items-center gap-2 bg-blue-900 text-white px-5 py-2.5 rounded-full font-bold
+                           hover:bg-blue-800 transition-all text-sm shadow">
+              <i class="pi pi-plus"></i> Planifier une réunion
+            </button>
           </div>
-          <div class="meeting-actions">
-            <button class="btn-action">📊 Rapport</button>
-            <button class="btn-action">🎬 Enregistrement</button>
+
+          <!-- Cards réunions -->
+          <div *ngFor="let meeting of meetings"
+               class="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md
+                      transition-shadow duration-200 p-5">
+
+            <div class="flex items-start gap-4">
+              <!-- Icône statut -->
+              <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                   [ngClass]="{
+                     'bg-green-100': meeting.statut === 'EN_COURS',
+                     'bg-blue-100':  meeting.statut === 'PLANIFIE',
+                     'bg-gray-100':  meeting.statut === 'TERMINE'
+                   }">
+                <i class="text-xl"
+                   [ngClass]="{
+                     'pi pi-play-circle text-green-600': meeting.statut === 'EN_COURS',
+                     'pi pi-clock text-blue-600':        meeting.statut === 'PLANIFIE',
+                     'pi pi-check-circle text-gray-400': meeting.statut === 'TERMINE'
+                   }"></i>
+              </div>
+
+              <div class="flex-1 min-w-0">
+                <div class="flex items-start justify-between gap-3">
+                  <h3 class="font-bold text-gray-900 text-base truncate">{{ meeting.titre }}</h3>
+                  <span class="text-xs px-2.5 py-1 rounded-full font-semibold border flex-shrink-0"
+                        [ngClass]="getStatutClass(meeting.statut)">
+                    <i [ngClass]="getStatutIcon(meeting.statut)" class="mr-1 text-xs"></i>
+                    {{ getStatutLabel(meeting.statut) }}
+                  </span>
+                </div>
+
+                <p *ngIf="meeting.description" class="text-gray-500 text-sm mt-1 line-clamp-1">
+                  {{ meeting.description }}
+                </p>
+
+                <div class="flex items-center flex-wrap gap-3 mt-2 text-xs text-gray-400">
+                  <span class="flex items-center gap-1">
+                    <i class="pi pi-clock"></i> {{ formatDate(meeting.dateDebut) }}
+                  </span>
+                  <span *ngIf="meeting.participants?.length" class="flex items-center gap-1">
+                    <i class="pi pi-users"></i> {{ meeting.participants.length }} invité(s)
+                  </span>
+                  <span *ngIf="meeting.organisateurNom" class="flex items-center gap-1">
+                    <i class="pi pi-building"></i> {{ meeting.organisateurNom }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center gap-2 mt-4 pt-3 border-t border-gray-100 flex-wrap">
+              <button *ngIf="meeting.statut !== 'TERMINE'"
+                      (click)="lancerAppel(meeting)"
+                      class="flex items-center gap-2 bg-blue-900 hover:bg-blue-800 text-white
+                             font-bold text-sm px-4 py-2 rounded-lg transition-all">
+                <i [ngClass]="meeting.statut === 'EN_COURS' ? 'pi pi-sign-in' : 'pi pi-play'"></i>
+                {{ meeting.statut === 'EN_COURS' ? 'Rejoindre' : 'Démarrer' }}
+              </button>
+              <button (click)="copierLien(meeting)"
+                      class="flex items-center gap-2 border border-gray-200 text-gray-600
+                             hover:bg-gray-50 font-medium text-sm px-4 py-2 rounded-lg transition-all">
+                <i class="pi pi-link"></i> Copier le lien
+              </button>
+            </div>
           </div>
         </div>
 
-        <div class="empty-state" *ngIf="pastMeetings.length === 0">
-          <span class="empty-icon">📝</span>
-          <p>Aucun historique</p>
-        </div>
-      </div>
-    </div>
-  </div>
+        <!-- ══ VUE CRÉER ══ -->
+        <div *ngIf="vue === 'creer'"
+             class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
 
-  <!-- New Meeting Modal -->
-  <div class="modal-overlay" *ngIf="showNewMeetingForm" (click)="closeNewMeetingForm()">
-    <div class="modal-content" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h2>Nouvelle réunion</h2>
-        <button class="close-btn" (click)="closeNewMeetingForm()">✕</button>
-      </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label>Titre de la réunion</label>
-          <input type="text" [(ngModel)]="newMeeting.title" placeholder="Réunion d'équipe...">
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Date</label>
-            <input type="date" [(ngModel)]="newMeeting.date">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 bg-blue-900 rounded-xl flex items-center justify-center shadow">
+              <i class="pi pi-calendar-plus text-yellow-400 text-base"></i>
+            </div>
+            <div>
+              <h2 class="font-bold text-blue-900">Planifier une réunion</h2>
+              <p class="text-gray-400 text-xs">Invitez vos partenaires à une visioconférence</p>
+            </div>
           </div>
-          <div class="form-group">
-            <label>Heure</label>
-            <input type="time" [(ngModel)]="newMeeting.time">
+
+          <div class="space-y-5">
+
+            <!-- Titre -->
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-1.5">
+                <i class="pi pi-tag mr-1 text-blue-700"></i>Titre
+                <span class="text-red-500 ml-0.5">*</span>
+              </label>
+              <input [(ngModel)]="form.titre"
+                     placeholder="Ex : Revue portefeuille Q1 2025"
+                     class="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm
+                            outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all">
+            </div>
+
+            <!-- Description -->
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-1.5">
+                <i class="pi pi-align-left mr-1 text-blue-700"></i>Description
+                <span class="text-gray-400 font-normal ml-1">(optionnel)</span>
+              </label>
+              <textarea [(ngModel)]="form.description" rows="3"
+                        placeholder="Ordre du jour, objectifs..."
+                        class="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm
+                               resize-none outline-none focus:border-blue-600 focus:ring-2
+                               focus:ring-blue-100 transition-all"></textarea>
+            </div>
+
+            <!-- Quand ? -->
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-2">
+                <i class="pi pi-calendar mr-1 text-blue-700"></i>Quand ?
+              </label>
+              <div class="grid grid-cols-2 gap-3">
+                <button type="button" (click)="setMaintenant(true)"
+                        class="flex items-center justify-center gap-2 py-3 rounded-xl border-2
+                               font-semibold text-sm transition-all"
+                        [ngClass]="form.maintenant
+                          ? 'border-green-500 bg-green-50 text-green-700'
+                          : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-green-300'">
+                  <i class="pi pi-play-circle"></i> Maintenant
+                </button>
+                <button type="button" (click)="setMaintenant(false)"
+                        class="flex items-center justify-center gap-2 py-3 rounded-xl border-2
+                               font-semibold text-sm transition-all"
+                        [ngClass]="!form.maintenant
+                          ? 'border-blue-600 bg-blue-50 text-blue-700'
+                          : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-blue-300'">
+                  <i class="pi pi-calendar"></i> Planifier
+                </button>
+              </div>
+            </div>
+
+            <!-- Date / heure -->
+            <div *ngIf="!form.maintenant" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1.5">
+                  Début <span class="text-red-500">*</span>
+                </label>
+                <input type="datetime-local" [(ngModel)]="form.dateDebut"
+                       class="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm
+                              outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all">
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1.5">
+                  Fin <span class="text-gray-400 font-normal">(optionnel)</span>
+                </label>
+                <input type="datetime-local" [(ngModel)]="form.dateFin"
+                       class="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm
+                              outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all">
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex justify-end gap-3 pt-2">
+              <button type="button" (click)="vue = 'liste'"
+                      class="px-5 py-2.5 border border-gray-300 rounded-lg text-sm font-semibold
+                             text-gray-600 hover:bg-gray-100 transition-all">
+                <i class="pi pi-times mr-1.5"></i>Annuler
+              </button>
+              <button type="button" (click)="creerMeeting()"
+                      [disabled]="submitting"
+                      class="flex items-center gap-2 px-6 py-2.5 bg-blue-900 text-white rounded-lg
+                             text-sm font-bold hover:bg-blue-800 transition-all disabled:opacity-50
+                             disabled:cursor-not-allowed shadow">
+                <i *ngIf="submitting"  class="pi pi-spin pi-spinner"></i>
+                <i *ngIf="!submitting" [ngClass]="form.maintenant ? 'pi pi-play' : 'pi pi-check'"></i>
+                {{ submitting ? 'Création...' : (form.maintenant ? 'Démarrer' : 'Planifier') }}
+              </button>
+            </div>
           </div>
         </div>
-        <div class="form-group">
-          <label>Durée (minutes)</label>
-          <select [(ngModel)]="newMeeting.duration">
-            <option [value]="30">30 minutes</option>
-            <option [value]="60">1 heure</option>
-            <option [value]="90">1h 30</option>
-            <option [value]="120">2 heures</option>
-          </select>
+
+        <!-- ══ VUE REJOINDRE ══ -->
+        <div *ngIf="vue === 'rejoindre'"
+             class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+
+          <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 bg-blue-900 rounded-xl flex items-center justify-center shadow">
+              <i class="pi pi-sign-in text-yellow-400 text-base"></i>
+            </div>
+            <div>
+              <h2 class="font-bold text-blue-900">Rejoindre une réunion</h2>
+              <p class="text-gray-400 text-xs">Collez un lien ou entrez le code de la salle</p>
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-1.5">
+                <i class="pi pi-link mr-1 text-blue-700"></i>Lien ou code de réunion
+              </label>
+              <input [(ngModel)]="lienOuCode"
+                     placeholder="https://meet.jit.si/DouniyaConnect-... ou code-de-la-salle"
+                     (keydown.enter)="rejoindreParLien()"
+                     class="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm
+                            outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all">
+            </div>
+
+            <button (click)="rejoindreParLien()"
+                    [disabled]="!lienOuCode.trim()"
+                    class="w-full flex items-center justify-center gap-2 bg-blue-900 text-white
+                           py-3 rounded-xl font-bold text-sm hover:bg-blue-800 transition-all
+                           disabled:opacity-50 disabled:cursor-not-allowed shadow">
+              <i class="pi pi-sign-in"></i> Rejoindre la réunion
+            </button>
+
+            <p class="text-center text-xs text-gray-400">
+              <i class="pi pi-info-circle mr-1"></i>
+              L'accès à la caméra et au microphone sera requis
+            </p>
+          </div>
         </div>
-        <div class="form-group">
-          <label>Participants (emails séparés par des virgules)</label>
-          <textarea
-            [(ngModel)]="newMeeting.participants"
-            placeholder="email1@example.com, email2@example.com..."
-            rows="3"></textarea>
+
+      </div>
+
+      <!-- ─── SIDEBAR ─── -->
+      <aside class="flex flex-col gap-4">
+
+        <!-- Démarrage rapide -->
+        <div class="bg-blue-900 rounded-xl p-5 text-white shadow-lg">
+          <div class="flex items-center gap-2 mb-3">
+            <i class="pi pi-bolt text-yellow-400 text-lg"></i>
+            <h3 class="font-bold text-yellow-400">Démarrage rapide</h3>
+          </div>
+          <p class="text-blue-300 text-sm mb-4 leading-relaxed">
+            Lancez une réunion instantanée et partagez le lien à vos partenaires en un clic.
+          </p>
+          <button (click)="demarrerMaintenant()"
+                  class="w-full bg-green-500 hover:bg-green-400 text-white font-bold text-sm
+                         py-3 rounded-xl transition-all flex items-center justify-center gap-2 shadow">
+            <i class="pi pi-play-circle text-lg"></i> Démarrer maintenant
+          </button>
         </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-secondary" (click)="closeNewMeetingForm()">Annuler</button>
-        <button class="btn-primary" (click)="createMeeting()">Créer la réunion</button>
-      </div>
+
+        <!-- Stats rapides -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <h3 class="font-bold text-blue-900 text-sm mb-4 flex items-center gap-2">
+            <i class="pi pi-chart-bar text-blue-700"></i> Résumé
+          </h3>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="bg-blue-50 rounded-xl p-3 text-center">
+              <p class="text-2xl font-bold text-blue-900">
+                {{ meetings.length }}
+              </p>
+              <p class="text-blue-600 text-xs font-medium mt-0.5">Total</p>
+            </div>
+            <div class="bg-green-50 rounded-xl p-3 text-center">
+              <p class="text-2xl font-bold text-green-700">
+                {{ countMeetings('EN_COURS') }}
+              </p>
+              <p class="text-green-600 text-xs font-medium mt-0.5">En cours</p>
+            </div>
+            <div class="bg-yellow-50 rounded-xl p-3 text-center">
+              <p class="text-2xl font-bold text-yellow-700">
+                {{ countMeetings('PLANIFIE') }}
+              </p>
+              <p class="text-yellow-600 text-xs font-medium mt-0.5">Planifiées</p>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-3 text-center">
+              <p class="text-2xl font-bold text-gray-600">
+                {{ countMeetings('TERMINE') }}
+              </p>
+              <p class="text-gray-500 text-xs font-medium mt-0.5">Terminées</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fonctionnalités -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <h3 class="font-bold text-blue-900 text-sm mb-4 flex items-center gap-2">
+            <i class="pi pi-star text-blue-700"></i> Fonctionnalités
+          </h3>
+          <ul class="space-y-3">
+            <li *ngFor="let f of features" class="flex items-center gap-3 text-sm text-gray-700">
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                   [ngClass]="f.bg">
+                <i [ngClass]="[f.icon, f.color, 'text-sm']"></i>
+              </div>
+              {{ f.label }}
+            </li>
+          </ul>
+        </div>
+
+        <!-- Info tech -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <h3 class="font-bold text-blue-900 text-sm mb-2 flex items-center gap-2">
+            <i class="pi pi-shield text-blue-700"></i> Sécurité & souveraineté
+          </h3>
+          <p class="text-gray-500 text-xs leading-relaxed">
+            DouniyaMeet utilise <strong class="text-gray-700">Jitsi Meet</strong>, solution
+            open source chiffrée de bout en bout. Aucune donnée n'est partagée avec des tiers.
+            Hébergement compatible avec les exigences de la BCEAO.
+          </p>
+        </div>
+
+      </aside>
     </div>
   </div>
 </div>

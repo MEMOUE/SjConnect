@@ -2,6 +2,7 @@ import { Component, OnInit, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Publication, PublicationService, CreatePublicationRequest } from '../../services/publication/publication.service';
+import { environment } from '../../../environments/environment';
 
 export interface TypeEntreprise {
   code: string;
@@ -294,6 +295,56 @@ export class MarketPace implements OnInit {
     if (!this.mediaFichier) return false;
     return this.mediaFichier.type.startsWith('image') ||
       !!this.mediaNom?.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+  }
+
+  /** Construit l'URL absolue vers le fichier servi par le backend */
+  getMediaUrl(pub: Publication): string {
+    if (!pub.mediaUrl) return '';
+    // Si déjà absolue, on la retourne telle quelle
+    if (pub.mediaUrl.startsWith('http')) return pub.mediaUrl;
+    // Sinon on préfixe avec le host du backend (sans /api)
+    const base = environment.apiUrl.replace('/api', '');
+    return `${base}${pub.mediaUrl}`;
+  }
+
+  /** Ouvre le fichier dans un nouvel onglet */
+  openMedia(pub: Publication): void {
+    window.open(this.getMediaUrl(pub), '_blank');
+  }
+
+  /** Retourne la classe PrimeIcon selon le type de fichier */
+  getFileIcon(pub: Publication): string {
+    const nom = (pub.mediaNom ?? '').toLowerCase();
+    const type = (pub.mediaType ?? '').toLowerCase();
+    if (type.includes('pdf') || nom.endsWith('.pdf'))                          return 'pi pi-file-pdf text-red-500';
+    if (nom.match(/\.(doc|docx)$/) || type.includes('word'))                  return 'pi pi-file-word text-blue-600';
+    if (nom.match(/\.(xls|xlsx)$/) || type.includes('sheet'))                 return 'pi pi-file-excel text-green-600';
+    if (nom.match(/\.(ppt|pptx)$/) || type.includes('presentation'))          return 'pi pi-file text-orange-500';
+    if (nom.match(/\.(zip|rar|7z)$/) || type.includes('zip'))                 return 'pi pi-file-import text-purple-500';
+    return 'pi pi-file text-gray-500';
+  }
+
+  /** Fond de l'icône selon le type */
+  getFileIconBg(pub: Publication): string {
+    const nom = (pub.mediaNom ?? '').toLowerCase();
+    const type = (pub.mediaType ?? '').toLowerCase();
+    if (type.includes('pdf') || nom.endsWith('.pdf'))                return 'bg-red-100';
+    if (nom.match(/\.(doc|docx)$/) || type.includes('word'))         return 'bg-blue-100';
+    if (nom.match(/\.(xls|xlsx)$/) || type.includes('sheet'))        return 'bg-green-100';
+    if (nom.match(/\.(ppt|pptx)$/) || type.includes('presentation')) return 'bg-orange-100';
+    return 'bg-gray-100';
+  }
+
+  /** Label lisible du type de fichier */
+  getFileTypeLabel(pub: Publication): string {
+    const nom = (pub.mediaNom ?? '').toLowerCase();
+    const type = (pub.mediaType ?? '').toLowerCase();
+    if (type.includes('pdf') || nom.endsWith('.pdf'))                return 'Document PDF';
+    if (nom.match(/\.(doc|docx)$/) || type.includes('word'))         return 'Document Word';
+    if (nom.match(/\.(xls|xlsx)$/) || type.includes('sheet'))        return 'Feuille Excel';
+    if (nom.match(/\.(ppt|pptx)$/) || type.includes('presentation')) return 'Présentation';
+    if (nom.match(/\.(zip|rar|7z)$/))                                return 'Archive';
+    return 'Fichier joint';
   }
 
   isImage(pub: Publication): boolean {
