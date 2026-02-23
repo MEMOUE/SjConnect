@@ -22,7 +22,7 @@ export interface RegisterParticulierRequest {
   prenom: string;
   nom: string;
   genre: string;
-  dateNaissance: string; // Format ISO: YYYY-MM-DD
+  dateNaissance: string;
   telephone: string;
   email: string;
   secteurActivite: string;
@@ -35,9 +35,9 @@ export interface RegisterParticulierRequest {
 }
 
 export interface LoginRequest {
-  identifier: string; // Email ou username
+  identifier: string;
   password: string;
-  accountType?: string; // 'entreprise' ou 'individuel'
+  accountType?: string;
   rememberMe: boolean;
 }
 
@@ -69,6 +69,24 @@ export interface AcceptInvitationRequest {
   confirmPassword: string;
 }
 
+export interface UpdateEntrepriseProfilRequest {
+  nomEntreprise: string;
+  typeEntreprise: string;
+  secteurActivite: string;
+  email: string;
+  telephone: string;
+  adressePhysique: string;
+  numeroRegistreCommerce: string;
+  description: string;
+  siteWeb: string;
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
 // ============================================
 // INTERFACES POUR LES RÉPONSES (Response DTOs)
 // ============================================
@@ -92,6 +110,10 @@ export interface UserResponse {
   nomEntreprise?: string;
   typeEntreprise?: string;
   secteurActivite?: string;
+  adressePhysique?: string;
+  numeroRegistreCommerce?: string;
+  description?: string;
+  siteWeb?: string;
 
   // Champs spécifiques particulier
   prenom?: string;

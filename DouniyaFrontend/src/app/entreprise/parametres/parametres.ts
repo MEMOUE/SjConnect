@@ -7,34 +7,7 @@ import { AuthService } from '../../services/auth/auth.service';
 import { UserResponse } from '../../models/auth.model';
 import { environment } from '../../../environments/environment';
 
-interface CompanyForm {
-  nomEntreprise: string;
-  typeEntreprise: string;
-  secteurActivite: string;
-  adressePhysique: string;
-  telephone: string;
-  email: string;
-  username: string;
-  numeroRegistreCommerce: string;
-  description: string;
-  siteWeb: string;
-}
-
-interface PasswordForm {
-  currentPassword: string;
-  newPassword: string;
-  confirmPassword: string;
-}
-
-interface NotificationSettings {
-  emailNotifications: boolean;
-  smsNotifications: boolean;
-  orderUpdates: boolean;
-  promotions: boolean;
-  newsletter: boolean;
-}
-
-type SectionKey = 'company' | 'security' | 'notifications' | 'appearance' | 'api';
+type Section = 'company' | 'security' | 'notifications' | 'appearance' | 'api';
 
 @Component({
   selector: 'app-parametres',
@@ -44,354 +17,389 @@ type SectionKey = 'company' | 'security' | 'notifications' | 'appearance' | 'api
   styleUrl: './parametres.css'
 })
 export class Parametres implements OnInit, OnDestroy {
-  // ── Navigation ────────────────────────────────────────────────────
-  activeSection: SectionKey = 'company';
 
-  // ── État ──────────────────────────────────────────────────────────
+  /* ─── UI ─────────────────────────────────────────────────── */
+  activeSection: Section = 'company';
+  isLoading   = true;
+  isSaving    = false;
+  successMsg  = '';
+  errorMsg    = '';
+  showPwdForm = false;
+
+  /* ─── Profil ─────────────────────────────────────────────── */
   currentUser: UserResponse | null = null;
-  isLoading = false;
-  isSaving = false;
-  successMessage = '';
-  errorMessage = '';
-  showPasswordForm = false;
 
-  private sub!: Subscription;
-
-  // ── Formulaire Entreprise ─────────────────────────────────────────
-  companyForm: CompanyForm = {
-    nomEntreprise: '',
-    typeEntreprise: '',
-    secteurActivite: '',
-    adressePhysique: '',
-    telephone: '',
-    email: '',
-    username: '',
-    numeroRegistreCommerce: '',
-    description: '',
-    siteWeb: ''
+  profile = {
+    nomEntreprise: '', typeEntreprise: '', secteurActivite: '',
+    adressePhysique: '', telephone: '', email: '',
+    username: '', numeroRegistreCommerce: '', description: '', siteWeb: ''
   };
 
-  // ── Formulaire Mot de passe ───────────────────────────────────────
-  passwordForm: PasswordForm = {
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
-  };
+  /* ─── Mot de passe ───────────────────────────────────────── */
+  pwd = { current: '', newPwd: '', confirm: '' };
+  showCurrent = false;
+  showNew     = false;
+  showConfirm = false;
 
-  // ── Notifications ─────────────────────────────────────────────────
-  notificationSettings: NotificationSettings = {
-    emailNotifications: true,
-    smsNotifications: false,
-    orderUpdates: true,
-    promotions: true,
-    newsletter: false
-  };
-
-  // ── Apparence ─────────────────────────────────────────────────────
-  appearanceSettings = {
-    theme: 'light',
-    language: 'fr',
-    dateFormat: 'DD/MM/YYYY',
-    currency: 'XOF'
-  };
-
-  // ── Sécurité ──────────────────────────────────────────────────────
-  securitySettings = {
-    twoFactorAuth: false,
+  /* ─── Préférences (persistées localStorage) ──────────────── */
+  prefs = {
+    theme:          'light' as 'light' | 'dark' | 'auto',
+    language:       'fr'   as 'fr' | 'en' | 'ar',
+    dateFormat:     'DD/MM/YYYY',
+    currency:       'XOF',
+    emailNotif:     true,
+    smsNotif:       false,
+    projectNotif:   true,
+    newsletter:     false,
+    twoFA:          false,
     sessionTimeout: '30'
   };
 
-  // ── Types d'entreprises disponibles ──────────────────────────────
-  typesEntreprise = [
-    'BANQUES',
-    'ASSURANCES',
-    'SGI',
-    'SGO',
-    'FONDS_INVESTISSEMENT',
-    'MICROFINANCE',
-    'SOCIETES_BOURSE',
-    'COURTIERS',
-    'AUTRES'
+  /* ─── Clés API ───────────────────────────────────────────── */
+  apiKeys: { name: string; key: string; created: string; lastUsed: string; masked: boolean }[] = [
+    { name: 'Production',  key: 'sk_live_abc123def456ghi789', created: '15/01/2024', lastUsed: '25/10/2024', masked: true },
+    { name: 'Development', key: 'sk_test_xyz789uvw456rst123', created: '20/02/2024', lastUsed: '20/10/2024', masked: true }
   ];
 
-  secteurs = [
-    'Finance & Banque',
-    'Assurance',
-    'Investissement',
-    'Microfinance',
-    'Bourse & Valeurs',
-    'Courtage',
-    'Commerce',
-    'Technologie',
-    'Industrie',
-    'Services',
-    'Santé',
-    'Éducation',
-    'Agriculture',
-    'Immobilier',
-    'Transport & Logistique',
-    'Autres'
+  /* ─── Données statiques ──────────────────────────────────── */
+  readonly typesEntreprise = [
+    { value: 'BANQUES',              label: 'Banque' },
+    { value: 'ASSURANCES',           label: 'Assurance' },
+    { value: 'SGI',                  label: 'SGI' },
+    { value: 'SGO',                  label: 'SGO' },
+    { value: 'FONDS_INVESTISSEMENT', label: "Fonds d'investissement" },
+    { value: 'MICROFINANCE',         label: 'Microfinance' },
+    { value: 'SOCIETES_BOURSE',      label: 'Société de bourse' },
+    { value: 'COURTIERS',            label: 'Courtier' },
+    { value: 'AUTRES',               label: 'Autres' }
   ];
 
-  // ── Clés API (simulées) ───────────────────────────────────────────
-  apiKeys = [
-    {
-      name: 'Production API',
-      key: 'sk_live_••••••••••••1234',
-      created: '2024-01-15',
-      lastUsed: '2024-10-25'
-    },
-    {
-      name: 'Development API',
-      key: 'sk_test_••••••••••••5678',
-      created: '2024-02-20',
-      lastUsed: '2024-10-20'
-    }
+  readonly secteurs = [
+    'Finance & Banque','Assurance','Investissement','Microfinance',
+    'Bourse & Valeurs','Courtage','Commerce','Technologie',
+    'Industrie','Services','Santé','Éducation',
+    'Agriculture','Immobilier','Transport & Logistique','Autres'
   ];
 
-  constructor(
-    private authService: AuthService,
-    private http: HttpClient
-  ) {}
+  readonly navItems: { id: Section; icon: string; label: string }[] = [
+    { id: 'company',       icon: 'pi pi-building',      label: 'Profil entreprise' },
+    { id: 'security',      icon: 'pi pi-lock',          label: 'Sécurité' },
+    { id: 'notifications', icon: 'pi pi-bell',          label: 'Notifications' },
+    { id: 'appearance',    icon: 'pi pi-palette',       label: 'Apparence' },
+    { id: 'api',           icon: 'pi pi-key',           label: 'Clés API' }
+  ];
+
+  readonly currencies: Record<string, string> = { XOF: 'FCFA', EUR: '€', USD: '$' };
+
+  private sub!: Subscription;
+  private sessionTimer: ReturnType<typeof setTimeout> | null = null;
+  private mql: MediaQueryList | null = null;
+  private mqlListener: ((e: MediaQueryListEvent) => void) | null = null;
+
+  constructor(private authService: AuthService, private http: HttpClient) {}
+
+  /* ════════════ INIT / DESTROY ════════════ */
 
   ngOnInit(): void {
-    this.isLoading = true;
-    this.sub = this.authService.currentUser$.subscribe(user => {
-      this.currentUser = user;
-      if (user) {
-        this.populateForm(user);
-      }
-      this.isLoading = false;
+    this.loadPrefs();
+    this.applyTheme();
+    this.applyLanguage();
+    this.startSessionTimer();
+
+    this.sub = this.authService.currentUser$.subscribe(u => {
+      if (u) { this.currentUser = u; this.fillProfile(u); }
     });
 
-    // Recharger depuis l'API pour avoir des données fraîches
     this.authService.getCurrentUser().subscribe({
-      next: user => {
-        this.currentUser = user;
-        this.populateForm(user);
-        this.isLoading = false;
-      },
-      error: () => {
-        this.isLoading = false;
-      }
+      next:  u => { this.currentUser = u; this.fillProfile(u); this.isLoading = false; },
+      error: () => { this.isLoading = false; }
     });
   }
 
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
+    if (this.sessionTimer) clearTimeout(this.sessionTimer);
+    if (this.mql && this.mqlListener) this.mql.removeEventListener('change', this.mqlListener);
   }
 
-  // ── Peuplement du formulaire ──────────────────────────────────────
-  private populateForm(user: UserResponse): void {
-    this.companyForm = {
-      nomEntreprise:           user.nomEntreprise        ?? '',
-      typeEntreprise:          user.typeEntreprise        ?? '',
-      secteurActivite:         user.secteurActivite       ?? '',
-      adressePhysique:         '',   // non retourné dans UserResponse — sera vide
-      telephone:               user.telephone             ?? '',
-      email:                   user.email                 ?? '',
-      username:                user.username              ?? '',
-      numeroRegistreCommerce:  '',   // non retourné
-      description:             '',   // non retourné
-      siteWeb:                 ''    // non retourné
-    };
-  }
+  /* ════════════ NAVIGATION ════════════ */
 
-  // ── Navigation ────────────────────────────────────────────────────
-  setActiveSection(section: SectionKey): void {
-    this.activeSection = section;
+  goTo(s: Section): void {
+    this.activeSection = s;
     this.clearMessages();
-    this.showPasswordForm = false;
+    this.showPwdForm = false;
   }
 
-  // ── Initiales de l'entreprise ─────────────────────────────────────
-  getInitiales(): string {
-    const nom = this.companyForm.nomEntreprise || this.currentUser?.nomEntreprise || '';
-    if (!nom) return '??';
-    const parts = nom.trim().split(' ');
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[1][0]).toUpperCase();
+  /* ════════════ THÈME ════════════ */
+
+  onThemeChange(v: string): void {
+    this.prefs.theme = v as typeof this.prefs.theme;
+    this.applyTheme();
+  }
+
+  applyTheme(): void {
+    if (this.mql && this.mqlListener)
+      this.mql.removeEventListener('change', this.mqlListener);
+
+    document.body.classList.remove('theme-dark', 'theme-light');
+
+    if (this.prefs.theme === 'dark') {
+      document.body.classList.add('theme-dark');
+    } else if (this.prefs.theme === 'auto') {
+      this.mql = window.matchMedia('(prefers-color-scheme: dark)');
+      const set = (dark: boolean) => document.body.classList.toggle('theme-dark', dark);
+      set(this.mql.matches);
+      this.mqlListener = (e: MediaQueryListEvent) => set(e.matches);
+      this.mql.addEventListener('change', this.mqlListener);
+    } else {
+      document.body.classList.add('theme-light');
     }
-    return nom.substring(0, 2).toUpperCase();
   }
 
-  // ── Libellé du type d'entreprise ─────────────────────────────────
-  getTypeLabel(type: string): string {
-    const labels: Record<string, string> = {
-      'BANQUES':             'Banque',
-      'ASSURANCES':          'Assurance',
-      'SGI':                 'SGI',
-      'SGO':                 'SGO',
-      'FONDS_INVESTISSEMENT':'Fonds d\'investissement',
-      'MICROFINANCE':        'Microfinance',
-      'SOCIETES_BOURSE':     'Société de bourse',
-      'COURTIERS':           'Courtier',
-      'AUTRES':              'Autres'
-    };
-    return labels[type] ?? type;
+  /* ════════════ LANGUE ════════════ */
+
+  onLanguageChange(v: string): void {
+    this.prefs.language = v as typeof this.prefs.language;
+    this.applyLanguage();
   }
 
-  // ── Sauvegarde des infos entreprise ──────────────────────────────
+  applyLanguage(): void {
+    document.documentElement.lang = this.prefs.language;
+    document.documentElement.dir  = this.prefs.language === 'ar' ? 'rtl' : 'ltr';
+  }
+
+  /* ════════════ SESSION TIMEOUT ════════════ */
+
+  private startSessionTimer(): void {
+    if (this.sessionTimer) clearTimeout(this.sessionTimer);
+    const ms = parseInt(this.prefs.sessionTimeout, 10) * 60_000;
+    if (!ms) return;
+    this.sessionTimer = setTimeout(() => {
+      this.flash('error', 'Session expirée. Déconnexion dans 3 secondes…');
+      setTimeout(() => this.authService.logout().subscribe(), 3000);
+    }, ms);
+  }
+
+  /* ════════════ SAUVEGARDE — PROFIL ════════════ */
+
   saveCompanyInfo(): void {
-    if (!this.companyForm.nomEntreprise.trim()) {
-      this.showError('Le nom de l\'entreprise est requis.');
-      return;
-    }
-    this.isSaving = true;
-    this.clearMessages();
+    if (!this.profile.nomEntreprise?.trim()) return this.flash('error', "Nom de l'entreprise requis.");
+    if (!this.profile.typeEntreprise)        return this.flash('error', "Type d'entreprise requis.");
+    if (!this.profile.secteurActivite)       return this.flash('error', "Secteur d'activité requis.");
 
-    // Appel PUT vers /api/entreprise/profil (à créer côté backend si absent)
-    this.http.put(`${environment.apiUrl}/entreprise/profil`, this.companyForm).subscribe({
-      next: () => {
+    this.isSaving = true;
+    const { username, ...payload } = this.profile;
+
+    this.http.put<{ success: boolean; data: UserResponse }>(
+      `${environment.apiUrl}/entreprise/profil`, payload
+    ).subscribe({
+      next: res => {
         this.isSaving = false;
-        this.showSuccess('Profil entreprise mis à jour avec succès !');
-        // Rafraîchir l'utilisateur courant
-        this.authService.getCurrentUser().subscribe();
+        this.flash('ok', 'Profil mis à jour avec succès !');
+        if (res?.data) { this.currentUser = res.data; this.fillProfile(res.data); }
       },
-      error: (err) => {
+      error: err => {
         this.isSaving = false;
-        // Si l'endpoint n'existe pas encore, afficher un message informatif
-        if (err.status === 404 || err.status === 405) {
-          this.showError('Endpoint de mise à jour non disponible. Contactez l\'administrateur.');
-        } else {
-          this.showError(err.error?.message ?? 'Erreur lors de la sauvegarde.');
-        }
+        this.flash('error', err.error?.message ?? 'Erreur lors de la sauvegarde.');
       }
     });
   }
 
-  // ── Changement de mot de passe ────────────────────────────────────
-  togglePasswordForm(): void {
-    this.showPasswordForm = !this.showPasswordForm;
-    if (!this.showPasswordForm) {
-      this.resetPasswordForm();
-    }
-  }
+  /* ════════════ SAUVEGARDE — MOT DE PASSE ════════════ */
 
   savePassword(): void {
-    if (!this.passwordForm.newPassword || this.passwordForm.newPassword.length < 8) {
-      this.showError('Le nouveau mot de passe doit contenir au moins 8 caractères.');
-      return;
-    }
-    if (this.passwordForm.newPassword !== this.passwordForm.confirmPassword) {
-      this.showError('Les mots de passe ne correspondent pas.');
-      return;
-    }
+    if (!this.pwd.current)                              return this.flash('error', 'Mot de passe actuel requis.');
+    if (!this.pwd.newPwd || this.pwd.newPwd.length < 8) return this.flash('error', 'Nouveau mot de passe : min 8 caractères.');
+    if (this.pwd.newPwd !== this.pwd.confirm)           return this.flash('error', 'Les mots de passe ne correspondent pas.');
 
     this.isSaving = true;
-    this.clearMessages();
-
-    this.http.post(`${environment.apiUrl}/auth/change-password`, {
-      currentPassword: this.passwordForm.currentPassword,
-      newPassword: this.passwordForm.newPassword,
-      confirmPassword: this.passwordForm.confirmPassword
+    this.http.post(`${environment.apiUrl}/entreprise/change-password`, {
+      currentPassword: this.pwd.current,
+      newPassword:     this.pwd.newPwd,
+      confirmPassword: this.pwd.confirm
     }).subscribe({
       next: () => {
         this.isSaving = false;
-        this.showSuccess('Mot de passe modifié avec succès !');
-        this.resetPasswordForm();
-        this.showPasswordForm = false;
+        this.flash('ok', 'Mot de passe modifié avec succès !');
+        this.pwd = { current: '', newPwd: '', confirm: '' };
+        this.showPwdForm = false;
       },
-      error: (err) => {
+      error: err => {
         this.isSaving = false;
-        this.showError(err.error?.message ?? 'Erreur lors du changement de mot de passe.');
+        this.flash('error', err.error?.message ?? 'Mot de passe actuel incorrect.');
       }
     });
   }
 
-  // ── Notifications ─────────────────────────────────────────────────
-  saveNotifications(): void {
-    this.showSuccess('Préférences de notification sauvegardées !');
+  pwdStrength(): number {
+    const p = this.pwd.newPwd;
+    if (!p) return 0;
+    let s = 0;
+    if (p.length >= 8)           s += 25;
+    if (p.length >= 12)          s += 15;
+    if (/[A-Z]/.test(p))        s += 20;
+    if (/[0-9]/.test(p))        s += 20;
+    if (/[^a-zA-Z0-9]/.test(p)) s += 20;
+    return Math.min(s, 100);
   }
 
-  // ── Apparence ─────────────────────────────────────────────────────
-  saveAppearance(): void {
-    this.showSuccess('Paramètres d\'apparence sauvegardés !');
-  }
-
-  // ── Sécurité ──────────────────────────────────────────────────────
-  saveSecurity(): void {
-    this.showSuccess('Paramètres de sécurité sauvegardés !');
-  }
-
-  // ── API Keys ──────────────────────────────────────────────────────
-  generateApiKey(): void {
-    const newKey = {
-      name: 'Nouvelle clé ' + (this.apiKeys.length + 1),
-      key: 'sk_' + Math.random().toString(36).substring(2, 18),
-      created: new Date().toISOString().split('T')[0],
-      lastUsed: 'Jamais'
-    };
-    this.apiKeys = [...this.apiKeys, newKey];
-    this.showSuccess('Nouvelle clé API générée !');
-  }
-
-  revokeApiKey(key: typeof this.apiKeys[0]): void {
-    this.apiKeys = this.apiKeys.filter(k => k !== key);
-    this.showSuccess(`Clé "${key.name}" révoquée.`);
-  }
-
-  copyApiKey(key: string): void {
-    navigator.clipboard.writeText(key).then(() => {
-      this.showSuccess('Clé copiée dans le presse-papiers !');
-    });
-  }
-
-  // ── Zone dangereuse ───────────────────────────────────────────────
-  exportData(): void {
-    this.showSuccess('Export des données en cours de préparation...');
-  }
-
-  deleteAccount(): void {
-    if (confirm('⚠️ ATTENTION : Cette action est irréversible.\nVoulez-vous vraiment supprimer le compte de l\'entreprise ?')) {
-      this.showError('Procédure de suppression initiée. Contactez le support.');
-    }
-  }
-
-  // ── Déconnexion ───────────────────────────────────────────────────
-  logout(): void {
-    this.authService.logout().subscribe();
-  }
-
-  // ── Force du mot de passe ─────────────────────────────────────────
-  getPasswordStrength(): number {
-    const pwd = this.passwordForm.newPassword;
-    if (!pwd) return 0;
-    let score = 0;
-    if (pwd.length >= 8)  score += 25;
-    if (pwd.length >= 12) score += 15;
-    if (/[A-Z]/.test(pwd)) score += 20;
-    if (/[0-9]/.test(pwd)) score += 20;
-    if (/[^a-zA-Z0-9]/.test(pwd)) score += 20;
-    return Math.min(score, 100);
-  }
-
-  getPasswordStrengthLabel(): string {
-    const s = this.getPasswordStrength();
+  pwdStrengthLabel(): string {
+    const s = this.pwdStrength();
     if (s < 40) return 'Faible';
     if (s < 70) return 'Moyen';
     return 'Fort';
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────
-  private showSuccess(msg: string): void {
-    this.successMessage = msg;
-    this.errorMessage = '';
-    setTimeout(() => { this.successMessage = ''; }, 4000);
+  pwdStrengthColor(): string {
+    const s = this.pwdStrength();
+    if (s < 40) return 'bg-red-500';
+    if (s < 70) return 'bg-amber-400';
+    return 'bg-green-500';
   }
 
-  private showError(msg: string): void {
-    this.errorMessage = msg;
-    this.successMessage = '';
-    setTimeout(() => { this.errorMessage = ''; }, 5000);
+  pwdStrengthTextColor(): string {
+    const s = this.pwdStrength();
+    if (s < 40) return 'text-red-500';
+    if (s < 70) return 'text-amber-500';
+    return 'text-green-600';
   }
 
-  private clearMessages(): void {
-    this.successMessage = '';
-    this.errorMessage = '';
+  /* ════════════ SAUVEGARDE — NOTIFICATIONS ════════════ */
+
+  saveNotifications(): void {
+    this.savePrefs();
+    this.flash('ok', 'Notifications sauvegardées !');
   }
 
-  private resetPasswordForm(): void {
-    this.passwordForm = { currentPassword: '', newPassword: '', confirmPassword: '' };
+  /* ════════════ SAUVEGARDE — APPARENCE ════════════ */
+
+  saveAppearance(): void {
+    this.savePrefs();
+    this.applyTheme();
+    this.applyLanguage();
+    this.flash('ok', 'Apparence sauvegardée !');
   }
+
+  /* ════════════ SAUVEGARDE — SÉCURITÉ ════════════ */
+
+  saveSecurity(): void {
+    this.savePrefs();
+    this.startSessionTimer();
+    this.flash('ok', 'Paramètres de sécurité sauvegardés !');
+  }
+
+  /* ════════════ CLÉS API ════════════ */
+
+  generateKey(): void {
+    const rand = (n: number) => Math.random().toString(36).slice(2, 2 + n);
+    this.apiKeys.push({
+      name:     `Clé ${this.apiKeys.length + 1}`,
+      key:      `sk_new_${rand(8)}${rand(8)}`,
+      created:  new Date().toLocaleDateString('fr-FR'),
+      lastUsed: 'Jamais',
+      masked:   false
+    });
+    this.flash('ok', 'Nouvelle clé API générée !');
+  }
+
+  revokeKey(k: typeof this.apiKeys[0]): void {
+    if (!confirm(`Révoquer la clé "${k.name}" ?`)) return;
+    this.apiKeys = this.apiKeys.filter(x => x !== k);
+    this.flash('ok', `Clé "${k.name}" révoquée.`);
+  }
+
+  copyKey(key: string): void {
+    navigator.clipboard.writeText(key).then(
+      ()  => this.flash('ok', 'Clé copiée dans le presse-papiers !'),
+      ()  => this.flash('error', 'Impossible de copier la clé.')
+    );
+  }
+
+  maskedKey(k: typeof this.apiKeys[0]): string {
+    return k.masked
+      ? k.key.slice(0, 7) + '••••••••••' + k.key.slice(-4)
+      : k.key;
+  }
+
+  /* ════════════ EXPORT / SUPPRESSION / DÉCONNEXION ════════════ */
+
+  exportData(): void {
+    const blob = new Blob([
+      JSON.stringify({ profile: this.currentUser, prefs: this.prefs, date: new Date().toISOString() }, null, 2)
+    ], { type: 'application/json' });
+    const a = Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(blob),
+      download: `douniya_export_${new Date().toISOString().split('T')[0]}.json`
+    });
+    a.click();
+    URL.revokeObjectURL(a.href);
+    this.flash('ok', 'Données exportées avec succès !');
+  }
+
+  deleteAccount(): void {
+    if (confirm('⚠️ Supprimer définitivement le compte ? Cette action est irréversible.'))
+      this.flash('error', 'Contactez le support pour finaliser la suppression du compte.');
+  }
+
+  logout(): void { this.authService.logout().subscribe(); }
+
+  /* ════════════ UTILITAIRES TEMPLATE ════════════ */
+
+  initiales(): string {
+    const n = (this.profile.nomEntreprise || this.currentUser?.nomEntreprise || '').trim();
+    if (!n) return '??';
+    const parts = n.split(' ');
+    return (parts.length >= 2 ? parts[0][0] + parts[1][0] : n.substring(0, 2)).toUpperCase();
+  }
+
+  getCurrencySymbol(): string {
+    return this.currencies[this.prefs.currency] ?? this.prefs.currency;
+  }
+
+  formatDatePreview(): string {
+    const d = new Date();
+    const dd   = String(d.getDate()).padStart(2, '0');
+    const mm   = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = String(d.getFullYear());
+    if (this.prefs.dateFormat === 'MM/DD/YYYY') return `${mm}/${dd}/${yyyy}`;
+    if (this.prefs.dateFormat === 'YYYY-MM-DD') return `${yyyy}-${mm}-${dd}`;
+    return `${dd}/${mm}/${yyyy}`;
+  }
+
+  /* ════════════ PRIVÉ ════════════ */
+
+  private fillProfile(u: UserResponse): void {
+    this.profile = {
+      nomEntreprise:          u.nomEntreprise          ?? '',
+      typeEntreprise:         u.typeEntreprise          ?? '',
+      secteurActivite:        u.secteurActivite         ?? '',
+      adressePhysique:        u.adressePhysique         ?? '',
+      telephone:              u.telephone               ?? '',
+      email:                  u.email                   ?? '',
+      username:               u.username                ?? '',
+      numeroRegistreCommerce: u.numeroRegistreCommerce  ?? '',
+      description:            u.description             ?? '',
+      siteWeb:                u.siteWeb                 ?? ''
+    };
+  }
+
+  private loadPrefs(): void {
+    try {
+      const raw = localStorage.getItem('douniya_prefs');
+      if (raw) Object.assign(this.prefs, JSON.parse(raw));
+    } catch { /* ignore */ }
+  }
+
+  private savePrefs(): void {
+    try { localStorage.setItem('douniya_prefs', JSON.stringify(this.prefs)); }
+    catch { /* ignore */ }
+  }
+
+  private flash(type: 'ok' | 'error', msg: string): void {
+    this.successMsg = type === 'ok' ? msg : '';
+    this.errorMsg   = type === 'error' ? msg : '';
+    setTimeout(() => { this.successMsg = ''; this.errorMsg = ''; }, type === 'ok' ? 4000 : 5000);
+  }
+
+  private clearMessages(): void { this.successMsg = ''; this.errorMsg = ''; }
 }

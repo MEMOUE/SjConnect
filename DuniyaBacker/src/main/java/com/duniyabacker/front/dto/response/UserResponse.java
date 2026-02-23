@@ -20,10 +20,14 @@ public class UserResponse {
     private String role;
     private LocalDateTime createdAt;
 
-    // Champs spécifiques selon le type
+    // Champs entreprise
     private String nomEntreprise;
     private String typeEntreprise;
     private String secteurActivite;
+    private String adressePhysique;
+    private String numeroRegistreCommerce;
+    private String description;
+    private String siteWeb;
 
     // Pour particulier
     private String prenom;

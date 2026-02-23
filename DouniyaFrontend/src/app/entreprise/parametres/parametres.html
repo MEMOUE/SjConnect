@@ -1,468 +1,714 @@
-<div class="parametres-container">
+<div class="min-h-screen bg-slate-100 p-6">
 
-  <!-- ── En-tête ──────────────────────────────────────────────── -->
-  <div class="page-header">
-    <div class="header-left">
-      <h1>⚙️ Paramètres</h1>
-      <p class="subtitle">Gestion de votre compte entreprise — {{ currentUser?.nomEntreprise }}</p>
+  <!-- ══════ LOADING ══════ -->
+  @if (isLoading) {
+    <div class="flex flex-col items-center justify-center h-64 gap-4">
+      <i class="pi pi-spin pi-spinner text-4xl text-blue-600"></i>
+      <p class="text-slate-500 text-sm">Chargement des paramètres…</p>
     </div>
-    <div class="header-badge" *ngIf="currentUser">
-      <span class="role-badge">{{ currentUser.role }}</span>
-    </div>
-  </div>
+  }
 
-  <!-- ── Messages flash ────────────────────────────────────────── -->
-  <div class="alert alert-success" *ngIf="successMessage">
-    <span class="alert-icon">✅</span> {{ successMessage }}
-  </div>
-  <div class="alert alert-error" *ngIf="errorMessage">
-    <span class="alert-icon">❌</span> {{ errorMessage }}
-  </div>
+  @if (!isLoading) {
 
-  <!-- ── Chargement ────────────────────────────────────────────── -->
-  <div class="loading-overlay" *ngIf="isLoading">
-    <div class="spinner"></div>
-    <p>Chargement du profil…</p>
-  </div>
-
-  <div class="settings-layout" *ngIf="!isLoading">
-
-    <!-- ── Sidebar ──────────────────────────────────────────────── -->
-    <aside class="settings-sidebar">
-
-      <!-- Avatar entreprise -->
-      <div class="sidebar-profile">
-        <div class="company-avatar">{{ getInitiales() }}</div>
-        <p class="sidebar-company-name">{{ currentUser?.nomEntreprise || '—' }}</p>
-        <p class="sidebar-username">@{{ currentUser?.username }}</p>
-        <span class="sidebar-type-badge" *ngIf="currentUser?.typeEntreprise">
-          {{ getTypeLabel(currentUser!.typeEntreprise!) }}
-        </span>
+    <!-- ══════ HEADER ══════ -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+          <i class="pi pi-cog text-blue-600"></i>
+          Paramètres
+        </h1>
+        <p class="text-slate-500 text-sm mt-0.5">Gérez votre compte entreprise</p>
       </div>
+      <button
+        (click)="logout()"
+        class="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-colors">
+        <i class="pi pi-sign-out"></i>
+        Déconnexion
+      </button>
+    </div>
 
-      <nav class="sidebar-nav">
-        <button class="nav-item" [class.active]="activeSection === 'company'"
-                (click)="setActiveSection('company')">
-          <span class="nav-icon">🏢</span>
-          <span>Profil entreprise</span>
-        </button>
-        <button class="nav-item" [class.active]="activeSection === 'security'"
-                (click)="setActiveSection('security')">
-          <span class="nav-icon">🔒</span>
-          <span>Sécurité</span>
-        </button>
-        <button class="nav-item" [class.active]="activeSection === 'notifications'"
-                (click)="setActiveSection('notifications')">
-          <span class="nav-icon">🔔</span>
-          <span>Notifications</span>
-        </button>
-        <button class="nav-item" [class.active]="activeSection === 'appearance'"
-                (click)="setActiveSection('appearance')">
-          <span class="nav-icon">🎨</span>
-          <span>Apparence</span>
-        </button>
-        <button class="nav-item" [class.active]="activeSection === 'api'"
-                (click)="setActiveSection('api')">
-          <span class="nav-icon">🔑</span>
-          <span>Clés API</span>
-        </button>
-      </nav>
-    </aside>
+    <!-- ══════ FLASH MESSAGES ══════ -->
+    @if (successMsg) {
+      <div class="flex items-center gap-3 bg-green-50 border border-green-200 text-green-800 rounded-xl px-4 py-3 mb-5 text-sm font-medium">
+        <i class="pi pi-check-circle text-green-600 text-lg"></i>
+        {{ successMsg }}
+      </div>
+    }
+    @if (errorMsg) {
+      <div class="flex items-center gap-3 bg-red-50 border border-red-200 text-red-800 rounded-xl px-4 py-3 mb-5 text-sm font-medium">
+        <i class="pi pi-times-circle text-red-500 text-lg"></i>
+        {{ errorMsg }}
+      </div>
+    }
 
-    <!-- ── Contenu principal ────────────────────────────────────── -->
-    <main class="settings-content">
+    <!-- ══════ LAYOUT ══════ -->
+    <div class="flex gap-6 items-start">
 
-      <!-- ════════════════════════════════════════════════════════
-           PROFIL ENTREPRISE
-      ════════════════════════════════════════════════════════ -->
-      <section class="settings-section" *ngIf="activeSection === 'company'">
+      <!-- ── SIDEBAR ── -->
+      <aside class="w-64 shrink-0 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
 
-        <!-- Carte identité -->
-        <div class="profile-card">
-          <div class="profile-card-avatar">{{ getInitiales() }}</div>
-          <div class="profile-card-info">
-            <h2>{{ currentUser?.nomEntreprise || 'Entreprise' }}</h2>
-            <p class="meta-row">
-              <span class="meta-chip">{{ getTypeLabel(currentUser?.typeEntreprise ?? '') }}</span>
-              <span class="meta-chip">{{ currentUser?.secteurActivite }}</span>
-            </p>
-            <p class="meta-row text-muted">
-              <span>📧 {{ currentUser?.email }}</span>
-              <span>📱 {{ currentUser?.telephone }}</span>
-            </p>
+        <!-- Avatar -->
+        <div class="flex items-center gap-3 p-5 bg-gradient-to-br from-blue-50 to-violet-50 border-b border-slate-200">
+          <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-violet-600 flex items-center justify-center text-white font-bold text-base shrink-0">
+            {{ initiales() }}
+          </div>
+          <div class="min-w-0">
+            <p class="font-semibold text-slate-800 text-sm truncate">{{ profile.nomEntreprise || 'Entreprise' }}</p>
+            <p class="text-slate-500 text-xs truncate">{{ profile.email }}</p>
           </div>
         </div>
 
-        <h3 class="section-title">Informations de l'entreprise</h3>
-
-        <div class="form-grid">
-
-          <!-- Nom entreprise -->
-          <div class="form-group full-width">
-            <label class="form-label">
-              Nom de l'entreprise <span class="required">*</span>
-            </label>
-            <input type="text"
-                   [(ngModel)]="companyForm.nomEntreprise"
-                   class="form-input"
-                   placeholder="Ex : DouniyaConnect SARL">
-          </div>
-
-          <!-- Type entreprise -->
-          <div class="form-group">
-            <label class="form-label">Type d'entreprise <span class="required">*</span></label>
-            <select [(ngModel)]="companyForm.typeEntreprise" class="form-select">
-              <option value="" disabled>Sélectionner…</option>
-              <option *ngFor="let type of typesEntreprise" [value]="type">
-                {{ getTypeLabel(type) }}
-              </option>
-            </select>
-          </div>
-
-          <!-- Secteur d'activité -->
-          <div class="form-group">
-            <label class="form-label">Secteur d'activité <span class="required">*</span></label>
-            <select [(ngModel)]="companyForm.secteurActivite" class="form-select">
-              <option value="" disabled>Sélectionner…</option>
-              <option *ngFor="let s of secteurs" [value]="s">{{ s }}</option>
-            </select>
-          </div>
-
-          <!-- Email -->
-          <div class="form-group">
-            <label class="form-label">Email professionnel</label>
-            <input type="email"
-                   [(ngModel)]="companyForm.email"
-                   class="form-input"
-                   placeholder="contact@entreprise.com">
-          </div>
-
-          <!-- Téléphone -->
-          <div class="form-group">
-            <label class="form-label">Téléphone</label>
-            <input type="tel"
-                   [(ngModel)]="companyForm.telephone"
-                   class="form-input"
-                   placeholder="+225 XX XX XX XX XX">
-          </div>
-
-          <!-- Adresse physique -->
-          <div class="form-group full-width">
-            <label class="form-label">Adresse physique</label>
-            <input type="text"
-                   [(ngModel)]="companyForm.adressePhysique"
-                   class="form-input"
-                   placeholder="Rue, quartier, ville…">
-          </div>
-
-          <!-- N° Registre de commerce -->
-          <div class="form-group">
-            <label class="form-label">N° Registre de commerce</label>
-            <input type="text"
-                   [(ngModel)]="companyForm.numeroRegistreCommerce"
-                   class="form-input"
-                   placeholder="CI-ABJ-2024-B-12345">
-          </div>
-
-          <!-- Site web -->
-          <div class="form-group">
-            <label class="form-label">Site web</label>
-            <input type="url"
-                   [(ngModel)]="companyForm.siteWeb"
-                   class="form-input"
-                   placeholder="https://www.entreprise.com">
-          </div>
-
-          <!-- Description -->
-          <div class="form-group full-width">
-            <label class="form-label">Description de l'entreprise</label>
-            <textarea [(ngModel)]="companyForm.description"
-                      class="form-input form-textarea"
-                      rows="4"
-                      placeholder="Décrivez votre entreprise, ses activités, sa mission…"></textarea>
-          </div>
-
-        </div>
-
-        <!-- Infos lecture seule -->
-        <div class="readonly-card">
-          <h4>Informations de connexion</h4>
-          <div class="readonly-grid">
-            <div class="readonly-item">
-              <span class="readonly-label">Nom d'utilisateur</span>
-              <span class="readonly-value">@{{ currentUser?.username }}</span>
-            </div>
-            <div class="readonly-item">
-              <span class="readonly-label">Identifiant</span>
-              <span class="readonly-value">#{{ currentUser?.id }}</span>
-            </div>
-            <div class="readonly-item">
-              <span class="readonly-label">Rôle</span>
-              <span class="readonly-value role-text">{{ currentUser?.role }}</span>
-            </div>
-            <div class="readonly-item">
-              <span class="readonly-label">Membre depuis</span>
-              <span class="readonly-value">{{ currentUser?.createdAt | date:'dd/MM/yyyy' }}</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="form-actions">
-          <button class="btn-secondary" (click)="setActiveSection('security')">
-            🔒 Changer le mot de passe
-          </button>
-          <button class="btn-primary" (click)="saveCompanyInfo()" [disabled]="isSaving">
-            <span *ngIf="!isSaving">💾 Sauvegarder</span>
-            <span *ngIf="isSaving">⏳ Sauvegarde…</span>
-          </button>
-        </div>
-      </section>
-
-      <!-- ════════════════════════════════════════════════════════
-           SÉCURITÉ
-      ════════════════════════════════════════════════════════ -->
-      <section class="settings-section" *ngIf="activeSection === 'security'">
-        <h3 class="section-title">Sécurité du compte</h3>
-
-        <!-- 2FA -->
-        <div class="toggle-list">
-          <div class="toggle-item">
-            <div class="toggle-info">
-              <h4>Authentification à deux facteurs (2FA)</h4>
-              <p>Protéger votre compte avec une couche de sécurité supplémentaire</p>
-            </div>
-            <label class="toggle-switch">
-              <input type="checkbox" [(ngModel)]="securitySettings.twoFactorAuth">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Session timeout -->
-        <div class="form-grid" style="margin-bottom: 2rem;">
-          <div class="form-group">
-            <label class="form-label">Expiration de session</label>
-            <select [(ngModel)]="securitySettings.sessionTimeout" class="form-select">
-              <option value="15">15 minutes</option>
-              <option value="30">30 minutes</option>
-              <option value="60">1 heure</option>
-              <option value="120">2 heures</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Changer le mot de passe -->
-        <div class="password-section">
-          <div class="password-header" (click)="togglePasswordForm()">
-            <div>
-              <h4>Changer le mot de passe</h4>
-              <p>Dernière modification : non disponible</p>
-            </div>
-            <button class="btn-toggle-pwd">
-              {{ showPasswordForm ? '▲ Masquer' : '▼ Modifier' }}
+        <!-- Nav -->
+        <nav class="py-2">
+          @for (item of navItems; track item.id) {
+            <button
+              (click)="goTo(item.id)"
+              [ngClass]="activeSection === item.id
+                ? 'bg-blue-600 text-white font-semibold'
+                : 'text-slate-600 hover:bg-slate-50'"
+              class="flex items-center gap-3 w-full px-4 py-3 text-sm transition-colors text-left">
+              <i [class]="item.icon + ' text-base w-4'"></i>
+              {{ item.label }}
             </button>
+          }
+        </nav>
+      </aside>
+
+      <!-- ── CONTENU ── -->
+      <main class="flex-1 min-w-0 flex flex-col gap-5">
+
+        <!-- ════════ PROFIL ENTREPRISE ════════ -->
+        @if (activeSection === 'company') {
+
+          <!-- En-tête section -->
+          <div class="flex items-center gap-3 pb-1">
+            <div class="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+              <i class="pi pi-building text-blue-600 text-lg"></i>
+            </div>
+            <div>
+              <h2 class="font-bold text-slate-800 text-lg">Profil entreprise</h2>
+              <p class="text-slate-500 text-xs">Informations de votre organisation</p>
+            </div>
           </div>
 
-          <div class="password-form" *ngIf="showPasswordForm">
-            <div class="form-grid">
-              <div class="form-group full-width">
-                <label class="form-label">Mot de passe actuel <span class="required">*</span></label>
-                <input type="password"
-                       [(ngModel)]="passwordForm.currentPassword"
-                       class="form-input"
-                       placeholder="Votre mot de passe actuel">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Nouveau mot de passe <span class="required">*</span></label>
-                <input type="password"
-                       [(ngModel)]="passwordForm.newPassword"
-                       class="form-input"
-                       placeholder="Min. 8 caractères">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Confirmer <span class="required">*</span></label>
-                <input type="password"
-                       [(ngModel)]="passwordForm.confirmPassword"
-                       class="form-input"
-                       placeholder="Répéter le nouveau mot de passe">
-              </div>
-            </div>
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <div class="grid grid-cols-2 gap-x-5 gap-y-4">
 
-            <!-- Indicateur force -->
-            <div class="password-strength" *ngIf="passwordForm.newPassword.length > 0">
-              <span class="strength-label">Force :</span>
-              <div class="strength-bar">
-                <div class="strength-fill"
-                     [style.width.%]="getPasswordStrength()"
-                     [class.weak]="getPasswordStrength() < 40"
-                     [class.medium]="getPasswordStrength() >= 40 && getPasswordStrength() < 70"
-                     [class.strong]="getPasswordStrength() >= 70">
+              <!-- Nom -->
+              <div class="col-span-2">
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">
+                  Nom de l'entreprise <span class="text-red-500">*</span>
+                </label>
+                <div class="relative">
+                  <i class="pi pi-building absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                  <input [(ngModel)]="profile.nomEntreprise"
+                         type="text"
+                         placeholder="Ex: DouniyaBacker SA"
+                         class="w-full pl-9 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
                 </div>
               </div>
-              <span class="strength-text">{{ getPasswordStrengthLabel() }}</span>
+
+              <!-- Type -->
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">
+                  Type d'entreprise <span class="text-red-500">*</span>
+                </label>
+                <div class="relative">
+                  <i class="pi pi-tag absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                  <select [(ngModel)]="profile.typeEntreprise"
+                          class="w-full pl-9 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white appearance-none">
+                    <option value="">-- Sélectionner --</option>
+                    @for (t of typesEntreprise; track t.value) {
+                      <option [value]="t.value">{{ t.label }}</option>
+                    }
+                  </select>
+                  <i class="pi pi-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-xs"></i>
+                </div>
+              </div>
+
+              <!-- Secteur -->
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">
+                  Secteur d'activité <span class="text-red-500">*</span>
+                </label>
+                <div class="relative">
+                  <i class="pi pi-briefcase absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                  <select [(ngModel)]="profile.secteurActivite"
+                          class="w-full pl-9 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white appearance-none">
+                    <option value="">-- Sélectionner --</option>
+                    @for (s of secteurs; track s) {
+                      <option [value]="s">{{ s }}</option>
+                    }
+                  </select>
+                  <i class="pi pi-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-xs"></i>
+                </div>
+              </div>
+
+              <!-- Email -->
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">Email</label>
+                <div class="relative">
+                  <i class="pi pi-envelope absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                  <input [(ngModel)]="profile.email" type="email"
+                         placeholder="contact@entreprise.com"
+                         class="w-full pl-9 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+              </div>
+
+              <!-- Téléphone -->
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">Téléphone</label>
+                <div class="relative">
+                  <i class="pi pi-phone absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                  <input [(ngModel)]="profile.telephone" type="tel"
+                         placeholder="+225 07 00 00 00 00"
+                         class="w-full pl-9 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+              </div>
+
+              <!-- Username (readonly) -->
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">
+                  Nom d'utilisateur
+                  <span class="ml-1 text-xs text-slate-400 font-normal">(non modifiable)</span>
+                </label>
+                <div class="relative">
+                  <i class="pi pi-user absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                  <input [value]="profile.username" disabled
+                         class="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50 text-slate-400 cursor-not-allowed" />
+                </div>
+              </div>
+
+              <!-- Registre commerce -->
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">Registre de commerce</label>
+                <div class="relative">
+                  <i class="pi pi-file absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                  <input [(ngModel)]="profile.numeroRegistreCommerce"
+                         placeholder="CI-ABJ-2024-B-XXXXX"
+                         class="w-full pl-9 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+              </div>
+
+              <!-- Adresse -->
+              <div class="col-span-2">
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">Adresse physique</label>
+                <div class="relative">
+                  <i class="pi pi-map-marker absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                  <input [(ngModel)]="profile.adressePhysique"
+                         placeholder="Ex: Plateau, Abidjan, Côte d'Ivoire"
+                         class="w-full pl-9 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+              </div>
+
+              <!-- Site web -->
+              <div class="col-span-2">
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">Site web</label>
+                <div class="relative">
+                  <i class="pi pi-globe absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                  <input [(ngModel)]="profile.siteWeb"
+                         placeholder="https://www.exemple.com"
+                         class="w-full pl-9 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+              </div>
+
+              <!-- Description -->
+              <div class="col-span-2">
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">Description</label>
+                <textarea [(ngModel)]="profile.description" rows="3"
+                          placeholder="Décrivez votre entreprise…"
+                          class="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+              </div>
             </div>
 
-            <div class="form-actions">
-              <button class="btn-secondary" (click)="togglePasswordForm()">Annuler</button>
-              <button class="btn-primary" (click)="savePassword()" [disabled]="isSaving">
-                <span *ngIf="!isSaving">🔒 Changer le mot de passe</span>
-                <span *ngIf="isSaving">⏳ En cours…</span>
+            <!-- Actions -->
+            <div class="flex justify-end pt-4 mt-2 border-t border-slate-100">
+              <button (click)="saveCompanyInfo()" [disabled]="isSaving"
+                      class="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors">
+                <i [class]="isSaving ? 'pi pi-spin pi-spinner' : 'pi pi-check'"></i>
+                {{ isSaving ? 'Sauvegarde…' : 'Sauvegarder' }}
               </button>
             </div>
           </div>
-        </div>
+        }
 
-        <div class="form-actions">
-          <button class="btn-primary" (click)="saveSecurity()">💾 Sauvegarder</button>
-        </div>
-      </section>
+        <!-- ════════ SÉCURITÉ ════════ -->
+        @if (activeSection === 'security') {
 
-      <!-- ════════════════════════════════════════════════════════
-           NOTIFICATIONS
-      ════════════════════════════════════════════════════════ -->
-      <section class="settings-section" *ngIf="activeSection === 'notifications'">
-        <h3 class="section-title">Préférences de notification</h3>
-        <div class="toggle-list">
-          <div class="toggle-item">
-            <div class="toggle-info">
-              <h4>Notifications par email</h4>
-              <p>Alertes, rappels et résumés par email</p>
+          <div class="flex items-center gap-3 pb-1">
+            <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+              <i class="pi pi-lock text-amber-600 text-lg"></i>
             </div>
-            <label class="toggle-switch">
-              <input type="checkbox" [(ngModel)]="notificationSettings.emailNotifications">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <div class="toggle-item">
-            <div class="toggle-info">
-              <h4>Notifications SMS</h4>
-              <p>Alertes critiques par SMS</p>
+            <div>
+              <h2 class="font-bold text-slate-800 text-lg">Sécurité</h2>
+              <p class="text-slate-500 text-xs">Protégez votre compte</p>
             </div>
-            <label class="toggle-switch">
-              <input type="checkbox" [(ngModel)]="notificationSettings.smsNotifications">
-              <span class="toggle-slider"></span>
-            </label>
           </div>
-          <div class="toggle-item">
-            <div class="toggle-info">
-              <h4>Mises à jour des projets</h4>
-              <p>Changements de statut sur vos projets B2B</p>
+
+          <!-- Mot de passe -->
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="font-semibold text-slate-800 flex items-center gap-2">
+                  <i class="pi pi-key text-amber-500"></i>
+                  Mot de passe
+                </h3>
+                <p class="text-slate-500 text-xs mt-0.5">Modifiez votre mot de passe de connexion</p>
+              </div>
+              <button (click)="showPwdForm = !showPwdForm"
+                      class="flex items-center gap-1.5 px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                <i [class]="showPwdForm ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" class="text-xs"></i>
+                {{ showPwdForm ? 'Masquer' : 'Modifier' }}
+              </button>
             </div>
-            <label class="toggle-switch">
-              <input type="checkbox" [(ngModel)]="notificationSettings.orderUpdates">
-              <span class="toggle-slider"></span>
-            </label>
+
+            @if (showPwdForm) {
+              <div class="border-t border-slate-100 pt-5 flex flex-col gap-4">
+
+                <!-- Actuel -->
+                <div>
+                  <label class="block text-xs font-medium text-slate-500 mb-1.5">Mot de passe actuel</label>
+                  <div class="relative">
+                    <i class="pi pi-lock absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input [(ngModel)]="pwd.current"
+                           [type]="showCurrent ? 'text' : 'password'"
+                           placeholder="••••••••"
+                           class="w-full pl-9 pr-11 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <button type="button" (click)="showCurrent = !showCurrent"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                      <i [class]="showCurrent ? 'pi pi-eye-slash' : 'pi pi-eye'"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Nouveau -->
+                <div>
+                  <label class="block text-xs font-medium text-slate-500 mb-1.5">Nouveau mot de passe</label>
+                  <div class="relative">
+                    <i class="pi pi-lock-open absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input [(ngModel)]="pwd.newPwd"
+                           [type]="showNew ? 'text' : 'password'"
+                           placeholder="Minimum 8 caractères"
+                           class="w-full pl-9 pr-11 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <button type="button" (click)="showNew = !showNew"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                      <i [class]="showNew ? 'pi pi-eye-slash' : 'pi pi-eye'"></i>
+                    </button>
+                  </div>
+                  <!-- Barre de force -->
+                  @if (pwd.newPwd) {
+                    <div class="mt-2">
+                      <div class="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                        <div [class]="'h-full rounded-full transition-all duration-300 ' + pwdStrengthColor()"
+                             [style.width.%]="pwdStrength()"></div>
+                      </div>
+                      <p [class]="'text-xs mt-1 font-medium ' + pwdStrengthTextColor()">
+                        <i class="pi pi-shield mr-1"></i>
+                        Force : {{ pwdStrengthLabel() }} ({{ pwdStrength() }}%)
+                      </p>
+                    </div>
+                  }
+                </div>
+
+                <!-- Confirmation -->
+                <div>
+                  <label class="block text-xs font-medium text-slate-500 mb-1.5">Confirmer le mot de passe</label>
+                  <div class="relative">
+                    <i class="pi pi-check-circle absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input [(ngModel)]="pwd.confirm"
+                           [type]="showConfirm ? 'text' : 'password'"
+                           placeholder="••••••••"
+                           class="w-full pl-9 pr-11 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           [class.border-red-400]="pwd.confirm && pwd.confirm !== pwd.newPwd" />
+                    <button type="button" (click)="showConfirm = !showConfirm"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                      <i [class]="showConfirm ? 'pi pi-eye-slash' : 'pi pi-eye'"></i>
+                    </button>
+                  </div>
+                  @if (pwd.confirm && pwd.confirm !== pwd.newPwd) {
+                    <p class="text-red-500 text-xs mt-1 flex items-center gap-1">
+                      <i class="pi pi-exclamation-circle"></i>
+                      Les mots de passe ne correspondent pas
+                    </p>
+                  }
+                </div>
+
+                <!-- Actions -->
+                <div class="flex justify-end gap-3 pt-2 border-t border-slate-100">
+                  <button (click)="showPwdForm = false"
+                          class="px-4 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                    Annuler
+                  </button>
+                  <button (click)="savePassword()" [disabled]="isSaving"
+                          class="flex items-center gap-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors">
+                    <i [class]="isSaving ? 'pi pi-spin pi-spinner' : 'pi pi-lock'"></i>
+                    {{ isSaving ? 'Vérification…' : 'Modifier le mot de passe' }}
+                  </button>
+                </div>
+              </div>
+            }
           </div>
-          <div class="toggle-item">
-            <div class="toggle-info">
-              <h4>Newsletters & Offres</h4>
-              <p>Actualités et opportunités du réseau</p>
+
+          <!-- Options sécurité -->
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <h3 class="font-semibold text-slate-800 flex items-center gap-2 mb-4">
+              <i class="pi pi-shield text-blue-500"></i>
+              Options de sécurité
+            </h3>
+
+            <!-- 2FA -->
+            <div class="flex items-center justify-between py-3 border-b border-slate-100">
+              <div>
+                <p class="text-sm font-medium text-slate-800">Authentification à deux facteurs (2FA)</p>
+                <p class="text-xs text-slate-500 mt-0.5">Sécurité renforcée à la connexion</p>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" [(ngModel)]="prefs.twoFA" class="sr-only peer" />
+                <div class="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:bg-blue-600
+                            after:content-[''] after:absolute after:top-0.5 after:left-0.5
+                            after:bg-white after:rounded-full after:h-5 after:w-5
+                            after:transition-all peer-checked:after:translate-x-5"></div>
+              </label>
             </div>
-            <label class="toggle-switch">
-              <input type="checkbox" [(ngModel)]="notificationSettings.newsletter">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-        </div>
-        <div class="form-actions">
-          <button class="btn-primary" (click)="saveNotifications()">💾 Sauvegarder</button>
-        </div>
-      </section>
 
-      <!-- ════════════════════════════════════════════════════════
-           APPARENCE
-      ════════════════════════════════════════════════════════ -->
-      <section class="settings-section" *ngIf="activeSection === 'appearance'">
-        <h3 class="section-title">Apparence & Localisation</h3>
-        <div class="form-grid">
-          <div class="form-group">
-            <label class="form-label">Thème</label>
-            <select [(ngModel)]="appearanceSettings.theme" class="form-select">
-              <option value="light">☀️ Clair</option>
-              <option value="dark">🌙 Sombre</option>
-              <option value="auto">⚙️ Automatique</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Langue</label>
-            <select [(ngModel)]="appearanceSettings.language" class="form-select">
-              <option value="fr">🇫🇷 Français</option>
-              <option value="en">🇬🇧 English</option>
-              <option value="ar">🇸🇦 العربية</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Format de date</label>
-            <select [(ngModel)]="appearanceSettings.dateFormat" class="form-select">
-              <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-              <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-              <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Devise</label>
-            <select [(ngModel)]="appearanceSettings.currency" class="form-select">
-              <option value="XOF">XOF (FCFA)</option>
-              <option value="EUR">EUR (€)</option>
-              <option value="USD">USD ($)</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-actions">
-          <button class="btn-primary" (click)="saveAppearance()">💾 Sauvegarder</button>
-        </div>
-      </section>
-
-      <!-- ════════════════════════════════════════════════════════
-           CLÉS API
-      ════════════════════════════════════════════════════════ -->
-      <section class="settings-section" *ngIf="activeSection === 'api'">
-        <h3 class="section-title">Clés API</h3>
-        <p class="section-desc">Gérez les clés d'accès à l'API DouniyaConnect pour vos intégrations.</p>
-
-        <button class="btn-primary mb-3" (click)="generateApiKey()">
-          ➕ Générer une nouvelle clé
-        </button>
-
-        <div class="api-keys-list">
-          <div class="api-key-card" *ngFor="let key of apiKeys">
-            <div class="api-key-icon">🔑</div>
-            <div class="api-key-info">
-              <h4>{{ key.name }}</h4>
-              <code class="api-key-value">{{ key.key }}</code>
-              <div class="api-key-meta">
-                <span>📅 Créée le {{ key.created }}</span>
-                <span>⏱ Dernière utilisation : {{ key.lastUsed }}</span>
+            <!-- Session timeout -->
+            <div class="py-3">
+              <label class="block text-sm font-medium text-slate-800 mb-2">
+                <i class="pi pi-clock mr-1.5 text-slate-400"></i>
+                Délai d'expiration de session
+              </label>
+              <div class="relative w-64">
+                <select [(ngModel)]="prefs.sessionTimeout"
+                        class="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white appearance-none">
+                  <option value="15">15 minutes</option>
+                  <option value="30">30 minutes</option>
+                  <option value="60">1 heure</option>
+                  <option value="120">2 heures</option>
+                </select>
+                <i class="pi pi-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-xs"></i>
               </div>
             </div>
-            <div class="api-key-actions">
-              <button class="btn-icon" title="Copier" (click)="copyApiKey(key.key)">📋</button>
-              <button class="btn-danger-outline" (click)="revokeApiKey(key)">Révoquer</button>
+
+            <div class="flex justify-end pt-3 border-t border-slate-100">
+              <button (click)="saveSecurity()" [disabled]="isSaving"
+                      class="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors">
+                <i [class]="isSaving ? 'pi pi-spin pi-spinner' : 'pi pi-check'"></i>
+                Sauvegarder
+              </button>
             </div>
           </div>
-        </div>
-      </section>
 
-    </main>
-  </div>
+          <!-- Zone dangereuse -->
+          <div class="bg-white rounded-2xl border border-red-200 shadow-sm p-6">
+            <h3 class="font-semibold text-red-600 flex items-center gap-2 mb-4">
+              <i class="pi pi-exclamation-triangle text-red-500"></i>
+              Zone dangereuse
+            </h3>
 
-  <!-- ── Zone dangereuse ─────────────────────────────────────────── -->
-  <div class="danger-zone" *ngIf="!isLoading">
-    <div class="danger-header">
-      <span class="danger-icon">⚠️</span>
-      <div>
-        <h3>Zone dangereuse</h3>
-        <p>Ces actions sont irréversibles. Procédez avec précaution.</p>
-      </div>
+            <div class="flex items-center justify-between py-3 border-b border-slate-100">
+              <div>
+                <p class="text-sm font-medium text-slate-800">Exporter mes données</p>
+                <p class="text-xs text-slate-500 mt-0.5">Téléchargez toutes vos données au format JSON</p>
+              </div>
+              <button (click)="exportData()"
+                      class="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                <i class="pi pi-download"></i>
+                Exporter
+              </button>
+            </div>
+
+            <div class="flex items-center justify-between pt-3">
+              <div>
+                <p class="text-sm font-medium text-slate-800">Supprimer le compte</p>
+                <p class="text-xs text-slate-500 mt-0.5">Action permanente et irréversible</p>
+              </div>
+              <button (click)="deleteAccount()"
+                      class="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-colors">
+                <i class="pi pi-trash"></i>
+                Supprimer
+              </button>
+            </div>
+          </div>
+        }
+
+        <!-- ════════ NOTIFICATIONS ════════ -->
+        @if (activeSection === 'notifications') {
+
+          <div class="flex items-center gap-3 pb-1">
+            <div class="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center">
+              <i class="pi pi-bell text-violet-600 text-lg"></i>
+            </div>
+            <div>
+              <h2 class="font-bold text-slate-800 text-lg">Notifications</h2>
+              <p class="text-slate-500 text-xs">Choisissez comment être notifié</p>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <h3 class="font-semibold text-slate-800 flex items-center gap-2 mb-4">
+              <i class="pi pi-send text-violet-500"></i>
+              Canaux de notification
+            </h3>
+
+            @for (opt of [
+              { key: 'emailNotif',   icon: 'pi pi-envelope',         label: 'Notifications par email',
+                desc: 'Recevez les alertes sur votre boîte mail' },
+              { key: 'smsNotif',     icon: 'pi pi-mobile',           label: 'Notifications par SMS',
+                desc: 'Recevez les alertes sur votre téléphone' },
+              { key: 'projectNotif', icon: 'pi pi-folder-open',      label: 'Mises à jour projets',
+                desc: "Suivi de l'avancement de vos projets" },
+              { key: 'newsletter',   icon: 'pi pi-megaphone',        label: 'Newsletter DouniyaBacker',
+                desc: 'Actualités et nouveautés de la plateforme' }
+            ]; track opt.key) {
+              <div class="flex items-center justify-between py-3.5 border-b border-slate-100 last:border-0">
+                <div class="flex items-center gap-3">
+                  <div class="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
+                    <i [class]="opt.icon + ' text-slate-500'"></i>
+                  </div>
+                  <div>
+                    <p class="text-sm font-medium text-slate-800">{{ opt.label }}</p>
+                    <p class="text-xs text-slate-500">{{ opt.desc }}</p>
+                  </div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox"
+                         [checked]="$any(prefs)[opt.key]"
+                         (change)="$any(prefs)[opt.key] = $any($event.target).checked"
+                         class="sr-only peer" />
+                  <div class="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:bg-blue-600
+                              after:content-[''] after:absolute after:top-0.5 after:left-0.5
+                              after:bg-white after:rounded-full after:h-5 after:w-5
+                              after:transition-all peer-checked:after:translate-x-5"></div>
+                </label>
+              </div>
+            }
+
+            <div class="flex justify-end pt-4">
+              <button (click)="saveNotifications()"
+                      class="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors">
+                <i class="pi pi-check"></i>
+                Sauvegarder
+              </button>
+            </div>
+          </div>
+        }
+
+        <!-- ════════ APPARENCE ════════ -->
+        @if (activeSection === 'appearance') {
+
+          <div class="flex items-center gap-3 pb-1">
+            <div class="w-10 h-10 rounded-xl bg-pink-100 flex items-center justify-center">
+              <i class="pi pi-palette text-pink-600 text-lg"></i>
+            </div>
+            <div>
+              <h2 class="font-bold text-slate-800 text-lg">Apparence</h2>
+              <p class="text-slate-500 text-xs">Personnalisez votre interface</p>
+            </div>
+          </div>
+
+          <!-- Thème -->
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <h3 class="font-semibold text-slate-800 flex items-center gap-2 mb-4">
+              <i class="pi pi-desktop text-pink-500"></i>
+              Thème de l'interface
+            </h3>
+            <div class="grid grid-cols-3 gap-4">
+              @for (t of [
+                { value: 'light', icon: 'pi pi-sun',        label: 'Clair',        desc: 'Interface lumineuse' },
+                { value: 'dark',  icon: 'pi pi-moon',       label: 'Sombre',       desc: 'Interface foncée' },
+                { value: 'auto',  icon: 'pi pi-sync',       label: 'Automatique',  desc: 'Suit le système' }
+              ]; track t.value) {
+                <label [class]="'relative flex flex-col items-center gap-2 p-4 border-2 rounded-xl cursor-pointer transition-all ' +
+                                (prefs.theme === t.value ? 'border-blue-600 bg-blue-50' : 'border-slate-200 hover:border-slate-300')">
+                  <input type="radio" name="theme" [value]="t.value"
+                         [(ngModel)]="prefs.theme"
+                         (ngModelChange)="onThemeChange($event)"
+                         class="sr-only" />
+                  <div [class]="'w-10 h-10 rounded-full flex items-center justify-center ' +
+                                (prefs.theme === t.value ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500')">
+                    <i [class]="t.icon + ' text-lg'"></i>
+                  </div>
+                  <span class="text-sm font-semibold text-slate-800">{{ t.label }}</span>
+                  <span class="text-xs text-slate-500 text-center">{{ t.desc }}</span>
+                  @if (prefs.theme === t.value) {
+                    <i class="pi pi-check-circle absolute top-2 right-2 text-blue-600 text-sm"></i>
+                  }
+                </label>
+              }
+            </div>
+          </div>
+
+          <!-- Langue -->
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <h3 class="font-semibold text-slate-800 flex items-center gap-2 mb-4">
+              <i class="pi pi-language text-pink-500"></i>
+              Langue de l'interface
+            </h3>
+            <div class="grid grid-cols-3 gap-4">
+              @for (l of [
+                { value: 'fr', flag: '🇫🇷', label: 'Français' },
+                { value: 'en', flag: '🇬🇧', label: 'English' },
+                { value: 'ar', flag: '🇸🇦', label: 'العربية' }
+              ]; track l.value) {
+                <label [class]="'flex items-center gap-3 p-3.5 border-2 rounded-xl cursor-pointer transition-all ' +
+                                (prefs.language === l.value ? 'border-blue-600 bg-blue-50' : 'border-slate-200 hover:border-slate-300')">
+                  <input type="radio" name="language" [value]="l.value"
+                         [(ngModel)]="prefs.language"
+                         (ngModelChange)="onLanguageChange($event)"
+                         class="sr-only" />
+                  <span class="text-xl">{{ l.flag }}</span>
+                  <span class="text-sm font-medium text-slate-800">{{ l.label }}</span>
+                  @if (prefs.language === l.value) {
+                    <i class="pi pi-check-circle ml-auto text-blue-600 text-sm"></i>
+                  }
+                </label>
+              }
+            </div>
+          </div>
+
+          <!-- Format régional -->
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <h3 class="font-semibold text-slate-800 flex items-center gap-2 mb-4">
+              <i class="pi pi-map text-pink-500"></i>
+              Format régional
+            </h3>
+            <div class="grid grid-cols-2 gap-5">
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">
+                  <i class="pi pi-credit-card mr-1"></i>
+                  Devise
+                </label>
+                <div class="relative">
+                  <select [(ngModel)]="prefs.currency"
+                          class="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white appearance-none">
+                    <option value="XOF">FCFA (XOF)</option>
+                    <option value="EUR">Euro (€)</option>
+                    <option value="USD">Dollar ($)</option>
+                  </select>
+                  <i class="pi pi-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-xs"></i>
+                </div>
+                <p class="text-xs text-slate-400 mt-1">
+                  <i class="pi pi-info-circle mr-1"></i>
+                  Aperçu : 1 250 000 {{ getCurrencySymbol() }}
+                </p>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">
+                  <i class="pi pi-calendar mr-1"></i>
+                  Format de date
+                </label>
+                <div class="relative">
+                  <select [(ngModel)]="prefs.dateFormat"
+                          class="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white appearance-none">
+                    <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                    <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                    <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                  </select>
+                  <i class="pi pi-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-xs"></i>
+                </div>
+                <p class="text-xs text-slate-400 mt-1">
+                  <i class="pi pi-calendar mr-1"></i>
+                  Aperçu : {{ formatDatePreview() }}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex justify-end">
+            <button (click)="saveAppearance()"
+                    class="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors">
+              <i class="pi pi-check"></i>
+              Sauvegarder l'apparence
+            </button>
+          </div>
+        }
+
+        <!-- ════════ CLÉS API ════════ -->
+        @if (activeSection === 'api') {
+
+          <div class="flex items-center gap-3 pb-1">
+            <div class="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+              <i class="pi pi-key text-emerald-600 text-lg"></i>
+            </div>
+            <div>
+              <h2 class="font-bold text-slate-800 text-lg">Clés API</h2>
+              <p class="text-slate-500 text-xs">Intégrez DouniyaBacker dans vos applications</p>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <div class="flex items-center justify-between mb-5">
+              <h3 class="font-semibold text-slate-800 flex items-center gap-2">
+                <i class="pi pi-list text-emerald-500"></i>
+                Mes clés API
+              </h3>
+              <button (click)="generateKey()"
+                      class="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition-colors">
+                <i class="pi pi-plus"></i>
+                Générer une clé
+              </button>
+            </div>
+
+            @if (apiKeys.length === 0) {
+              <div class="text-center py-10 text-slate-400">
+                <i class="pi pi-key text-4xl mb-3 block"></i>
+                <p class="text-sm">Aucune clé API. Cliquez sur "Générer une clé" pour commencer.</p>
+              </div>
+            }
+
+            @for (k of apiKeys; track k.key) {
+              <div class="flex items-center justify-between gap-4 py-4 border-b border-slate-100 last:border-0">
+                <div class="flex items-center gap-3 min-w-0">
+                  <div class="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+                    <i class="pi pi-key text-emerald-600 text-sm"></i>
+                  </div>
+                  <div class="min-w-0">
+                    <p class="text-sm font-semibold text-slate-800">{{ k.name }}</p>
+                    <code class="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded font-mono block truncate max-w-xs">
+                      {{ maskedKey(k) }}
+                    </code>
+                    <p class="text-xs text-slate-400 mt-0.5">
+                      <i class="pi pi-calendar mr-1"></i>Créée le {{ k.created }}
+                      &nbsp;·&nbsp;
+                      <i class="pi pi-clock mr-1"></i>{{ k.lastUsed }}
+                    </p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <button (click)="k.masked = !k.masked" title="Afficher/Masquer"
+                          class="w-8 h-8 flex items-center justify-center border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 transition-colors">
+                    <i [class]="k.masked ? 'pi pi-eye' : 'pi pi-eye-slash'" class="text-sm"></i>
+                  </button>
+                  <button (click)="copyKey(k.key)" title="Copier"
+                          class="w-8 h-8 flex items-center justify-center border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 transition-colors">
+                    <i class="pi pi-copy text-sm"></i>
+                  </button>
+                  <button (click)="revokeKey(k)" title="Révoquer"
+                          class="w-8 h-8 flex items-center justify-center border border-red-200 rounded-lg text-red-500 hover:bg-red-50 transition-colors">
+                    <i class="pi pi-trash text-sm"></i>
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- Guide utilisation -->
+          <div class="bg-slate-800 rounded-2xl p-6 text-slate-100">
+            <h3 class="font-semibold mb-3 flex items-center gap-2">
+              <i class="pi pi-code text-emerald-400"></i>
+              Comment utiliser l'API
+            </h3>
+            <pre class="text-xs text-emerald-300 bg-slate-900 rounded-lg p-4 overflow-x-auto"><code>curl -H "Authorization: Bearer &lt;VOTRE_CLÉ&gt;" \
+     -H "Content-Type: application/json" \
+     https://api.douniyabacker.com/v1/endpoint</code></pre>
+            <p class="text-xs text-slate-400 mt-3 flex items-center gap-1.5">
+              <i class="pi pi-info-circle"></i>
+              Gardez vos clés API secrètes. Ne les partagez jamais publiquement.
+            </p>
+          </div>
+        }
+
+      </main>
     </div>
-    <div class="danger-actions">
-      <button class="btn-danger-outline" (click)="exportData()">
-        📥 Exporter mes données
-      </button>
-      <button class="btn-danger" (click)="deleteAccount()">
-        🗑️ Supprimer le compte
-      </button>
-    </div>
-  </div>
-
+  }
 </div>
