@@ -1,155 +1,332 @@
 <div class="parametres-container">
-  <div class="header">
-    <h1>⚙️ Paramètres</h1>
-    <p class="subtitle">Configuration et gestion de votre compte entreprise</p>
+
+  <!-- ── En-tête ──────────────────────────────────────────────── -->
+  <div class="page-header">
+    <div class="header-left">
+      <h1>⚙️ Paramètres</h1>
+      <p class="subtitle">Gestion de votre compte entreprise — {{ currentUser?.nomEntreprise }}</p>
+    </div>
+    <div class="header-badge" *ngIf="currentUser">
+      <span class="role-badge">{{ currentUser.role }}</span>
+    </div>
   </div>
 
-  <div class="settings-layout">
-    <!-- Sidebar Navigation -->
-    <div class="settings-sidebar">
-      <button
-        class="sidebar-item"
-        [class.active]="activeSection === 'company'"
-        (click)="setActiveSection('company')">
-        <span class="item-icon">🏢</span>
-        <span class="item-text">Entreprise</span>
-      </button>
-      <button
-        class="sidebar-item"
-        [class.active]="activeSection === 'profile'"
-        (click)="setActiveSection('profile')">
-        <span class="item-icon">👤</span>
-        <span class="item-text">Profil</span>
-      </button>
-      <button
-        class="sidebar-item"
-        [class.active]="activeSection === 'notifications'"
-        (click)="setActiveSection('notifications')">
-        <span class="item-icon">🔔</span>
-        <span class="item-text">Notifications</span>
-      </button>
-      <button
-        class="sidebar-item"
-        [class.active]="activeSection === 'security'"
-        (click)="setActiveSection('security')">
-        <span class="item-icon">🔒</span>
-        <span class="item-text">Sécurité</span>
-      </button>
-      <button
-        class="sidebar-item"
-        [class.active]="activeSection === 'appearance'"
-        (click)="setActiveSection('appearance')">
-        <span class="item-icon">🎨</span>
-        <span class="item-text">Apparence</span>
-      </button>
-      <button
-        class="sidebar-item"
-        [class.active]="activeSection === 'integrations'"
-        (click)="setActiveSection('integrations')">
-        <span class="item-icon">🔌</span>
-        <span class="item-text">Intégrations</span>
-      </button>
-      <button
-        class="sidebar-item"
-        [class.active]="activeSection === 'api'"
-        (click)="setActiveSection('api')">
-        <span class="item-icon">🔑</span>
-        <span class="item-text">API</span>
-      </button>
-    </div>
+  <!-- ── Messages flash ────────────────────────────────────────── -->
+  <div class="alert alert-success" *ngIf="successMessage">
+    <span class="alert-icon">✅</span> {{ successMessage }}
+  </div>
+  <div class="alert alert-error" *ngIf="errorMessage">
+    <span class="alert-icon">❌</span> {{ errorMessage }}
+  </div>
 
-    <!-- Settings Content -->
-    <div class="settings-content">
-      <!-- Company Section -->
-      <div class="settings-section" *ngIf="activeSection === 'company'">
-        <h2 class="section-title">Informations de l'entreprise</h2>
-        <div class="form-grid">
-          <div class="form-group full-width">
-            <label class="form-label">Nom de l'entreprise</label>
-            <input type="text" [(ngModel)]="companyInfo.name" class="form-input">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Email</label>
-            <input type="email" [(ngModel)]="companyInfo.email" class="form-input">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Téléphone</label>
-            <input type="tel" [(ngModel)]="companyInfo.phone" class="form-input">
-          </div>
-          <div class="form-group full-width">
-            <label class="form-label">Adresse</label>
-            <input type="text" [(ngModel)]="companyInfo.address" class="form-input">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Ville</label>
-            <input type="text" [(ngModel)]="companyInfo.city" class="form-input">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Code postal</label>
-            <input type="text" [(ngModel)]="companyInfo.zipCode" class="form-input">
-          </div>
-          <div class="form-group">
-            <label class="form-label">SIRET</label>
-            <input type="text" [(ngModel)]="companyInfo.siret" class="form-input">
-          </div>
-          <div class="form-group">
-            <label class="form-label">N° TVA</label>
-            <input type="text" [(ngModel)]="companyInfo.tva" class="form-input">
-          </div>
-        </div>
-        <div class="form-actions">
-          <button class="btn-secondary" (click)="uploadLogo()">📷 Modifier le logo</button>
-          <button class="btn-primary" (click)="saveCompanyInfo()">💾 Sauvegarder</button>
-        </div>
+  <!-- ── Chargement ────────────────────────────────────────────── -->
+  <div class="loading-overlay" *ngIf="isLoading">
+    <div class="spinner"></div>
+    <p>Chargement du profil…</p>
+  </div>
+
+  <div class="settings-layout" *ngIf="!isLoading">
+
+    <!-- ── Sidebar ──────────────────────────────────────────────── -->
+    <aside class="settings-sidebar">
+
+      <!-- Avatar entreprise -->
+      <div class="sidebar-profile">
+        <div class="company-avatar">{{ getInitiales() }}</div>
+        <p class="sidebar-company-name">{{ currentUser?.nomEntreprise || '—' }}</p>
+        <p class="sidebar-username">@{{ currentUser?.username }}</p>
+        <span class="sidebar-type-badge" *ngIf="currentUser?.typeEntreprise">
+          {{ getTypeLabel(currentUser!.typeEntreprise!) }}
+        </span>
       </div>
 
-      <!-- Profile Section -->
-      <div class="settings-section" *ngIf="activeSection === 'profile'">
-        <h2 class="section-title">Profil utilisateur</h2>
-        <div class="profile-header">
-          <div class="avatar-large">{{ userProfile.avatar }}</div>
-          <button class="btn-secondary">Changer l'avatar</button>
+      <nav class="sidebar-nav">
+        <button class="nav-item" [class.active]="activeSection === 'company'"
+                (click)="setActiveSection('company')">
+          <span class="nav-icon">🏢</span>
+          <span>Profil entreprise</span>
+        </button>
+        <button class="nav-item" [class.active]="activeSection === 'security'"
+                (click)="setActiveSection('security')">
+          <span class="nav-icon">🔒</span>
+          <span>Sécurité</span>
+        </button>
+        <button class="nav-item" [class.active]="activeSection === 'notifications'"
+                (click)="setActiveSection('notifications')">
+          <span class="nav-icon">🔔</span>
+          <span>Notifications</span>
+        </button>
+        <button class="nav-item" [class.active]="activeSection === 'appearance'"
+                (click)="setActiveSection('appearance')">
+          <span class="nav-icon">🎨</span>
+          <span>Apparence</span>
+        </button>
+        <button class="nav-item" [class.active]="activeSection === 'api'"
+                (click)="setActiveSection('api')">
+          <span class="nav-icon">🔑</span>
+          <span>Clés API</span>
+        </button>
+      </nav>
+    </aside>
+
+    <!-- ── Contenu principal ────────────────────────────────────── -->
+    <main class="settings-content">
+
+      <!-- ════════════════════════════════════════════════════════
+           PROFIL ENTREPRISE
+      ════════════════════════════════════════════════════════ -->
+      <section class="settings-section" *ngIf="activeSection === 'company'">
+
+        <!-- Carte identité -->
+        <div class="profile-card">
+          <div class="profile-card-avatar">{{ getInitiales() }}</div>
+          <div class="profile-card-info">
+            <h2>{{ currentUser?.nomEntreprise || 'Entreprise' }}</h2>
+            <p class="meta-row">
+              <span class="meta-chip">{{ getTypeLabel(currentUser?.typeEntreprise ?? '') }}</span>
+              <span class="meta-chip">{{ currentUser?.secteurActivite }}</span>
+            </p>
+            <p class="meta-row text-muted">
+              <span>📧 {{ currentUser?.email }}</span>
+              <span>📱 {{ currentUser?.telephone }}</span>
+            </p>
+          </div>
         </div>
+
+        <h3 class="section-title">Informations de l'entreprise</h3>
+
         <div class="form-grid">
-          <div class="form-group">
-            <label class="form-label">Prénom</label>
-            <input type="text" [(ngModel)]="userProfile.firstName" class="form-input">
+
+          <!-- Nom entreprise -->
+          <div class="form-group full-width">
+            <label class="form-label">
+              Nom de l'entreprise <span class="required">*</span>
+            </label>
+            <input type="text"
+                   [(ngModel)]="companyForm.nomEntreprise"
+                   class="form-input"
+                   placeholder="Ex : DouniyaConnect SARL">
           </div>
+
+          <!-- Type entreprise -->
           <div class="form-group">
-            <label class="form-label">Nom</label>
-            <input type="text" [(ngModel)]="userProfile.lastName" class="form-input">
+            <label class="form-label">Type d'entreprise <span class="required">*</span></label>
+            <select [(ngModel)]="companyForm.typeEntreprise" class="form-select">
+              <option value="" disabled>Sélectionner…</option>
+              <option *ngFor="let type of typesEntreprise" [value]="type">
+                {{ getTypeLabel(type) }}
+              </option>
+            </select>
           </div>
+
+          <!-- Secteur d'activité -->
           <div class="form-group">
-            <label class="form-label">Email</label>
-            <input type="email" [(ngModel)]="userProfile.email" class="form-input">
+            <label class="form-label">Secteur d'activité <span class="required">*</span></label>
+            <select [(ngModel)]="companyForm.secteurActivite" class="form-select">
+              <option value="" disabled>Sélectionner…</option>
+              <option *ngFor="let s of secteurs" [value]="s">{{ s }}</option>
+            </select>
           </div>
+
+          <!-- Email -->
+          <div class="form-group">
+            <label class="form-label">Email professionnel</label>
+            <input type="email"
+                   [(ngModel)]="companyForm.email"
+                   class="form-input"
+                   placeholder="contact@entreprise.com">
+          </div>
+
+          <!-- Téléphone -->
           <div class="form-group">
             <label class="form-label">Téléphone</label>
-            <input type="tel" [(ngModel)]="userProfile.phone" class="form-input">
+            <input type="tel"
+                   [(ngModel)]="companyForm.telephone"
+                   class="form-input"
+                   placeholder="+225 XX XX XX XX XX">
           </div>
+
+          <!-- Adresse physique -->
           <div class="form-group full-width">
-            <label class="form-label">Rôle</label>
-            <select [(ngModel)]="userProfile.role" class="form-select">
-              <option value="Administrateur">Administrateur</option>
-              <option value="Manager">Manager</option>
-              <option value="Utilisateur">Utilisateur</option>
+            <label class="form-label">Adresse physique</label>
+            <input type="text"
+                   [(ngModel)]="companyForm.adressePhysique"
+                   class="form-input"
+                   placeholder="Rue, quartier, ville…">
+          </div>
+
+          <!-- N° Registre de commerce -->
+          <div class="form-group">
+            <label class="form-label">N° Registre de commerce</label>
+            <input type="text"
+                   [(ngModel)]="companyForm.numeroRegistreCommerce"
+                   class="form-input"
+                   placeholder="CI-ABJ-2024-B-12345">
+          </div>
+
+          <!-- Site web -->
+          <div class="form-group">
+            <label class="form-label">Site web</label>
+            <input type="url"
+                   [(ngModel)]="companyForm.siteWeb"
+                   class="form-input"
+                   placeholder="https://www.entreprise.com">
+          </div>
+
+          <!-- Description -->
+          <div class="form-group full-width">
+            <label class="form-label">Description de l'entreprise</label>
+            <textarea [(ngModel)]="companyForm.description"
+                      class="form-input form-textarea"
+                      rows="4"
+                      placeholder="Décrivez votre entreprise, ses activités, sa mission…"></textarea>
+          </div>
+
+        </div>
+
+        <!-- Infos lecture seule -->
+        <div class="readonly-card">
+          <h4>Informations de connexion</h4>
+          <div class="readonly-grid">
+            <div class="readonly-item">
+              <span class="readonly-label">Nom d'utilisateur</span>
+              <span class="readonly-value">@{{ currentUser?.username }}</span>
+            </div>
+            <div class="readonly-item">
+              <span class="readonly-label">Identifiant</span>
+              <span class="readonly-value">#{{ currentUser?.id }}</span>
+            </div>
+            <div class="readonly-item">
+              <span class="readonly-label">Rôle</span>
+              <span class="readonly-value role-text">{{ currentUser?.role }}</span>
+            </div>
+            <div class="readonly-item">
+              <span class="readonly-label">Membre depuis</span>
+              <span class="readonly-value">{{ currentUser?.createdAt | date:'dd/MM/yyyy' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn-secondary" (click)="setActiveSection('security')">
+            🔒 Changer le mot de passe
+          </button>
+          <button class="btn-primary" (click)="saveCompanyInfo()" [disabled]="isSaving">
+            <span *ngIf="!isSaving">💾 Sauvegarder</span>
+            <span *ngIf="isSaving">⏳ Sauvegarde…</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════════════════════
+           SÉCURITÉ
+      ════════════════════════════════════════════════════════ -->
+      <section class="settings-section" *ngIf="activeSection === 'security'">
+        <h3 class="section-title">Sécurité du compte</h3>
+
+        <!-- 2FA -->
+        <div class="toggle-list">
+          <div class="toggle-item">
+            <div class="toggle-info">
+              <h4>Authentification à deux facteurs (2FA)</h4>
+              <p>Protéger votre compte avec une couche de sécurité supplémentaire</p>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" [(ngModel)]="securitySettings.twoFactorAuth">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Session timeout -->
+        <div class="form-grid" style="margin-bottom: 2rem;">
+          <div class="form-group">
+            <label class="form-label">Expiration de session</label>
+            <select [(ngModel)]="securitySettings.sessionTimeout" class="form-select">
+              <option value="15">15 minutes</option>
+              <option value="30">30 minutes</option>
+              <option value="60">1 heure</option>
+              <option value="120">2 heures</option>
             </select>
           </div>
         </div>
-        <div class="form-actions">
-          <button class="btn-secondary" (click)="changePassword()">🔒 Changer le mot de passe</button>
-          <button class="btn-primary" (click)="saveUserProfile()">💾 Sauvegarder</button>
-        </div>
-      </div>
 
-      <!-- Notifications Section -->
-      <div class="settings-section" *ngIf="activeSection === 'notifications'">
-        <h2 class="section-title">Préférences de notification</h2>
+        <!-- Changer le mot de passe -->
+        <div class="password-section">
+          <div class="password-header" (click)="togglePasswordForm()">
+            <div>
+              <h4>Changer le mot de passe</h4>
+              <p>Dernière modification : non disponible</p>
+            </div>
+            <button class="btn-toggle-pwd">
+              {{ showPasswordForm ? '▲ Masquer' : '▼ Modifier' }}
+            </button>
+          </div>
+
+          <div class="password-form" *ngIf="showPasswordForm">
+            <div class="form-grid">
+              <div class="form-group full-width">
+                <label class="form-label">Mot de passe actuel <span class="required">*</span></label>
+                <input type="password"
+                       [(ngModel)]="passwordForm.currentPassword"
+                       class="form-input"
+                       placeholder="Votre mot de passe actuel">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Nouveau mot de passe <span class="required">*</span></label>
+                <input type="password"
+                       [(ngModel)]="passwordForm.newPassword"
+                       class="form-input"
+                       placeholder="Min. 8 caractères">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Confirmer <span class="required">*</span></label>
+                <input type="password"
+                       [(ngModel)]="passwordForm.confirmPassword"
+                       class="form-input"
+                       placeholder="Répéter le nouveau mot de passe">
+              </div>
+            </div>
+
+            <!-- Indicateur force -->
+            <div class="password-strength" *ngIf="passwordForm.newPassword.length > 0">
+              <span class="strength-label">Force :</span>
+              <div class="strength-bar">
+                <div class="strength-fill"
+                     [style.width.%]="getPasswordStrength()"
+                     [class.weak]="getPasswordStrength() < 40"
+                     [class.medium]="getPasswordStrength() >= 40 && getPasswordStrength() < 70"
+                     [class.strong]="getPasswordStrength() >= 70">
+                </div>
+              </div>
+              <span class="strength-text">{{ getPasswordStrengthLabel() }}</span>
+            </div>
+
+            <div class="form-actions">
+              <button class="btn-secondary" (click)="togglePasswordForm()">Annuler</button>
+              <button class="btn-primary" (click)="savePassword()" [disabled]="isSaving">
+                <span *ngIf="!isSaving">🔒 Changer le mot de passe</span>
+                <span *ngIf="isSaving">⏳ En cours…</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn-primary" (click)="saveSecurity()">💾 Sauvegarder</button>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════════════════════
+           NOTIFICATIONS
+      ════════════════════════════════════════════════════════ -->
+      <section class="settings-section" *ngIf="activeSection === 'notifications'">
+        <h3 class="section-title">Préférences de notification</h3>
         <div class="toggle-list">
           <div class="toggle-item">
             <div class="toggle-info">
               <h4>Notifications par email</h4>
-              <p>Recevoir des notifications par email</p>
+              <p>Alertes, rappels et résumés par email</p>
             </div>
             <label class="toggle-switch">
               <input type="checkbox" [(ngModel)]="notificationSettings.emailNotifications">
@@ -159,7 +336,7 @@
           <div class="toggle-item">
             <div class="toggle-info">
               <h4>Notifications SMS</h4>
-              <p>Recevoir des alertes par SMS</p>
+              <p>Alertes critiques par SMS</p>
             </div>
             <label class="toggle-switch">
               <input type="checkbox" [(ngModel)]="notificationSettings.smsNotifications">
@@ -168,8 +345,8 @@
           </div>
           <div class="toggle-item">
             <div class="toggle-info">
-              <h4>Mises à jour des commandes</h4>
-              <p>Notifications sur l'état des commandes</p>
+              <h4>Mises à jour des projets</h4>
+              <p>Changements de statut sur vos projets B2B</p>
             </div>
             <label class="toggle-switch">
               <input type="checkbox" [(ngModel)]="notificationSettings.orderUpdates">
@@ -178,18 +355,8 @@
           </div>
           <div class="toggle-item">
             <div class="toggle-info">
-              <h4>Promotions</h4>
-              <p>Recevoir les offres promotionnelles</p>
-            </div>
-            <label class="toggle-switch">
-              <input type="checkbox" [(ngModel)]="notificationSettings.promotions">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <div class="toggle-item">
-            <div class="toggle-info">
-              <h4>Newsletter</h4>
-              <p>Recevoir la newsletter hebdomadaire</p>
+              <h4>Newsletters & Offres</h4>
+              <p>Actualités et opportunités du réseau</p>
             </div>
             <label class="toggle-switch">
               <input type="checkbox" [(ngModel)]="notificationSettings.newsletter">
@@ -200,62 +367,28 @@
         <div class="form-actions">
           <button class="btn-primary" (click)="saveNotifications()">💾 Sauvegarder</button>
         </div>
-      </div>
+      </section>
 
-      <!-- Security Section -->
-      <div class="settings-section" *ngIf="activeSection === 'security'">
-        <h2 class="section-title">Sécurité</h2>
-        <div class="toggle-list">
-          <div class="toggle-item">
-            <div class="toggle-info">
-              <h4>Authentification à deux facteurs</h4>
-              <p>Ajouter une couche de sécurité supplémentaire</p>
-            </div>
-            <label class="toggle-switch">
-              <input type="checkbox" [(ngModel)]="securitySettings.twoFactorAuth">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-        </div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label class="form-label">Délai d'expiration de session (minutes)</label>
-            <select [(ngModel)]="securitySettings.sessionTimeout" class="form-select">
-              <option value="15">15 minutes</option>
-              <option value="30">30 minutes</option>
-              <option value="60">1 heure</option>
-              <option value="120">2 heures</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Dernier changement de mot de passe</label>
-            <input type="text" [value]="securitySettings.passwordLastChanged" class="form-input" readonly>
-          </div>
-        </div>
-        <div class="form-actions">
-          <button class="btn-secondary" (click)="changePassword()">🔒 Changer le mot de passe</button>
-          <button class="btn-primary" (click)="saveSecurity()">💾 Sauvegarder</button>
-        </div>
-      </div>
-
-      <!-- Appearance Section -->
-      <div class="settings-section" *ngIf="activeSection === 'appearance'">
-        <h2 class="section-title">Apparence et localisation</h2>
+      <!-- ════════════════════════════════════════════════════════
+           APPARENCE
+      ════════════════════════════════════════════════════════ -->
+      <section class="settings-section" *ngIf="activeSection === 'appearance'">
+        <h3 class="section-title">Apparence & Localisation</h3>
         <div class="form-grid">
           <div class="form-group">
             <label class="form-label">Thème</label>
             <select [(ngModel)]="appearanceSettings.theme" class="form-select">
-              <option value="light">Clair</option>
-              <option value="dark">Sombre</option>
-              <option value="auto">Automatique</option>
+              <option value="light">☀️ Clair</option>
+              <option value="dark">🌙 Sombre</option>
+              <option value="auto">⚙️ Automatique</option>
             </select>
           </div>
           <div class="form-group">
             <label class="form-label">Langue</label>
             <select [(ngModel)]="appearanceSettings.language" class="form-select">
-              <option value="fr">Français</option>
-              <option value="en">English</option>
-              <option value="ar">العربية</option>
+              <option value="fr">🇫🇷 Français</option>
+              <option value="en">🇬🇧 English</option>
+              <option value="ar">🇸🇦 العربية</option>
             </select>
           </div>
           <div class="form-group">
@@ -269,61 +402,67 @@
           <div class="form-group">
             <label class="form-label">Devise</label>
             <select [(ngModel)]="appearanceSettings.currency" class="form-select">
+              <option value="XOF">XOF (FCFA)</option>
               <option value="EUR">EUR (€)</option>
               <option value="USD">USD ($)</option>
-              <option value="GBP">GBP (£)</option>
             </select>
           </div>
         </div>
         <div class="form-actions">
           <button class="btn-primary" (click)="saveAppearance()">💾 Sauvegarder</button>
         </div>
-      </div>
+      </section>
 
-      <!-- Integrations Section -->
-      <div class="settings-section" *ngIf="activeSection === 'integrations'">
-        <h2 class="section-title">Intégrations</h2>
-        <div class="integrations-grid">
-          <div class="integration-card" *ngFor="let integration of integrations">
-            <div class="integration-icon">{{ integration.icon }}</div>
-            <h4 class="integration-name">{{ integration.name }}</h4>
-            <span class="integration-status" [class.active]="integration.status === 'active'">
-              {{ integration.status === 'active' ? 'Actif' : 'Inactif' }}
-            </span>
-            <button class="btn-integration" (click)="toggleIntegration(integration)">
-              {{ integration.status === 'active' ? 'Désactiver' : 'Activer' }}
-            </button>
-          </div>
-        </div>
-      </div>
+      <!-- ════════════════════════════════════════════════════════
+           CLÉS API
+      ════════════════════════════════════════════════════════ -->
+      <section class="settings-section" *ngIf="activeSection === 'api'">
+        <h3 class="section-title">Clés API</h3>
+        <p class="section-desc">Gérez les clés d'accès à l'API DouniyaConnect pour vos intégrations.</p>
 
-      <!-- API Section -->
-      <div class="settings-section" *ngIf="activeSection === 'api'">
-        <h2 class="section-title">Clés API</h2>
-        <button class="btn-primary mb-3" (click)="generateApiKey()">➕ Générer nouvelle clé</button>
+        <button class="btn-primary mb-3" (click)="generateApiKey()">
+          ➕ Générer une nouvelle clé
+        </button>
+
         <div class="api-keys-list">
           <div class="api-key-card" *ngFor="let key of apiKeys">
+            <div class="api-key-icon">🔑</div>
             <div class="api-key-info">
               <h4>{{ key.name }}</h4>
               <code class="api-key-value">{{ key.key }}</code>
               <div class="api-key-meta">
-                <span>Créée le: {{ key.created }}</span>
-                <span>Dernière utilisation: {{ key.lastUsed }}</span>
+                <span>📅 Créée le {{ key.created }}</span>
+                <span>⏱ Dernière utilisation : {{ key.lastUsed }}</span>
               </div>
             </div>
-            <button class="btn-danger-outline" (click)="revokeApiKey(key)">Révoquer</button>
+            <div class="api-key-actions">
+              <button class="btn-icon" title="Copier" (click)="copyApiKey(key.key)">📋</button>
+              <button class="btn-danger-outline" (click)="revokeApiKey(key)">Révoquer</button>
+            </div>
           </div>
         </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ── Zone dangereuse ─────────────────────────────────────────── -->
+  <div class="danger-zone" *ngIf="!isLoading">
+    <div class="danger-header">
+      <span class="danger-icon">⚠️</span>
+      <div>
+        <h3>Zone dangereuse</h3>
+        <p>Ces actions sont irréversibles. Procédez avec précaution.</p>
       </div>
+    </div>
+    <div class="danger-actions">
+      <button class="btn-danger-outline" (click)="exportData()">
+        📥 Exporter mes données
+      </button>
+      <button class="btn-danger" (click)="deleteAccount()">
+        🗑️ Supprimer le compte
+      </button>
     </div>
   </div>
 
-  <!-- Danger Zone -->
-  <div class="danger-zone">
-    <h3>⚠️ Zone dangereuse</h3>
-    <div class="danger-actions">
-      <button class="btn-danger-outline" (click)="exportData()">📥 Exporter toutes les données</button>
-      <button class="btn-danger" (click)="deleteAccount()">🗑️ Supprimer le compte</button>
-    </div>
-  </div>
 </div>
