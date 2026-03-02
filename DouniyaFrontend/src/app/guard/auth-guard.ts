@@ -22,23 +22,23 @@ export class AuthGuard implements CanActivate {
     route: ActivatedRouteSnapshot,
     state: RouterStateSnapshot
   ): Observable<boolean | UrlTree> | Promise<boolean | UrlTree> | boolean | UrlTree {
-    
+
     if (this.authService.isAuthenticated()) {
       // Vérifier le rôle si spécifié dans les données de la route
       const requiredRole = route.data['role'];
-      
+
       if (requiredRole) {
         const currentUser = this.authService.getCurrentUserValue();
-        
+
         if (currentUser && currentUser.role === requiredRole) {
           return true;
         } else {
           // Rôle non autorisé, rediriger vers la page d'accueil
-          this.router.navigate(['/']);
+          this.router.navigate(['connexion']);
           return false;
         }
       }
-      
+
       return true;
     }
 
@@ -63,8 +63,8 @@ export class EntrepriseGuard implements CanActivate {
     if (this.authService.isAuthenticated() && this.authService.isEntreprise()) {
       return true;
     }
-    
-    this.router.navigate(['/']);
+
+    this.router.navigate(['connexion']);
     return false;
   }
 }
@@ -82,8 +82,8 @@ export class ParticulierGuard implements CanActivate {
     if (this.authService.isAuthenticated() && this.authService.isParticulier()) {
       return true;
     }
-    
-    this.router.navigate(['/']);
+
+    this.router.navigate(['connexion']);
     return false;
   }
 }
