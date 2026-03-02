@@ -18,7 +18,7 @@ public class PublicationResponse {
     private String titre;
     private String contenu;
 
-    // Média
+    // Média joint
     private String mediaUrl;
     private String mediaType;
     private String mediaNom;
@@ -29,6 +29,15 @@ public class PublicationResponse {
     private String auteurNom;
     private String auteurType;
     private String auteurInitiales;
+
+    /**
+     * ID de l'entreprise publieure (utile côté frontend pour le bouton "Contacter").
+     *
+     * - Si l'auteur est une Entreprise  → auteurEntrepriseId == auteurId
+     * - Si l'auteur est un Employé      → auteurEntrepriseId == ID de son entreprise
+     * - Si l'auteur est un Particulier  → auteurEntrepriseId == null
+     */
+    private Long auteurEntrepriseId;
 
     // Visibilité
     private List<String> typesEntreprisesVisibles;

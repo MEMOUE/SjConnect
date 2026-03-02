@@ -10,6 +10,8 @@ import com.duniyabacker.front.entity.chat.Conversation;
 import com.duniyabacker.front.entity.chat.Message;
 import com.duniyabacker.front.exception.CustomExceptions.*;
 import com.duniyabacker.front.repository.ConversationRepository;
+import com.duniyabacker.front.repository.EmployeRepository;
+import com.duniyabacker.front.repository.EntrepriseRepository;
 import com.duniyabacker.front.repository.MessageRepository;
 import com.duniyabacker.front.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,8 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,11 +34,13 @@ public class ChatService {
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
+    private final EntrepriseRepository entrepriseRepository;
+    private final EmployeRepository employeRepository;
     private final SimpMessagingTemplate messagingTemplate;
 
-    /**
-     * Créer une nouvelle conversation
-     */
+    // =========================================================================
+    // Créer une nouvelle conversation (usage interne / général)
+    // =========================================================================
     @Transactional
     public ApiResponse<ConversationResponse> createConversation(
             String username,
@@ -46,14 +49,12 @@ public class ChatService {
         User currentUser = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
 
-        // Récupérer les participants
         List<User> participants = new ArrayList<>();
         participants.add(currentUser);
 
         for (Long participantId : request.getParticipantIds()) {
             User participant = userRepository.findById(participantId)
                     .orElseThrow(() -> new ResourceNotFoundException("Participant non trouvé: " + participantId));
-
             if (!participant.getId().equals(currentUser.getId())) {
                 participants.add(participant);
             }
@@ -66,20 +67,15 @@ public class ChatService {
                     .findFirst()
                     .orElseThrow();
 
-            var existingConversation = conversationRepository.findPrivateConversation(
-                    currentUser.getId(),
-                    otherUser.getId()
-            );
+            var existing = conversationRepository.findPrivateConversation(
+                    currentUser.getId(), otherUser.getId());
 
-            if (existingConversation.isPresent()) {
-                return ApiResponse.success(
-                        "Conversation existante",
-                        mapToConversationResponse(existingConversation.get(), currentUser.getId())
-                );
+            if (existing.isPresent()) {
+                return ApiResponse.success("Conversation existante",
+                        mapToConversationResponse(existing.get(), currentUser.getId()));
             }
         }
 
-        // Créer la conversation
         Conversation conversation = Conversation.builder()
                 .name(request.getName())
                 .isGroup(request.isGroup())
@@ -87,20 +83,203 @@ public class ChatService {
                 .build();
 
         participants.forEach(conversation::addParticipant);
-
         conversationRepository.save(conversation);
 
         log.info("Conversation créée: {} par {}", conversation.getName(), username);
-
-        return ApiResponse.success(
-                "Conversation créée avec succès",
-                mapToConversationResponse(conversation, currentUser.getId())
-        );
+        return ApiResponse.success("Conversation créée avec succès",
+                mapToConversationResponse(conversation, currentUser.getId()));
     }
 
+    // =========================================================================
+    // B2B — Contacter une entreprise depuis la Marketplace
+    // =========================================================================
+
     /**
-     * Envoyer un message
+     * Crée (ou récupère) une conversation de groupe B2B entre l'utilisateur courant
+     * et l'entreprise cible. Tous les employés actifs des deux entreprises sont
+     * automatiquement inclus.
+     *
+     * Appelé via : POST /api/chat/b2b/{entrepriseId}
      */
+    @Transactional
+    public ApiResponse<ConversationResponse> createOrGetB2BConversation(
+            String username,
+            Long targetEntrepriseId
+    ) {
+        // 1. Utilisateur courant
+        User currentUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
+
+        // 2. Entreprise cible
+        Entreprise targetEntreprise = entrepriseRepository.findById(targetEntrepriseId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Entreprise introuvable : " + targetEntrepriseId));
+
+        // 3. Déterminer l'entreprise source de l'utilisateur courant
+        Entreprise sourceEntreprise = null;
+        User sourceEntrepriseUser   = currentUser; // compte User de l'entreprise source
+
+        if (currentUser instanceof Employe employe) {
+            sourceEntreprise     = employe.getEntreprise();
+            sourceEntrepriseUser = sourceEntreprise; // l'Entreprise EST un User
+        } else if (currentUser instanceof Entreprise ent) {
+            sourceEntreprise     = ent;
+            sourceEntrepriseUser = ent;
+        }
+
+        // 4. Empêcher de contacter sa propre entreprise
+        if (sourceEntreprise != null
+                && sourceEntreprise.getId().equals(targetEntrepriseId)) {
+            throw new BadRequestException(
+                    "Vous ne pouvez pas contacter votre propre entreprise.");
+        }
+
+        // 5. Vérifier si une conversation B2B existe déjà
+        //    On utilise les IDs User des deux comptes Entreprise
+        Long sourceEntrepriseUserId = sourceEntrepriseUser.getId();
+        Long targetEntrepriseUserId = targetEntreprise.getId();
+
+        Optional<Conversation> existing = conversationRepository.findB2BConversation(
+                sourceEntrepriseUserId, targetEntrepriseUserId);
+
+        if (existing.isPresent()) {
+            log.info("Conversation B2B existante trouvée : {}", existing.get().getId());
+            return ApiResponse.success("Conversation B2B existante",
+                    mapToConversationResponse(existing.get(), currentUser.getId()));
+        }
+
+        // 6. Collecter les participants (sans doublons)
+        Set<Long>  addedIds    = new LinkedHashSet<>();
+        List<User> participants = new ArrayList<>();
+
+        // -- Utilisateur courant
+        participants.add(currentUser);
+        addedIds.add(currentUser.getId());
+
+        // -- Employés actifs de l'entreprise source
+        if (sourceEntreprise != null) {
+            // Ajouter le compte Entreprise source (s'il n'est pas déjà dedans)
+            if (!addedIds.contains(sourceEntrepriseUserId)) {
+                participants.add(sourceEntrepriseUser);
+                addedIds.add(sourceEntrepriseUserId);
+            }
+
+            Entreprise finalSource = sourceEntreprise;
+            employeRepository.findByEntreprise(finalSource).stream()
+                    .filter(User::isEnabled)                  // invitationAccepted + enabled
+                    .filter(e -> !addedIds.contains(e.getId()))
+                    .forEach(e -> {
+                        participants.add(e);
+                        addedIds.add(e.getId());
+                    });
+        }
+
+        // -- Compte Entreprise cible
+        if (!addedIds.contains(targetEntrepriseUserId)) {
+            participants.add(targetEntreprise);
+            addedIds.add(targetEntrepriseUserId);
+        }
+
+        // -- Employés actifs de l'entreprise cible
+        employeRepository.findByEntreprise(targetEntreprise).stream()
+                .filter(User::isEnabled)
+                .filter(e -> !addedIds.contains(e.getId()))
+                .forEach(e -> {
+                    participants.add(e);
+                    addedIds.add(e.getId());
+                });
+
+        // 7. Construire le nom de la conversation
+        String sourceName = (sourceEntreprise != null)
+                ? sourceEntreprise.getNomEntreprise()
+                : currentUser.getUsername();
+        String convName = "B2B:: " + sourceName + " ↔ " + targetEntreprise.getNomEntreprise();
+
+        // 8. Créer la conversation
+        Conversation conversation = Conversation.builder()
+                .name(convName)
+                .isGroup(true)
+                .createdBy(currentUser)
+                .build();
+
+        participants.forEach(conversation::addParticipant);
+        conversationRepository.save(conversation);
+
+        // 9. Message système d'ouverture
+        Message systemMsg = Message.builder()
+                .content("💼 Conversation professionnelle ouverte entre "
+                        + sourceName + " et " + targetEntreprise.getNomEntreprise())
+                .type(Message.MessageType.TEXT)
+                .sender(currentUser)
+                .conversation(conversation)
+                .build();
+        messageRepository.save(systemMsg);
+
+        log.info("Conversation B2B créée : {} ({} participants)",
+                convName, participants.size());
+
+        return ApiResponse.success("Conversation B2B créée avec succès",
+                mapToConversationResponse(conversation, currentUser.getId()));
+    }
+
+    // =========================================================================
+    // Message privé — depuis le panneau Participants d'un groupe
+    // =========================================================================
+
+    /**
+     * Crée (ou récupère) une conversation privée 1-to-1 entre deux utilisateurs.
+     *
+     * Appelé via : POST /api/chat/private/{targetUserId}
+     */
+    @Transactional
+    public ApiResponse<ConversationResponse> createOrGetPrivateConversation(
+            String currentUsername,
+            Long targetUserId
+    ) {
+        User currentUser = userRepository.findByUsername(currentUsername)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
+
+        if (currentUser.getId().equals(targetUserId)) {
+            throw new BadRequestException("Vous ne pouvez pas vous envoyer un message.");
+        }
+
+        User targetUser = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Utilisateur introuvable : " + targetUserId));
+
+        // Chercher une conversation privée existante
+        Optional<Conversation> existing = conversationRepository.findPrivateConversation(
+                currentUser.getId(), targetUserId);
+
+        if (existing.isPresent()) {
+            return ApiResponse.success("Conversation privée existante",
+                    mapToConversationResponse(existing.get(), currentUser.getId()));
+        }
+
+        // Créer la conversation privée
+        String convName = getUserDisplayName(currentUser)
+                + " & " + getUserDisplayName(targetUser);
+
+        Conversation conversation = Conversation.builder()
+                .name(convName)
+                .isGroup(false)
+                .createdBy(currentUser)
+                .build();
+
+        conversation.addParticipant(currentUser);
+        conversation.addParticipant(targetUser);
+        conversationRepository.save(conversation);
+
+        log.info("Conversation privée créée entre {} et {}",
+                currentUsername, targetUser.getUsername());
+
+        return ApiResponse.success("Conversation privée créée",
+                mapToConversationResponse(conversation, currentUser.getId()));
+    }
+
+    // =========================================================================
+    // Envoyer un message
+    // =========================================================================
     @Transactional
     public ApiResponse<MessageResponse> sendMessage(
             String username,
@@ -117,12 +296,10 @@ public class ChatService {
         Conversation conversation = conversationRepository.findById(conversationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Conversation non trouvée"));
 
-        // Vérifier que l'utilisateur est participant
         if (!conversationRepository.isUserParticipant(conversationId, sender.getId())) {
             throw new ForbiddenException("Vous n'êtes pas participant de cette conversation");
         }
 
-        // Créer le message
         Message.MessageBuilder messageBuilder = Message.builder()
                 .content(content)
                 .type(Message.MessageType.valueOf(messageType.toUpperCase()))
@@ -131,23 +308,20 @@ public class ChatService {
                 .fileUrl(fileUrl)
                 .fileName(fileName);
 
-        // Message parent (si c'est une réponse)
         if (parentMessageId != null) {
-            Message parentMessage = messageRepository.findById(parentMessageId)
-                    .orElse(null);
-            messageBuilder.parentMessage(parentMessage);
+            messageRepository.findById(parentMessageId)
+                    .ifPresent(messageBuilder::parentMessage);
         }
 
         Message message = messageBuilder.build();
         messageRepository.save(message);
 
-        // Mettre à jour la conversation
         conversation.setUpdatedAt(LocalDateTime.now());
         conversationRepository.save(conversation);
 
         MessageResponse response = mapToMessageResponse(message);
 
-        // Envoyer la notification WebSocket aux participants
+        // Notification WebSocket à chaque participant
         conversation.getParticipants().forEach(participant -> {
             if (!participant.getId().equals(sender.getId())) {
                 ChatNotification notification = ChatNotification.builder()
@@ -168,13 +342,12 @@ public class ChatService {
         });
 
         log.info("Message envoyé dans la conversation {} par {}", conversationId, username);
-
         return ApiResponse.success("Message envoyé", response);
     }
 
-    /**
-     * Récupérer les conversations d'un utilisateur
-     */
+    // =========================================================================
+    // Récupérer les conversations d'un utilisateur
+    // =========================================================================
     public Page<ConversationResponse> getConversations(String username, Pageable pageable) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
@@ -183,9 +356,9 @@ public class ChatService {
                 .map(conv -> mapToConversationResponse(conv, user.getId()));
     }
 
-    /**
-     * Récupérer les messages d'une conversation
-     */
+    // =========================================================================
+    // Récupérer les messages d'une conversation
+    // =========================================================================
     public Page<MessageResponse> getMessages(
             String username,
             Long conversationId,
@@ -197,7 +370,6 @@ public class ChatService {
         Conversation conversation = conversationRepository.findById(conversationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Conversation non trouvée"));
 
-        // Vérifier que l'utilisateur est participant
         if (!conversationRepository.isUserParticipant(conversationId, user.getId())) {
             throw new ForbiddenException("Vous n'êtes pas participant de cette conversation");
         }
@@ -206,11 +378,15 @@ public class ChatService {
                 .map(this::mapToMessageResponse);
     }
 
-    /**
-     * Marquer les messages comme lus
-     */
+    // =========================================================================
+    // Marquer les messages comme lus
+    // =========================================================================
     @Transactional
-    public ApiResponse<Void> markAsRead(String username, Long conversationId, List<Long> messageIds) {
+    public ApiResponse<Void> markAsRead(
+            String username,
+            Long conversationId,
+            List<Long> messageIds
+    ) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
 
@@ -219,27 +395,25 @@ public class ChatService {
         }
 
         if (messageIds == null || messageIds.isEmpty()) {
-            // Marquer tous les messages comme lus
             messageRepository.markAllAsRead(conversationId, user.getId());
         } else {
-            // Marquer les messages spécifiés comme lus
-            messageIds.forEach(messageId -> {
-                messageRepository.findById(messageId).ifPresent(message -> {
-                    if (!message.getSender().getId().equals(user.getId())) {
-                        message.setRead(true);
-                        message.setReadAt(LocalDateTime.now());
-                        messageRepository.save(message);
-                    }
-                });
-            });
+            messageIds.forEach(messageId ->
+                    messageRepository.findById(messageId).ifPresent(message -> {
+                        if (!message.getSender().getId().equals(user.getId())) {
+                            message.setRead(true);
+                            message.setReadAt(LocalDateTime.now());
+                            messageRepository.save(message);
+                        }
+                    })
+            );
         }
 
         return ApiResponse.success("Messages marqués comme lus");
     }
 
-    /**
-     * Rechercher des conversations
-     */
+    // =========================================================================
+    // Rechercher des conversations
+    // =========================================================================
     public List<ConversationResponse> searchConversations(String username, String searchTerm) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
@@ -250,22 +424,25 @@ public class ChatService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Mapper Conversation vers ConversationResponse
-     */
-    private ConversationResponse mapToConversationResponse(Conversation conversation, Long currentUserId) {
-        Message lastMessage = messageRepository.findLastMessage(conversation.getId());
-        long unreadCount = messageRepository.countUnreadMessages(conversation.getId(), currentUserId);
+    // =========================================================================
+    // Mappers privés
+    // =========================================================================
+
+    private ConversationResponse mapToConversationResponse(Conversation conversation,
+                                                           Long currentUserId) {
+        Message lastMessage  = messageRepository.findLastMessage(conversation.getId());
+        long    unreadCount  = messageRepository.countUnreadMessages(
+                conversation.getId(), currentUserId);
 
         List<ParticipantResponse> participants = conversation.getParticipants().stream()
                 .map(this::mapToParticipantResponse)
                 .collect(Collectors.toList());
 
-        // Pour les conversations privées, utiliser le nom de l'autre participant
         String conversationName = conversation.getName();
-        String avatar = getConversationAvatar(conversation, currentUserId);
-        boolean isOnline = false;
+        String avatar           = getConversationAvatar(conversation, currentUserId);
+        boolean isOnline        = false;
 
+        // Pour les conversations privées : afficher le nom de l'autre participant
         if (!conversation.isGroup() && conversation.getParticipants().size() == 2) {
             User otherUser = conversation.getParticipants().stream()
                     .filter(p -> !p.getId().equals(currentUserId))
@@ -275,7 +452,6 @@ public class ChatService {
             if (otherUser != null) {
                 conversationName = getUserDisplayName(otherUser);
                 avatar = getInitials(conversationName);
-                // TODO: Implémenter la logique de statut en ligne
             }
         }
 
@@ -293,11 +469,8 @@ public class ChatService {
                 .build();
     }
 
-    /**
-     * Mapper Message vers MessageResponse
-     */
     private MessageResponse mapToMessageResponse(Message message) {
-        String senderName = getUserDisplayName(message.getSender());
+        String senderName   = getUserDisplayName(message.getSender());
         String senderAvatar = getInitials(senderName);
 
         MessageResponse.MessageResponseBuilder builder = MessageResponse.builder()
@@ -324,12 +497,16 @@ public class ChatService {
         return builder.build();
     }
 
-    /**
-     * Mapper User vers ParticipantResponse
-     */
     private ParticipantResponse mapToParticipantResponse(User user) {
-        String name = getUserDisplayName(user);
+        String name   = getUserDisplayName(user);
         String avatar = getInitials(name);
+
+        // Détecter le rôle métier et l'entreprise d'appartenance
+        String role = user.getRole().name();
+        if (user instanceof Employe employe) {
+            role = employe.getRolePlateforme() != null
+                    ? employe.getRolePlateforme() : "EMPLOYE";
+        }
 
         return ParticipantResponse.builder()
                 .id(user.getId())
@@ -337,15 +514,12 @@ public class ChatService {
                 .email(user.getEmail())
                 .name(name)
                 .avatar(avatar)
-                .isOnline(false) // TODO: Implémenter la logique de statut
-                .role(user.getRole().name())
+                .isOnline(false)
+                .role(role)
                 .build();
     }
 
-    /**
-     * Obtenir le nom d'affichage d'un utilisateur
-     */
-    private String getUserDisplayName(User user) {
+    String getUserDisplayName(User user) {
         if (user instanceof Entreprise entreprise) {
             return entreprise.getNomEntreprise();
         } else if (user instanceof Particulier particulier) {
@@ -356,38 +530,26 @@ public class ChatService {
         return user.getUsername();
     }
 
-    /**
-     * Obtenir les initiales d'un nom
-     */
     private String getInitials(String name) {
-        if (name == null || name.isEmpty()) {
-            return "??";
-        }
-
+        if (name == null || name.isEmpty()) return "??";
         String[] parts = name.trim().split("\\s+");
         if (parts.length >= 2) {
-            return (parts[0].charAt(0) + "" + parts[1].charAt(0)).toUpperCase();
+            return ("" + parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
         }
         return name.substring(0, Math.min(2, name.length())).toUpperCase();
     }
 
-    /**
-     * Obtenir l'avatar de la conversation
-     */
     private String getConversationAvatar(Conversation conversation, Long currentUserId) {
         if (conversation.isGroup()) {
-            return getInitials(conversation.getName());
+            return getInitials(conversation.getName().replace("B2B:: ", ""));
         }
-
         User otherUser = conversation.getParticipants().stream()
                 .filter(p -> !p.getId().equals(currentUserId))
                 .findFirst()
                 .orElse(null);
 
-        if (otherUser != null) {
-            return getInitials(getUserDisplayName(otherUser));
-        }
-
-        return getInitials(conversation.getName());
+        return (otherUser != null)
+                ? getInitials(getUserDisplayName(otherUser))
+                : getInitials(conversation.getName());
     }
 }

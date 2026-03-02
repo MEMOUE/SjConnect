@@ -48,6 +48,23 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
     );
 
     /**
+     * Trouver une conversation B2B existante entre deux entreprises.
+     * Une conversation B2B porte un nom commençant par "B2B::"
+     * et contient les deux comptes entreprise parmi ses participants.
+     */
+    @Query("SELECT c FROM Conversation c " +
+            "JOIN c.participants p1 " +
+            "JOIN c.participants p2 " +
+            "WHERE c.isGroup = true " +
+            "AND c.name LIKE 'B2B::%' " +
+            "AND p1.id = :entreprise1Id " +
+            "AND p2.id = :entreprise2Id")
+    Optional<Conversation> findB2BConversation(
+            @Param("entreprise1Id") Long entreprise1Id,
+            @Param("entreprise2Id") Long entreprise2Id
+    );
+
+    /**
      * Vérifier si un utilisateur est participant d'une conversation
      */
     @Query("SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END " +

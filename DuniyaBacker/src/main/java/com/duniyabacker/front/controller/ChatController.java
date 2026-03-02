@@ -32,46 +32,57 @@ public class ChatController {
     private final ChatService chatService;
     private final FileStorageService fileStorageService;
 
+    // =========================================================================
+    // Conversations classiques
+    // =========================================================================
+
     /**
-     * Créer une nouvelle conversation
+     * Créer une nouvelle conversation (usage général)
      */
-    @Operation(summary = "Créer une conversation", description = "Créer une nouvelle conversation privée ou de groupe")
+    @Operation(summary = "Créer une conversation",
+            description = "Créer une nouvelle conversation privée ou de groupe")
     @PostMapping("/conversations")
     public ResponseEntity<ApiResponse<ConversationResponse>> createConversation(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody CreateConversationRequest request
     ) {
-        return ResponseEntity.ok(chatService.createConversation(userDetails.getUsername(), request));
+        return ResponseEntity.ok(
+                chatService.createConversation(userDetails.getUsername(), request));
     }
 
     /**
-     * Récupérer toutes les conversations de l'utilisateur
+     * Récupérer toutes les conversations de l'utilisateur connecté
      */
-    @Operation(summary = "Liste des conversations", description = "Obtenir toutes les conversations de l'utilisateur connecté")
+    @Operation(summary = "Liste des conversations",
+            description = "Obtenir toutes les conversations de l'utilisateur connecté")
     @GetMapping("/conversations")
     public ResponseEntity<Page<ConversationResponse>> getConversations(
             @AuthenticationPrincipal UserDetails userDetails,
             @PageableDefault(size = 20, sort = "updatedAt") Pageable pageable
     ) {
-        return ResponseEntity.ok(chatService.getConversations(userDetails.getUsername(), pageable));
+        return ResponseEntity.ok(
+                chatService.getConversations(userDetails.getUsername(), pageable));
     }
 
     /**
      * Rechercher des conversations
      */
-    @Operation(summary = "Rechercher des conversations", description = "Rechercher des conversations par nom")
+    @Operation(summary = "Rechercher des conversations",
+            description = "Rechercher des conversations par nom")
     @GetMapping("/conversations/search")
     public ResponseEntity<List<ConversationResponse>> searchConversations(
             @AuthenticationPrincipal UserDetails userDetails,
             @Parameter(description = "Terme de recherche") @RequestParam String q
     ) {
-        return ResponseEntity.ok(chatService.searchConversations(userDetails.getUsername(), q));
+        return ResponseEntity.ok(
+                chatService.searchConversations(userDetails.getUsername(), q));
     }
 
     /**
      * Récupérer les messages d'une conversation
      */
-    @Operation(summary = "Messages d'une conversation", description = "Obtenir les messages d'une conversation spécifique")
+    @Operation(summary = "Messages d'une conversation",
+            description = "Obtenir les messages d'une conversation spécifique")
     @GetMapping("/conversations/{conversationId}/messages")
     public ResponseEntity<Page<MessageResponse>> getMessages(
             @AuthenticationPrincipal UserDetails userDetails,
@@ -79,38 +90,71 @@ public class ChatController {
             @PageableDefault(size = 50, sort = "createdAt") Pageable pageable
     ) {
         return ResponseEntity.ok(chatService.getMessages(
-                userDetails.getUsername(),
-                conversationId,
-                pageable
-        ));
+                userDetails.getUsername(), conversationId, pageable));
     }
 
     /**
-     * Upload un fichier pour le chat
+     * Envoyer un message dans une conversation
      */
-    @Operation(summary = "Upload fichier", description = "Upload un fichier pour l'envoyer dans une conversation")
+    @Operation(summary = "Envoyer un message",
+            description = "Envoyer un nouveau message dans une conversation")
+    @PostMapping("/conversations/{conversationId}/messages")
+    public ResponseEntity<ApiResponse<MessageResponse>> sendMessage(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Parameter(description = "ID de la conversation") @PathVariable Long conversationId,
+            @Parameter(description = "Contenu du message")   @RequestParam String content,
+            @Parameter(description = "Type de message")      @RequestParam(defaultValue = "TEXT") String type,
+            @Parameter(description = "URL du fichier")       @RequestParam(required = false) String fileUrl,
+            @Parameter(description = "Nom du fichier")       @RequestParam(required = false) String fileName,
+            @Parameter(description = "ID du message parent") @RequestParam(required = false) Long parentMessageId
+    ) {
+        return ResponseEntity.ok(chatService.sendMessage(
+                userDetails.getUsername(), conversationId,
+                content, type, fileUrl, fileName, parentMessageId));
+    }
+
+    /**
+     * Marquer les messages comme lus
+     */
+    @Operation(summary = "Marquer comme lu",
+            description = "Marquer un ou plusieurs messages comme lus")
+    @PostMapping("/conversations/{conversationId}/read")
+    public ResponseEntity<ApiResponse<Void>> markAsRead(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Parameter(description = "ID de la conversation") @PathVariable Long conversationId,
+            @Parameter(description = "IDs des messages à marquer comme lus")
+            @RequestParam(required = false) List<Long> messageIds
+    ) {
+        return ResponseEntity.ok(chatService.markAsRead(
+                userDetails.getUsername(), conversationId, messageIds));
+    }
+
+    // =========================================================================
+    // Upload de fichier
+    // =========================================================================
+
+    /**
+     * Upload un fichier pour l'envoyer dans une conversation
+     */
+    @Operation(summary = "Upload fichier",
+            description = "Upload un fichier pour l'envoyer dans une conversation")
     @PostMapping("/upload")
     public ResponseEntity<ApiResponse<FileUploadResponse>> uploadFile(
             @AuthenticationPrincipal UserDetails userDetails,
             @Parameter(description = "Fichier à uploader") @RequestParam("file") MultipartFile file
     ) {
         try {
-            // Valider le fichier
             if (file.isEmpty()) {
                 return ResponseEntity.badRequest()
                         .body(ApiResponse.error("Le fichier est vide"));
             }
-
-            // Limite de 10MB
-            long maxSize = 10 * 1024 * 1024;
-            if (file.getSize() > maxSize) {
+            if (file.getSize() > 10 * 1024 * 1024) {
                 return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("Le fichier est trop volumineux (max 10MB)"));
+                        .body(ApiResponse.error("Le fichier est trop volumineux (max 10 MB)"));
             }
 
-            // Sauvegarder le fichier
             String filename = fileStorageService.saveFile(file);
-            String fileUrl = fileStorageService.getFileUrl(filename);
+            String fileUrl  = fileStorageService.getFileUrl(filename);
             String fileType = fileStorageService.getFileType(filename);
 
             FileUploadResponse response = FileUploadResponse.builder()
@@ -125,57 +169,69 @@ public class ChatController {
 
         } catch (IOException e) {
             return ResponseEntity.internalServerError()
-                    .body(ApiResponse.error("Erreur lors de l'upload du fichier: " + e.getMessage()));
+                    .body(ApiResponse.error("Erreur lors de l'upload : " + e.getMessage()));
         }
     }
 
-    /**
-     * Envoyer un message
-     */
-    @Operation(summary = "Envoyer un message", description = "Envoyer un nouveau message dans une conversation")
-    @PostMapping("/conversations/{conversationId}/messages")
-    public ResponseEntity<ApiResponse<MessageResponse>> sendMessage(
-            @AuthenticationPrincipal UserDetails userDetails,
-            @Parameter(description = "ID de la conversation") @PathVariable Long conversationId,
-            @Parameter(description = "Contenu du message") @RequestParam String content,
-            @Parameter(description = "Type de message") @RequestParam(defaultValue = "TEXT") String type,
-            @Parameter(description = "URL du fichier") @RequestParam(required = false) String fileUrl,
-            @Parameter(description = "Nom du fichier") @RequestParam(required = false) String fileName,
-            @Parameter(description = "ID du message parent") @RequestParam(required = false) Long parentMessageId
-    ) {
-        return ResponseEntity.ok(chatService.sendMessage(
-                userDetails.getUsername(),
-                conversationId,
-                content,
-                type,
-                fileUrl,
-                fileName,
-                parentMessageId
-        ));
-    }
+    // =========================================================================
+    // B2B — Contacter une entreprise depuis la Marketplace
+    // =========================================================================
 
     /**
-     * Marquer les messages comme lus
+     * Crée ou récupère une conversation de groupe B2B avec l'entreprise cible.
+     * Tous les employés actifs des deux entreprises sont inclus automatiquement.
+     *
+     * Utilisé par le bouton "Contacter" sur chaque publication du Marketplace.
+     *
+     * @param entrepriseId  ID de l'entreprise publieure à contacter
      */
-    @Operation(summary = "Marquer comme lu", description = "Marquer un ou plusieurs messages comme lus")
-    @PostMapping("/conversations/{conversationId}/read")
-    public ResponseEntity<ApiResponse<Void>> markAsRead(
+    @Operation(
+            summary = "Contacter une entreprise (B2B)",
+            description = "Crée ou récupère une conversation de groupe incluant tous les " +
+                    "employés actifs des deux entreprises. Idempotent : retourne la " +
+                    "conversation existante si elle a déjà été créée."
+    )
+    @PostMapping("/b2b/{entrepriseId}")
+    public ResponseEntity<ApiResponse<ConversationResponse>> contacterEntreprise(
             @AuthenticationPrincipal UserDetails userDetails,
-            @Parameter(description = "ID de la conversation") @PathVariable Long conversationId,
-            @Parameter(description = "IDs des messages à marquer comme lus")
-            @RequestParam(required = false) List<Long> messageIds
+            @Parameter(description = "ID de l'entreprise à contacter") @PathVariable Long entrepriseId
     ) {
-        return ResponseEntity.ok(chatService.markAsRead(
-                userDetails.getUsername(),
-                conversationId,
-                messageIds
-        ));
+        return ResponseEntity.ok(
+                chatService.createOrGetB2BConversation(
+                        userDetails.getUsername(), entrepriseId));
+    }
+
+    // =========================================================================
+    // Message privé — depuis le panneau Participants d'un groupe
+    // =========================================================================
+
+    /**
+     * Crée ou récupère une conversation privée 1-to-1 entre l'utilisateur courant
+     * et un autre membre d'un groupe de conversation.
+     *
+     * Utilisé par le bouton "Message privé" dans le panneau des participants.
+     *
+     * @param targetUserId  ID de l'utilisateur à contacter en privé
+     */
+    @Operation(
+            summary = "Démarrer une conversation privée",
+            description = "Crée ou récupère une conversation privée entre l'utilisateur " +
+                    "courant et un autre utilisateur. Idempotent."
+    )
+    @PostMapping("/private/{targetUserId}")
+    public ResponseEntity<ApiResponse<ConversationResponse>> startPrivateConversation(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Parameter(description = "ID de l'utilisateur cible") @PathVariable Long targetUserId
+    ) {
+        return ResponseEntity.ok(
+                chatService.createOrGetPrivateConversation(
+                        userDetails.getUsername(), targetUserId));
     }
 }
 
-/**
- * DTO pour la réponse d'upload de fichier
- */
+// ─────────────────────────────────────────────────────────────────────────────
+// DTO interne pour la réponse d'upload de fichier
+// ─────────────────────────────────────────────────────────────────────────────
 @lombok.Data
 @lombok.Builder
 class FileUploadResponse {
@@ -183,5 +239,5 @@ class FileUploadResponse {
     private String storedFilename;
     private String fileUrl;
     private String fileType;
-    private Long fileSize;
+    private Long   fileSize;
 }

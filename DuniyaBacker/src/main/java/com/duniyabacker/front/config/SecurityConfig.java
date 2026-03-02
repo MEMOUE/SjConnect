@@ -43,7 +43,8 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        // Endpoints publics
+
+                        // ── Endpoints publics ────────────────────────────────────────────────
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/api/public/**",
@@ -54,20 +55,26 @@ public class SecurityConfig {
                                 "/api/auth/verify-email/**",
                                 "/api/projets-b2b/**",
                                 "api/projets-b2b",
-                                "/api/chat/conversations/**",
-                                "/api/shared/view/**",
-                                "/uploads/**",           
+                                "/uploads/**",
                                 "/uploads/shared/**",
+                                "/api/shared/view/**",
                                 "/api/shared/download/**"
                         ).permitAll()
-                        .requestMatchers("/api/shared/**").authenticated()
-                        .requestMatchers("/api/shared/view/**").permitAll()
-                        .requestMatchers("/api/shared/download/**").permitAll()
 
+                        // ── Espace partagé ────────────────────────────────────────────────────
+                        .requestMatchers("/api/shared/**").authenticated()
+
+                        // ── Chat : toutes les routes nécessitent une authentification ─────────
+                        // (y compris /api/chat/b2b/** et /api/chat/private/**)
+                        .requestMatchers("/api/chat/**").authenticated()
+
+                        // ── Entreprise ────────────────────────────────────────────────────────
                         .requestMatchers("/api/entreprise/**").hasRole("ENTREPRISE")
-                        // Endpoints pour les employés
+
+                        // ── Employés ──────────────────────────────────────────────────────────
                         .requestMatchers("/api/employe/**").hasAnyRole("ENTREPRISE", "EMPLOYE")
-                        // Tous les autres endpoints nécessitent une authentification
+
+                        // ── Tout le reste ─────────────────────────────────────────────────────
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

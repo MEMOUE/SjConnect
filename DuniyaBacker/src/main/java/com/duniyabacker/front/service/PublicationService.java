@@ -4,6 +4,7 @@ import com.duniyabacker.front.dto.request.CreatePublicationRequest;
 import com.duniyabacker.front.dto.response.ApiResponse;
 import com.duniyabacker.front.dto.response.PublicationResponse;
 import com.duniyabacker.front.entity.User;
+import com.duniyabacker.front.entity.auth.Employe;
 import com.duniyabacker.front.entity.auth.Entreprise;
 import com.duniyabacker.front.entity.publication.Publication;
 import com.duniyabacker.front.exception.CustomExceptions.*;
@@ -51,17 +52,15 @@ public class PublicationService {
         return ApiResponse.success("Publication créée avec succès", toResponse(pub));
     }
 
-    // ─── Lire (feed filtré par type d'entreprise si connu) ─────────────────
+    // ─── Feed filtré selon le type d'entreprise ─────────────────────────────
     @Transactional(readOnly = true)
     public List<PublicationResponse> getFeed(String username) {
         User user = getUser(username);
 
         List<Publication> pubs;
         if (user instanceof Entreprise entreprise) {
-            // On filtre selon le type de l'entreprise
             pubs = publicationRepository.findVisiblePourType(
-                    normaliserType(entreprise.getTypeEntreprise())
-            );
+                    normaliserType(entreprise.getTypeEntreprise()));
         } else {
             // Particuliers et employés voient tout
             pubs = publicationRepository.findAllPubliees();
@@ -88,7 +87,7 @@ public class PublicationService {
         return pubs.stream().map(this::toResponse).collect(Collectors.toList());
     }
 
-    // ─── Supprimer ───────────────────────────────────────────────────────────
+    // ─── Supprimer (archiver) ────────────────────────────────────────────────
     @Transactional
     public ApiResponse<Void> deletePublication(String username, Long pubId) {
         User user = getUser(username);
@@ -106,6 +105,7 @@ public class PublicationService {
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
+
     private User getUser(String username) {
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
@@ -122,14 +122,26 @@ public class PublicationService {
         if (lower.contains("assurance"))    return "ASSURANCES";
         if (lower.contains("sgi"))          return "SGI";
         if (lower.contains("sgo"))          return "SGO";
-        if (lower.contains("fonds") || lower.contains("investissement")) return "FONDS_INVESTISSEMENT";
+        if (lower.contains("fonds") || lower.contains("investissement"))
+            return "FONDS_INVESTISSEMENT";
         if (lower.contains("microfinance")) return "MICROFINANCE";
         if (lower.contains("bourse"))       return "SOCIETES_BOURSE";
         if (lower.contains("courtier"))     return "COURTIERS";
         return raw.toUpperCase();
     }
 
+    /**
+     * Mappe une Publication vers PublicationResponse.
+     * Calcule auteurEntrepriseId :
+     *   - Entreprise  → l'auteur lui-même est l'entreprise
+     *   - Employé     → l'entreprise de l'employé
+     *   - Particulier → null (pas d'entreprise à contacter via ce bouton)
+     */
     private PublicationResponse toResponse(Publication p) {
+
+        // Récupérer l'auteur depuis le transient (déjà initialisé via initTransientFields)
+        Long auteurEntrepriseId = resolveEntrepriseId(p);
+
         return PublicationResponse.builder()
                 .id(p.getId())
                 .titre(p.getTitre())
@@ -142,6 +154,7 @@ public class PublicationService {
                 .auteurNom(p.getAuteurNom())
                 .auteurType(p.getAuteurType())
                 .auteurInitiales(p.getAuteurInitiales())
+                .auteurEntrepriseId(auteurEntrepriseId)
                 .typesEntreprisesVisibles(p.getTypesEntreprisesVisibles())
                 .visibleParTous(p.getTypesEntreprisesVisibles() == null
                         || p.getTypesEntreprisesVisibles().isEmpty())
@@ -149,5 +162,26 @@ public class PublicationService {
                 .createdAt(p.getCreatedAt())
                 .updatedAt(p.getUpdatedAt())
                 .build();
+    }
+
+    /**
+     * Résout l'ID de l'entreprise publieure d'une publication.
+     * Nécessite que initTransientFields() ait été appelé sur la publication.
+     */
+    private Long resolveEntrepriseId(Publication p) {
+        if (p.getAuteur() == null) return null;
+
+        if (p.getAuteur() instanceof Entreprise) {
+            // L'auteur EST l'entreprise — son User.id = entreprise.id
+            return p.getAuteur().getId();
+        }
+        if (p.getAuteur() instanceof Employe employe) {
+            // L'auteur est un employé → renvoyer l'ID de son entreprise
+            return employe.getEntreprise() != null
+                    ? employe.getEntreprise().getId()
+                    : null;
+        }
+        // Particulier : pas d'entreprise
+        return null;
     }
 }
