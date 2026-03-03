@@ -291,4 +291,15 @@ public class EmployeService {
                 .createdAt(employe.getCreatedAt())
                 .build();
     }
+
+    public ApiResponse<Void> checkInvitationToken(String token) {
+        Employe employe = employeRepository.findByInvitationToken(token)
+                .orElseThrow(() -> new BadRequestException("Token invalide ou expiré"));
+
+        if (employe.isInvitationAccepted()) {
+            throw new BadRequestException("Cette invitation a déjà été utilisée");
+        }
+
+        return ApiResponse.success("Token valide");
+    }
 }

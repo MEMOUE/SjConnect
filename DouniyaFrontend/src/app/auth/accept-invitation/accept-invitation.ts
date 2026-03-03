@@ -1,149 +1,109 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, AbstractControl } from '@angular/forms';
-import { Router, ActivatedRoute } from '@angular/router';
-import { InputText } from 'primeng/inputtext';
-import { Password } from 'primeng/password';
-import { ButtonDirective } from 'primeng/button';
-import { MessageService } from 'primeng/api';
-import { EmployeService} from '../../services/auth/employe.service'
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
+import { EmployeService } from '../../services/auth/employe.service';
 import { AcceptInvitationRequest } from '../../models/auth.model';
 
 @Component({
   selector: 'app-accept-invitation',
-  imports: [
-    CommonModule,
-    ReactiveFormsModule,
-    Password,
-  ],
-  providers: [MessageService],
+  standalone: true,
+  imports: [CommonModule, FormsModule],
   templateUrl: './accept-invitation.html',
   styleUrl: './accept-invitation.css'
 })
 export class AcceptInvitation implements OnInit {
-  acceptForm: FormGroup;
-  isLoading = false;
+
+  // Token
+  invitationToken = '';
   isCheckingToken = true;
   tokenValid = false;
-  invitationToken: string = '';
+
+  // Champs du formulaire
+  username = '';
+  password = '';
+  confirmPassword = '';
+
+  // États UI
+  isLoading = false;
+  isSuccess = false;
+  errorMessage = '';
+  showPassword = false;
+  showConfirmPassword = false;
 
   constructor(
-    private fb: FormBuilder,
-    private router: Router,
     private route: ActivatedRoute,
-    private employeService: EmployeService,
-    private messageService: MessageService
-  ) {
-    this.acceptForm = this.fb.group({
-      username: ['', [Validators.required, Validators.minLength(3)]],
-      password: ['', [Validators.required, Validators.minLength(8)]],
-      confirmPassword: ['', Validators.required]
-    }, {
-      validators: this.passwordMatchValidator
-    });
-  }
+    private router: Router,
+    private employeService: EmployeService
+  ) {}
 
-  ngOnInit() {
-    // Récupérer le token depuis l'URL
+  ngOnInit(): void {
     this.route.queryParams.subscribe(params => {
-      this.invitationToken = params['token'];
-
+      this.invitationToken = params['token'] || '';
       if (this.invitationToken) {
         this.checkInvitation();
       } else {
         this.isCheckingToken = false;
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Erreur',
-          detail: 'Token d\'invitation manquant'
-        });
+        this.tokenValid = false;
       }
     });
   }
 
-  checkInvitation() {
+  checkInvitation(): void {
     this.employeService.checkInvitation(this.invitationToken).subscribe({
       next: () => {
-        this.isCheckingToken = false;
         this.tokenValid = true;
-      },
-      error: (error) => {
         this.isCheckingToken = false;
+      },
+      error: () => {
         this.tokenValid = false;
-
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Invitation invalide',
-          detail: error.error?.message || 'Le token d\'invitation est invalide ou a expiré'
-        });
+        this.isCheckingToken = false;
       }
     });
   }
 
-  passwordMatchValidator(control: AbstractControl): { [key: string]: boolean } | null {
-    const password = control.get('password');
-    const confirmPassword = control.get('confirmPassword');
-
-    if (!password || !confirmPassword) {
-      return null;
-    }
-
-    return password.value === confirmPassword.value ? null : { passwordMismatch: true };
+  get passwordsMatch(): boolean {
+    return this.password === this.confirmPassword;
   }
 
-  onSubmit() {
-    if (this.acceptForm.valid) {
-      this.isLoading = true;
+  onSubmit(): void {
+    this.errorMessage = '';
 
-      const request: AcceptInvitationRequest = {
-        invitationToken: this.invitationToken,
-        username: this.acceptForm.value.username,
-        password: this.acceptForm.value.password,
-        confirmPassword: this.acceptForm.value.confirmPassword
-      };
-
-      this.employeService.acceptInvitation(request).subscribe({
-        next: (response) => {
-          this.isLoading = false;
-
-          this.messageService.add({
-            severity: 'success',
-            summary: 'Compte activé',
-            detail: response.message
-          });
-
-          setTimeout(() => {
-            this.router.navigate(['/connexion']);
-          }, 2000);
-        },
-        error: (error) => {
-          this.isLoading = false;
-
-          let errorMessage = 'Une erreur est survenue';
-
-          if (error.error?.message) {
-            errorMessage = error.error.message;
-          } else if (error.error?.data) {
-            const validationErrors = Object.values(error.error.data).join(', ');
-            errorMessage = validationErrors;
-          }
-
-          this.messageService.add({
-            severity: 'error',
-            summary: 'Erreur',
-            detail: errorMessage,
-            life: 5000
-          });
-        }
-      });
-    } else {
-      Object.keys(this.acceptForm.controls).forEach(key => {
-        this.acceptForm.get(key)?.markAsTouched();
-      });
+    if (this.username.trim().length < 3) {
+      this.errorMessage = 'Le nom d\'utilisateur doit contenir au moins 3 caractères.';
+      return;
     }
+    if (this.password.length < 8) {
+      this.errorMessage = 'Le mot de passe doit contenir au moins 8 caractères.';
+      return;
+    }
+    if (!this.passwordsMatch) {
+      this.errorMessage = 'Les mots de passe ne correspondent pas.';
+      return;
+    }
+
+    this.isLoading = true;
+
+    const request: AcceptInvitationRequest = {
+      invitationToken: this.invitationToken,
+      username: this.username.trim(),
+      password: this.password,
+      confirmPassword: this.confirmPassword
+    };
+
+    this.employeService.acceptInvitation(request).subscribe({
+      next: () => {
+        this.isLoading = false;
+        this.isSuccess = true;
+      },
+      error: (err) => {
+        this.isLoading = false;
+        this.errorMessage = err.error?.message || 'Une erreur est survenue. Veuillez réessayer.';
+      }
+    });
   }
 
-  onCancel() {
-    this.router.navigate(['/']);
+  onCancel(): void {
+    this.router.navigate(['/connexion']);
   }
 }

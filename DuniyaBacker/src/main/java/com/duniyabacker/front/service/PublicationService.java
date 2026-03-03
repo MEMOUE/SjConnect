@@ -12,6 +12,7 @@ import com.duniyabacker.front.repository.PublicationRepository;
 import com.duniyabacker.front.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -171,17 +172,18 @@ public class PublicationService {
     private Long resolveEntrepriseId(Publication p) {
         if (p.getAuteur() == null) return null;
 
-        if (p.getAuteur() instanceof Entreprise) {
-            // L'auteur EST l'entreprise — son User.id = entreprise.id
-            return p.getAuteur().getId();
+        // Dé-proxyfier avant le test instanceof
+        User auteur = (User) Hibernate.unproxy(p.getAuteur());
+
+        if (auteur instanceof Entreprise) {
+            return auteur.getId();
         }
-        if (p.getAuteur() instanceof Employe employe) {
-            // L'auteur est un employé → renvoyer l'ID de son entreprise
+        if (auteur instanceof Employe employe) {
+            employe = (Employe) Hibernate.unproxy(employe);
             return employe.getEntreprise() != null
                     ? employe.getEntreprise().getId()
                     : null;
         }
-        // Particulier : pas d'entreprise
-        return null;
+        return null; // Particulier
     }
 }

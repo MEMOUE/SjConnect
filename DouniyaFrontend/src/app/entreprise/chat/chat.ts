@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { DialogModule } from 'primeng/dialog';
 import { MultiSelectModule } from 'primeng/multiselect';
 import { ToastModule } from 'primeng/toast';
@@ -30,9 +31,7 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   @ViewChild('messageContainer') private messageContainer!: ElementRef;
   @ViewChild('fileInput') private fileInput!: ElementRef;
 
-  // ============================================
-  // ÉTAT PRINCIPAL
-  // ============================================
+  // ── État principal ────────────────────────────────────────────────────────
   conversations: Conversation[] = [];
   filteredConversations: Conversation[] = [];
   selectedConversation: Conversation | null = null;
@@ -45,9 +44,10 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   isConnected = false;
   private shouldScrollToBottom = false;
 
-  // ============================================
-  // DIALOG NOUVELLE CONVERSATION
-  // ============================================
+  // Deep-link depuis marketplace
+  private targetConversationId: number | null = null;
+
+  // ── Dialog nouvelle conversation ──────────────────────────────────────────
   showNewConversationDialog = false;
   isGroupConversation = false;
   groupName = '';
@@ -56,17 +56,12 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   isLoadingEmployes = false;
   isCreatingConversation = false;
 
-  // ============================================
-  // GESTION DES FICHIERS
-  // ============================================
+  // ── Fichiers & emojis ─────────────────────────────────────────────────────
   selectedFile: File | null = null;
   isUploadingFile = false;
   showEmojiPicker = false;
   isSendingMessage = false;
 
-  // ============================================
-  // EMOJIS POPULAIRES
-  // ============================================
   popularEmojis = [
     '😀', '😃', '😄', '😁', '😅', '🤣', '😂', '🙂',
     '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😋',
@@ -77,15 +72,11 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     '📎', '📁', '📊', '📈', '💡', '🔔', '📱', '💻'
   ];
 
-  // ============================================
-  // INDICATEUR DE FRAPPE
-  // ============================================
+  // ── Indicateur de frappe ──────────────────────────────────────────────────
   typingUsers: Map<number, string[]> = new Map();
   private typingTimeout: ReturnType<typeof setTimeout> | null = null;
 
-  // ============================================
-  // UTILISATEUR ACTUEL
-  // ============================================
+  // ── Utilisateur courant ───────────────────────────────────────────────────
   currentUserId: number = 0;
 
   private subscriptions: Subscription[] = [];
@@ -94,7 +85,8 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     private chatService: ChatService,
     private employeService: EmployeService,
     private authService: AuthService,
-    private messageService: MessageService
+    private messageService: MessageService,
+    private route: ActivatedRoute
   ) {}
 
   ngOnInit(): void {
@@ -102,6 +94,14 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     if (currentUser) {
       this.currentUserId = currentUser.id;
     }
+
+    // Lire le deep-link depuis le marketplace (?conversationId=X)
+    const sub = this.route.queryParams.subscribe(params => {
+      if (params['conversationId']) {
+        this.targetConversationId = +params['conversationId'];
+      }
+    });
+    this.subscriptions.push(sub);
 
     this.loadConversations();
     this.connectToWebSocket();
@@ -119,14 +119,10 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   ngOnDestroy(): void {
     this.subscriptions.forEach(sub => sub.unsubscribe());
     this.chatService.disconnect();
-    if (this.typingTimeout) {
-      clearTimeout(this.typingTimeout);
-    }
+    if (this.typingTimeout) clearTimeout(this.typingTimeout);
   }
 
-  // ============================================
-  // CHARGEMENT DES DONNÉES
-  // ============================================
+  // ── Chargement des données ────────────────────────────────────────────────
 
   loadConversations(): void {
     this.isLoading = true;
@@ -148,7 +144,16 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
         this.filteredConversations = [...this.conversations];
         this.isLoading = false;
 
-        if (this.conversations.length > 0 && !this.selectedConversation) {
+        // Sélection automatique via deep-link ou première conversation
+        if (this.targetConversationId) {
+          const target = this.conversations.find(c => c.id === this.targetConversationId);
+          if (target) {
+            this.selectConversation(target);
+          } else if (this.conversations.length > 0) {
+            this.selectConversation(this.conversations[0]);
+          }
+          this.targetConversationId = null;
+        } else if (this.conversations.length > 0 && !this.selectedConversation) {
           this.selectConversation(this.conversations[0]);
         }
       },
@@ -162,10 +167,10 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   loadEmployes(): void {
+    if (this.availableEmployes.length > 0) return;
     this.isLoadingEmployes = true;
     const sub = this.employeService.getAllEmployesForChat().subscribe({
       next: (employes) => {
-        // Exclure l'utilisateur courant
         this.availableEmployes = employes.filter(e => e.id !== this.currentUserId);
         this.isLoadingEmployes = false;
       },
@@ -205,13 +210,10 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     this.subscriptions.push(sub);
   }
 
-  // ============================================
-  // WEBSOCKET
-  // ============================================
+  // ── WebSocket ─────────────────────────────────────────────────────────────
 
   connectToWebSocket(): void {
     this.chatService.connect();
-
     const sub = this.chatService.isConnected$.subscribe(connected => {
       this.isConnected = connected;
     });
@@ -235,9 +237,7 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     this.subscriptions.push(statusSub);
   }
 
-  // ============================================
-  // GESTION DES CONVERSATIONS
-  // ============================================
+  // ── Gestion des conversations ─────────────────────────────────────────────
 
   selectConversation(conversation: Conversation): void {
     this.selectedConversation = conversation;
@@ -264,7 +264,6 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     this.isGroupConversation = false;
     this.groupName = '';
     this.selectedParticipants = [];
-
     if (this.availableEmployes.length === 0) {
       this.loadEmployes();
     }
@@ -273,7 +272,6 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   createConversation(): void {
     if (this.selectedParticipants.length === 0 || this.isCreatingConversation) return;
 
-    // Générer le nom automatiquement si non groupe ou nom vide
     let conversationName: string;
     if (this.isGroupConversation && this.groupName.trim()) {
       conversationName = this.groupName.trim();
@@ -303,20 +301,16 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
       error: (error) => {
         console.error('Erreur création conversation:', error);
         this.isCreatingConversation = false;
-        this.showToast('error', 'Erreur', 'Impossible de créer la conversation');
+        this.showToast('error', 'Erreur', error.error?.message || 'Impossible de créer la conversation');
       }
     });
     this.subscriptions.push(sub);
   }
 
-  // ============================================
-  // GESTION DES MESSAGES
-  // ============================================
+  // ── Gestion des messages ──────────────────────────────────────────────────
 
   sendMessage(): void {
-    if ((!this.newMessage.trim() && !this.selectedFile) || !this.selectedConversation || this.isSendingMessage) {
-      return;
-    }
+    if ((!this.newMessage.trim() && !this.selectedFile) || !this.selectedConversation || this.isSendingMessage) return;
 
     if (this.typingTimeout) clearTimeout(this.typingTimeout);
     this.chatService.sendStopTypingNotification(this.selectedConversation.id);
@@ -334,9 +328,7 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     this.isSendingMessage = true;
 
     const sub = this.chatService.sendMessage(
-      this.selectedConversation.id,
-      content,
-      'TEXT'
+      this.selectedConversation.id, content, 'TEXT'
     ).subscribe({
       next: (response) => {
         const msgData = response.data;
@@ -382,11 +374,8 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
         const msgType = isImage ? 'IMAGE' : 'FILE';
 
         const msgSub = this.chatService.sendMessage(
-          conversationId,
-          caption || file.name,
-          msgType,
-          fileData.fileUrl,
-          fileData.filename
+          conversationId, caption || file.name, msgType,
+          fileData.fileUrl, fileData.filename
         ).subscribe({
           next: (response) => {
             const msgData = response.data;
@@ -411,7 +400,7 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
             this.isSendingMessage = false;
           },
           error: (error) => {
-            console.error('Erreur envoi message fichier:', error);
+            console.error('Erreur envoi fichier:', error);
             this.isUploadingFile = false;
             this.isSendingMessage = false;
             this.showToast('error', 'Erreur', 'Impossible d\'envoyer le fichier');
@@ -433,7 +422,6 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     if (this.selectedConversation) {
       this.selectedConversation.lastMessage = content;
       this.selectedConversation.lastMessageTime = new Date();
-      // Remonter la conversation en haut de la liste
       const idx = this.conversations.findIndex(c => c.id === this.selectedConversation!.id);
       if (idx > 0) {
         const conv = this.conversations.splice(idx, 1)[0];
@@ -444,22 +432,17 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   onTyping(): void {
-    if (!this.selectedConversation) return;
-
-    if (this.newMessage.trim()) {
-      this.chatService.sendTypingNotification(this.selectedConversation.id);
-
-      if (this.typingTimeout) clearTimeout(this.typingTimeout);
-      this.typingTimeout = setTimeout(() => {
-        if (this.selectedConversation) {
-          this.chatService.sendStopTypingNotification(this.selectedConversation.id);
-        }
-      }, 3000);
-    }
+    if (!this.selectedConversation || !this.newMessage.trim()) return;
+    this.chatService.sendTypingNotification(this.selectedConversation.id);
+    if (this.typingTimeout) clearTimeout(this.typingTimeout);
+    this.typingTimeout = setTimeout(() => {
+      if (this.selectedConversation) {
+        this.chatService.sendStopTypingNotification(this.selectedConversation.id);
+      }
+    }, 3000);
   }
 
   onEnterKey(event: Event): void {
-    // Shift+Enter = nouvelle ligne, Enter = envoyer
     const keyEvent = event as KeyboardEvent;
     if (!keyEvent.shiftKey) {
       event.preventDefault();
@@ -467,41 +450,30 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     }
   }
 
-  // ============================================
-  // GESTION DES FICHIERS ET EMOJIS
-  // ============================================
+  // ── Fichiers & emojis ─────────────────────────────────────────────────────
 
-  openFileSelector(): void {
-    this.fileInput?.nativeElement.click();
-  }
+  openFileSelector(): void { this.fileInput?.nativeElement.click(); }
 
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
 
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (file.size > maxSize) {
+    if (file.size > 10 * 1024 * 1024) {
       this.showToast('warn', 'Fichier trop volumineux', 'Taille maximale : 10 MB');
       return;
     }
 
     this.selectedFile = file;
-    // Réinitialiser l'input pour permettre de resélectionner le même fichier
     input.value = '';
   }
 
   removeSelectedFile(): void {
     this.selectedFile = null;
-    this.newMessage = '';
-    if (this.fileInput) {
-      this.fileInput.nativeElement.value = '';
-    }
+    if (this.fileInput) this.fileInput.nativeElement.value = '';
   }
 
-  toggleEmojiPicker(): void {
-    this.showEmojiPicker = !this.showEmojiPicker;
-  }
+  toggleEmojiPicker(): void { this.showEmojiPicker = !this.showEmojiPicker; }
 
   addEmoji(emoji: string): void {
     this.newMessage += emoji;
@@ -519,8 +491,7 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     if (!fileName) return 'pi-file';
     const ext = fileName.split('.').pop()?.toLowerCase();
     const iconMap: Record<string, string> = {
-      pdf: 'pi-file-pdf',
-      doc: 'pi-file-word', docx: 'pi-file-word',
+      pdf: 'pi-file-pdf', doc: 'pi-file-word', docx: 'pi-file-word',
       xls: 'pi-file-excel', xlsx: 'pi-file-excel',
       zip: 'pi-file-import', rar: 'pi-file-import',
       mp4: 'pi-video', avi: 'pi-video', mov: 'pi-video',
@@ -529,13 +500,10 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     return iconMap[ext || ''] || 'pi-file';
   }
 
-  // ============================================
-  // GESTION DES NOTIFICATIONS WEBSOCKET
-  // ============================================
+  // ── Notifications WebSocket ───────────────────────────────────────────────
 
   handleNewMessage(notification: ChatNotification): void {
     if (!notification.message) return;
-
     const msgData = notification.message;
     const message: Message = {
       id: msgData.id,
@@ -550,7 +518,6 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     };
 
     if (this.selectedConversation?.id === notification.conversationId) {
-      // Éviter les doublons (si le message a été ajouté optimistiquement)
       if (!this.messages.find(m => m.id === message.id)) {
         this.messages.push(message);
         this.shouldScrollToBottom = true;
@@ -562,6 +529,13 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
         conversation.unreadCount++;
         conversation.lastMessage = message.content;
         conversation.lastMessageTime = message.timestamp;
+        // Remonter la conversation en haut
+        const idx = this.conversations.indexOf(conversation);
+        if (idx > 0) {
+          this.conversations.splice(idx, 1);
+          this.conversations.unshift(conversation);
+          this.filteredConversations = [...this.conversations];
+        }
       }
     }
   }
@@ -572,13 +546,10 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     if (!this.typingUsers.has(notification.conversationId)) {
       this.typingUsers.set(notification.conversationId, []);
     }
-
     const users = this.typingUsers.get(notification.conversationId)!;
 
     if (notification.type === 'USER_TYPING' && notification.username) {
-      if (!users.includes(notification.username)) {
-        users.push(notification.username);
-      }
+      if (!users.includes(notification.username)) users.push(notification.username);
     } else if (notification.type === 'USER_STOP_TYPING' && notification.username) {
       const idx = users.indexOf(notification.username);
       if (idx > -1) users.splice(idx, 1);
@@ -603,21 +574,17 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     return `${users.length} personnes écrivent...`;
   }
 
-  // ============================================
-  // UTILITAIRES
-  // ============================================
+  // ── Utilitaires ───────────────────────────────────────────────────────────
 
   formatTime(date: Date | string | null | undefined): string {
     if (!date) return '';
     const d = date instanceof Date ? date : new Date(date);
     if (isNaN(d.getTime())) return '';
-
     const now = new Date();
     const diff = now.getTime() - d.getTime();
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
-
     if (minutes < 1) return 'À l\'instant';
     if (minutes < 60) return `${minutes}min`;
     if (hours < 24) return `${hours}h`;
@@ -644,14 +611,9 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
 
   getAvatarClass(name: string): string {
     const colorMap: Record<string, string> = {
-      blue: 'bg-blue-500',
-      violet: 'bg-violet-500',
-      emerald: 'bg-emerald-500',
-      orange: 'bg-orange-500',
-      rose: 'bg-rose-500',
-      indigo: 'bg-indigo-500',
-      teal: 'bg-teal-500',
-      amber: 'bg-amber-500'
+      blue: 'bg-blue-500', violet: 'bg-violet-500', emerald: 'bg-emerald-500',
+      orange: 'bg-orange-500', rose: 'bg-rose-500', indigo: 'bg-indigo-500',
+      teal: 'bg-teal-500', amber: 'bg-amber-500'
     };
     return colorMap[this.getConversationColor(name)] || 'bg-blue-500';
   }
@@ -672,13 +634,8 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     } catch (err) { /* ignore */ }
   }
 
-  trackConversation(_index: number, conv: Conversation): number {
-    return conv.id;
-  }
-
-  trackMessage(_index: number, msg: Message): number {
-    return msg.id;
-  }
+  trackConversation(_index: number, conv: Conversation): number { return conv.id; }
+  trackMessage(_index: number, msg: Message): number { return msg.id; }
 
   private showToast(severity: string, summary: string, detail: string): void {
     this.messageService.add({ severity, summary, detail, life: 3000 });

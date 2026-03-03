@@ -89,6 +89,10 @@ export const routes: Routes = [
     component: ProjetB2b,
     canActivate: [AuthGuard]
   },
+  {
+    path: 'accept-invitation',
+    component: AcceptInvitation,
+  },
 
   // Route par défaut
   { path: '**', redirectTo: '' }

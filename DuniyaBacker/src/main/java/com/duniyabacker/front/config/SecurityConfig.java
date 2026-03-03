@@ -55,6 +55,8 @@ public class SecurityConfig {
                                 "/api/auth/verify-email/**",
                                 "/api/projets-b2b/**",
                                 "api/projets-b2b",
+                                "/api/auth/accept-invitation",
+                                "/api/auth/check-invitation",
                                 "/uploads/**",
                                 "/uploads/shared/**",
                                 "/api/shared/view/**",

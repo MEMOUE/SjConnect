@@ -3,8 +3,16 @@
   <!-- ══════════ TOAST ══════════ -->
   <div *ngIf="toast"
        class="fixed top-5 right-5 z-50 flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-2xl text-sm font-semibold"
-       [ngClass]="toast.type === 'success' ? 'bg-green-700 text-green-50' : 'bg-red-700 text-red-50'">
-    <i [ngClass]="toast.type === 'success' ? 'pi pi-check-circle' : 'pi pi-times-circle'" class="text-lg"></i>
+       [ngClass]="{
+         'bg-green-700 text-green-50': toast.type === 'success',
+         'bg-red-700 text-red-50':     toast.type === 'error',
+         'bg-blue-700 text-blue-50':   toast.type === 'info'
+       }">
+    <i [ngClass]="{
+         'pi pi-check-circle': toast.type === 'success',
+         'pi pi-times-circle': toast.type === 'error',
+         'pi pi-info-circle':  toast.type === 'info'
+       }" class="text-lg"></i>
     {{ toast.message }}
   </div>
 
@@ -121,7 +129,6 @@
                  class="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200
                         rounded-2xl shadow-2xl z-30 overflow-hidden">
 
-              <!-- Header -->
               <div class="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-900 to-blue-700">
                 <i class="pi pi-building text-yellow-400 text-base"></i>
                 <p class="text-sm font-bold text-white">Types d'entreprises</p>
@@ -130,7 +137,6 @@
                 </span>
               </div>
 
-              <!-- Hint -->
               <div class="mx-3 mt-3 mb-1 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                 <i class="pi pi-exclamation-triangle text-amber-500 text-sm mt-0.5 flex-shrink-0"></i>
                 <p class="text-xs text-amber-800 leading-relaxed">
@@ -139,7 +145,6 @@
                 </p>
               </div>
 
-              <!-- Liste types — grille 2 colonnes -->
               <div class="px-3 pb-2 max-h-72 overflow-y-auto mt-2">
                 <div class="grid grid-cols-2 gap-2">
                   <label *ngFor="let type of typesEntreprises"
@@ -148,14 +153,10 @@
                          [ngClass]="type.checked
                            ? 'border-blue-600 bg-blue-50 shadow-sm'
                            : 'border-gray-200 bg-gray-50 hover:border-blue-300 hover:bg-blue-50/50'">
-
-                    <!-- Checkbox visuel -->
                     <div class="w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all"
                          [ngClass]="type.checked ? 'bg-blue-700 border-blue-700' : 'border-gray-300 bg-white'">
                       <i *ngIf="type.checked" class="pi pi-check text-white" style="font-size: 9px"></i>
                     </div>
-
-                    <!-- Icône + libellé -->
                     <span class="text-xl leading-none flex-shrink-0">{{ type.icone }}</span>
                     <span class="text-xs font-semibold leading-tight flex-1"
                           [ngClass]="type.checked ? 'text-blue-900' : 'text-gray-700'">
@@ -165,10 +166,8 @@
                 </div>
               </div>
 
-              <!-- Footer actions -->
               <div class="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
-                <button type="button"
-                        (click)="toutDeselectionner()"
+                <button type="button" (click)="toutDeselectionner()"
                         class="text-xs text-gray-500 hover:text-red-600 transition flex items-center gap-1 font-medium">
                   <i class="pi pi-times-circle"></i> Tout désélectionner
                 </button>
@@ -195,7 +194,6 @@
             </span>
           </div>
 
-          <!-- Alerte public -->
           <div *ngIf="getTypesSelectionnes().length === 0"
                class="mt-2 flex items-center gap-2 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
             <i class="pi pi-globe"></i>
@@ -325,7 +323,9 @@
               </span>
             </div>
           </div>
-          <button (click)="supprimerPublication(pub, i)"
+          <!-- Bouton supprimer : uniquement sur ses propres publications -->
+          <button *ngIf="isOwnPublication(pub)"
+                  (click)="supprimerPublication(pub, i)"
                   class="text-gray-300 hover:text-red-500 transition p-1 rounded-lg hover:bg-red-50"
                   title="Supprimer">
             <i class="pi pi-trash text-sm"></i>
@@ -342,18 +342,15 @@
 
         <!-- Média -->
         <div *ngIf="pub.mediaUrl">
-          <!-- Image -->
           <img *ngIf="isImage(pub)"
                [src]="getMediaUrl(pub)"
                [alt]="pub.mediaNom"
                class="w-full max-h-72 object-cover rounded-xl border border-gray-200 cursor-pointer"
                (click)="openMedia(pub)">
 
-          <!-- Fichier (PDF, Word, Excel...) -->
           <div *ngIf="!isImage(pub)"
                class="flex items-center gap-3 border border-gray-200 rounded-xl px-4 py-3
                       bg-gray-50 hover:bg-blue-50 hover:border-blue-300 transition group">
-            <!-- Icône selon type -->
             <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
                  [ngClass]="getFileIconBg(pub)">
               <i [ngClass]="getFileIcon(pub)" class="text-xl"></i>
@@ -389,14 +386,27 @@
           </span>
         </div>
 
-        <!-- Footer -->
+        <!-- Footer card -->
         <div class="flex items-center justify-between pt-2 border-t border-gray-100">
           <span class="text-xs text-gray-400 flex items-center gap-1">
             <i class="pi pi-eye"></i> {{ pub.nombreVues ?? 0 }} vues
           </span>
-          <button class="text-xs text-gray-400 hover:text-blue-600 transition flex items-center gap-1">
-            <i class="pi pi-share-alt"></i> Partager
-          </button>
+          <div class="flex items-center gap-2">
+            <!-- Bouton Contacter : uniquement pour les publications d'autres entreprises -->
+            <button *ngIf="canContact(pub)"
+                    (click)="contacterEntreprise(pub, $event)"
+                    [disabled]="isContactingPublication(pub)"
+                    class="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition
+                           bg-blue-900 text-white hover:bg-blue-800 disabled:opacity-60 disabled:cursor-not-allowed">
+              <i *ngIf="!isContactingPublication(pub)" class="pi pi-comments"></i>
+              <i *ngIf="isContactingPublication(pub)" class="pi pi-spin pi-spinner"></i>
+              {{ isContactingPublication(pub) ? 'Ouverture...' : 'Contacter' }}
+            </button>
+
+            <button class="text-xs text-gray-400 hover:text-blue-600 transition flex items-center gap-1">
+              <i class="pi pi-share-alt"></i> Partager
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -441,6 +451,17 @@
         </h3>
         <p class="text-gray-500 text-xs leading-relaxed">
           DouniyaMarket est le premier marketplace B2B financier africain. Il connecte banques, assureurs, SGI, fonds et acteurs de la finance dans la zone UEMOA.
+        </p>
+      </div>
+
+      <!-- Widget B2B -->
+      <div class="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5">
+        <div class="flex items-center gap-2 mb-2">
+          <i class="pi pi-comments text-blue-600 text-lg"></i>
+          <h3 class="font-bold text-blue-900 text-sm">Contact B2B direct</h3>
+        </div>
+        <p class="text-blue-700 text-xs leading-relaxed">
+          Cliquez sur <strong>Contacter</strong> sur une publication pour ouvrir une conversation sécurisée avec l'entreprise publieure.
         </p>
       </div>
     </aside>

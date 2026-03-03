@@ -1,7 +1,10 @@
 import { Component, OnInit, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { Publication, PublicationService, CreatePublicationRequest } from '../../services/publication/publication.service';
+import { ChatService } from '../../services/chat/chat.service';
+import { AuthService } from '../../services/auth/auth.service';
 import { environment } from '../../../environments/environment';
 
 export interface TypeEntreprise {
@@ -23,12 +26,12 @@ export class MarketPace implements OnInit {
 
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
 
-  // ── Feed ────────────────────────────────────────────────────────────────
+  // ── Feed ─────────────────────────────────────────────────────────────────
   publications: Publication[] = [];
   loadingFeed = false;
   onglet: 'feed' | 'mes-publications' = 'feed';
 
-  // ── Formulaire ───────────────────────────────────────────────────────────
+  // ── Formulaire ────────────────────────────────────────────────────────────
   titre = '';
   contenu = '';
   showForm = false;
@@ -36,48 +39,69 @@ export class MarketPace implements OnInit {
   charCount = 0;
   readonly MAX_CHARS = 2000;
 
-  // Visibilité multi-type (optionnel)
   showTypeDropdown = false;
   typesEntreprises: TypeEntreprise[] = [
-    { code: 'BANQUES',              libelle: 'Banques',                 icone: '🏦', couleur: '#1e40af', checked: false },
-    { code: 'ASSURANCES',          libelle: 'Assurances',               icone: '🛡️', couleur: '#059669', checked: false },
-    { code: 'SGI',                  libelle: 'SGI',                     icone: '💼', couleur: '#7c3aed', checked: false },
-    { code: 'SGO',                  libelle: 'SGO',                     icone: '📊', couleur: '#dc2626', checked: false },
-    { code: 'FONDS_INVESTISSEMENT', libelle: "Fonds d'investissement",  icone: '💰', couleur: '#b45309', checked: false },
-    { code: 'MICROFINANCE',        libelle: 'Microfinance',             icone: '🏘️', couleur: '#0891b2', checked: false },
-    { code: 'SOCIETES_BOURSE',     libelle: 'Sociétés de bourse',       icone: '📈', couleur: '#be185d', checked: false },
-    { code: 'COURTIERS',           libelle: 'Courtiers',                icone: '🤝', couleur: '#4d7c0f', checked: false },
+    { code: 'BANQUES',              libelle: 'Banques',                icone: '🏦', couleur: '#1e40af', checked: false },
+    { code: 'ASSURANCES',          libelle: 'Assurances',              icone: '🛡️', couleur: '#059669', checked: false },
+    { code: 'SGI',                  libelle: 'SGI',                    icone: '💼', couleur: '#7c3aed', checked: false },
+    { code: 'SGO',                  libelle: 'SGO',                    icone: '📊', couleur: '#dc2626', checked: false },
+    { code: 'FONDS_INVESTISSEMENT', libelle: "Fonds d'investissement", icone: '💰', couleur: '#b45309', checked: false },
+    { code: 'MICROFINANCE',        libelle: 'Microfinance',            icone: '🏘️', couleur: '#0891b2', checked: false },
+    { code: 'SOCIETES_BOURSE',     libelle: 'Sociétés de bourse',      icone: '📈', couleur: '#be185d', checked: false },
+    { code: 'COURTIERS',           libelle: 'Courtiers',               icone: '🤝', couleur: '#4d7c0f', checked: false },
   ];
 
-  // Pièce jointe
+  // ── Pièce jointe ──────────────────────────────────────────────────────────
   mediaFichier: File | null = null;
   mediaUrl?: string;
   mediaType?: string;
   mediaNom?: string;
   uploadingMedia = false;
 
-  // Toast
-  toast: { type: 'success' | 'error'; message: string } | null = null;
+  // ── Toast ─────────────────────────────────────────────────────────────────
+  toast: { type: 'success' | 'error' | 'info'; message: string } | null = null;
+  private toastTimer: ReturnType<typeof setTimeout> | null = null;
 
-  // Recherche
+  // ── Recherche ─────────────────────────────────────────────────────────────
   searchQuery = '';
   searching = false;
 
-  constructor(private publicationService: PublicationService) {}
+  // ── Utilisateur courant ───────────────────────────────────────────────────
+  currentUserId: number = 0;
+  currentEntrepriseId: number | null = null;
+
+  // ── Contact B2B ───────────────────────────────────────────────────────────
+  private contactingMap = new Map<number, boolean>();
+
+  constructor(
+    private publicationService: PublicationService,
+    private chatService: ChatService,
+    private authService: AuthService,
+    private router: Router
+  ) {}
 
   ngOnInit(): void {
+    const user = this.authService.getCurrentUserValue();
+    if (user) {
+      this.currentUserId = user.id;
+      this.currentEntrepriseId = (user as any).entrepriseId ?? null;
+    }
     this.loadFeed();
   }
 
-  // ── Feed ────────────────────────────────────────────────────────────────
+  // ── Feed ──────────────────────────────────────────────────────────────────
+
   loadFeed(): void {
     this.loadingFeed = true;
     this.publicationService.getFeed().subscribe({
-      next: pubs => { this.publications = pubs; this.loadingFeed = false; },
-      error: () => {
-        // Mode démo si pas de backend
-        this.publications = this.demoPublications();
+      next: pubs => {
+        this.publications = pubs;
         this.loadingFeed = false;
+      },
+      error: err => {
+        console.error('Erreur chargement feed:', err);
+        this.loadingFeed = false;
+        this.showToast('error', 'Impossible de charger les publications');
       }
     });
   }
@@ -87,8 +111,15 @@ export class MarketPace implements OnInit {
     if (o === 'mes-publications') {
       this.loadingFeed = true;
       this.publicationService.getMesPublications().subscribe({
-        next: pubs => { this.publications = pubs; this.loadingFeed = false; },
-        error: () => { this.publications = this.demoPublications().slice(0, 2); this.loadingFeed = false; }
+        next: pubs => {
+          this.publications = pubs;
+          this.loadingFeed = false;
+        },
+        error: err => {
+          console.error('Erreur mes publications:', err);
+          this.loadingFeed = false;
+          this.showToast('error', 'Impossible de charger vos publications');
+        }
       });
     } else {
       this.loadFeed();
@@ -99,8 +130,15 @@ export class MarketPace implements OnInit {
     if (!this.searchQuery.trim()) { this.loadFeed(); return; }
     this.searching = true;
     this.publicationService.search(this.searchQuery).subscribe({
-      next: pubs => { this.publications = pubs; this.searching = false; },
-      error: () => { this.searching = false; }
+      next: pubs => {
+        this.publications = pubs;
+        this.searching = false;
+      },
+      error: err => {
+        console.error('Erreur recherche:', err);
+        this.searching = false;
+        this.showToast('error', 'Erreur lors de la recherche');
+      }
     });
   }
 
@@ -109,7 +147,8 @@ export class MarketPace implements OnInit {
     this.loadFeed();
   }
 
-  // ── Formulaire de publication ────────────────────────────────────────────
+  // ── Formulaire ────────────────────────────────────────────────────────────
+
   toggleForm(): void {
     this.showForm = !this.showForm;
     if (!this.showForm) this.resetForm();
@@ -119,14 +158,8 @@ export class MarketPace implements OnInit {
     this.charCount = this.contenu.length;
   }
 
-  // Visibilité
-  toggleTypeDropdown(): void {
-    this.showTypeDropdown = !this.showTypeDropdown;
-  }
-
-  closeTypeDropdown(): void {
-    this.showTypeDropdown = false;
-  }
+  toggleTypeDropdown(): void { this.showTypeDropdown = !this.showTypeDropdown; }
+  closeTypeDropdown(): void  { this.showTypeDropdown = false; }
 
   getTypesSelectionnes(): TypeEntreprise[] {
     return this.typesEntreprises.filter(t => t.checked);
@@ -139,18 +172,9 @@ export class MarketPace implements OnInit {
     return `${sel.length} types sélectionnés`;
   }
 
-  toutDeselectionner(): void {
-    this.typesEntreprises.forEach(t => t.checked = false);
-  }
-
-  deselectType(type: TypeEntreprise): void {
-    type.checked = false;
-  }
-
-  // Pièce jointe
-  triggerFileInput(): void {
-    this.fileInput.nativeElement.click();
-  }
+  toutDeselectionner(): void { this.typesEntreprises.forEach(t => t.checked = false); }
+  deselectType(type: TypeEntreprise): void { type.checked = false; }
+  triggerFileInput(): void { this.fileInput.nativeElement.click(); }
 
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -171,27 +195,29 @@ export class MarketPace implements OnInit {
         this.mediaFichier = file;
         this.uploadingMedia = false;
       },
-      error: () => {
-        // Mode démo
-        this.mediaNom  = file.name;
-        this.mediaFichier = file;
+      error: err => {
+        console.error('Erreur upload média:', err);
         this.uploadingMedia = false;
+        this.showToast('error', 'Impossible d\'uploader ce fichier');
+        input.value = '';
       }
     });
   }
 
   removeMedia(): void {
     this.mediaFichier = null;
-    this.mediaUrl = undefined;
+    this.mediaUrl  = undefined;
     this.mediaType = undefined;
-    this.mediaNom = undefined;
+    this.mediaNom  = undefined;
     if (this.fileInput) this.fileInput.nativeElement.value = '';
   }
 
-  // Publier
   publier(): void {
     if (!this.contenu.trim()) { this.showToast('error', 'Le contenu est requis'); return; }
-    if (this.contenu.length > this.MAX_CHARS) { this.showToast('error', `Maximum ${this.MAX_CHARS} caractères`); return; }
+    if (this.contenu.length > this.MAX_CHARS) {
+      this.showToast('error', `Maximum ${this.MAX_CHARS} caractères`);
+      return;
+    }
 
     this.submitting = true;
     const request: CreatePublicationRequest = {
@@ -208,33 +234,76 @@ export class MarketPace implements OnInit {
         this.submitting = false;
         if (res.success && res.data) {
           this.publications.unshift(res.data);
+          this.showToast('success', 'Publication créée avec succès !');
+          this.toggleForm();
         } else {
-          // Mode démo — ajouter localement
-          this.publications.unshift(this.buildDemoPublication(request));
+          this.showToast('error', res.message || 'Erreur lors de la publication');
         }
-        this.showToast('success', 'Publication créée avec succès !');
-        this.toggleForm();
       },
-      error: () => {
-        // Mode démo
-        this.publications.unshift(this.buildDemoPublication(request));
-        this.showToast('success', 'Publication créée avec succès !');
+      error: err => {
+        console.error('Erreur publication:', err);
         this.submitting = false;
-        this.toggleForm();
+        this.showToast('error', err.error?.message || 'Impossible de créer la publication');
       }
     });
   }
 
   supprimerPublication(pub: Publication, index: number): void {
-    if (!pub.id) { this.publications.splice(index, 1); return; }
+    if (!confirm('Supprimer cette publication ?')) return;
+    if (!pub.id) return;
+
     this.publicationService.delete(pub.id).subscribe({
       next: () => {
         this.publications.splice(index, 1);
         this.showToast('success', 'Publication supprimée');
       },
-      error: () => {
-        this.publications.splice(index, 1);
-        this.showToast('success', 'Publication supprimée');
+      error: err => {
+        console.error('Erreur suppression:', err);
+        this.showToast('error', err.error?.message || 'Impossible de supprimer cette publication');
+      }
+    });
+  }
+
+  // ── Contact B2B ───────────────────────────────────────────────────────────
+
+  canContact(pub: Publication): boolean {
+    if (!pub.auteurEntrepriseId) return false;
+    if (this.currentEntrepriseId && pub.auteurEntrepriseId === this.currentEntrepriseId) return false;
+    return true;
+  }
+
+  isOwnPublication(pub: Publication): boolean {
+    if (pub.auteurId && pub.auteurId === this.currentUserId) return true;
+    if (this.currentEntrepriseId && pub.auteurEntrepriseId === this.currentEntrepriseId) return true;
+    return false;
+  }
+
+  isContactingPublication(pub: Publication): boolean {
+    return pub.id ? (this.contactingMap.get(pub.id) ?? false) : false;
+  }
+
+  contacterEntreprise(pub: Publication, event: Event): void {
+    event.stopPropagation();
+    if (!pub.auteurEntrepriseId || !pub.id) return;
+
+    this.contactingMap.set(pub.id, true);
+    this.showToast('info', `Ouverture de la conversation avec ${pub.auteurNom}...`);
+
+    this.chatService.contacterEntreprise(pub.auteurEntrepriseId).subscribe({
+      next: res => {
+        pub.id && this.contactingMap.set(pub.id, false);
+        if (res.success && res.data) {
+          this.router.navigate(['/entreprise/chat'], {
+            queryParams: { conversationId: res.data.id }
+          });
+        } else {
+          this.showToast('error', 'Impossible d\'ouvrir la conversation');
+        }
+      },
+      error: err => {
+        console.error('Erreur contact entreprise:', err);
+        pub.id && this.contactingMap.set(pub.id, false);
+        this.showToast('error', err.error?.message || 'Impossible de contacter cette entreprise');
       }
     });
   }
@@ -248,7 +317,8 @@ export class MarketPace implements OnInit {
     this.showTypeDropdown = false;
   }
 
-  // ── Helpers affichage ────────────────────────────────────────────────────
+  // ── Helpers affichage ─────────────────────────────────────────────────────
+
   getInitiales(pub: Publication): string {
     if (pub.auteurInitiales) return pub.auteurInitiales;
     if (pub.auteurNom) {
@@ -270,11 +340,9 @@ export class MarketPace implements OnInit {
   getLibelleType(code: string): string {
     return this.typesEntreprises.find(t => t.code === code)?.libelle ?? code;
   }
-
   getIconeType(code: string): string {
     return this.typesEntreprises.find(t => t.code === code)?.icone ?? '🏢';
   }
-
   getCouleurType(code: string): string {
     return this.typesEntreprises.find(t => t.code === code)?.couleur ?? '#6b7280';
   }
@@ -287,8 +355,7 @@ export class MarketPace implements OnInit {
     if (m < 60) return `il y a ${m} min`;
     const h = Math.floor(m / 60);
     if (h < 24) return `il y a ${h}h`;
-    const d = Math.floor(h / 24);
-    return `il y a ${d}j`;
+    return `il y a ${Math.floor(h / 24)}j`;
   }
 
   isMediaImage(): boolean {
@@ -297,34 +364,27 @@ export class MarketPace implements OnInit {
       !!this.mediaNom?.match(/\.(jpg|jpeg|png|gif|webp)$/i);
   }
 
-  /** Construit l'URL absolue vers le fichier servi par le backend */
   getMediaUrl(pub: Publication): string {
     if (!pub.mediaUrl) return '';
-    // Si déjà absolue, on la retourne telle quelle
     if (pub.mediaUrl.startsWith('http')) return pub.mediaUrl;
-    // Sinon on préfixe avec le host du backend (sans /api)
-    const base = environment.apiUrl.replace('/api', '');
-    return `${base}${pub.mediaUrl}`;
+    return `${environment.apiUrl.replace('/api', '')}${pub.mediaUrl}`;
   }
 
-  /** Ouvre le fichier dans un nouvel onglet */
   openMedia(pub: Publication): void {
     window.open(this.getMediaUrl(pub), '_blank');
   }
 
-  /** Retourne la classe PrimeIcon selon le type de fichier */
   getFileIcon(pub: Publication): string {
     const nom = (pub.mediaNom ?? '').toLowerCase();
     const type = (pub.mediaType ?? '').toLowerCase();
-    if (type.includes('pdf') || nom.endsWith('.pdf'))                          return 'pi pi-file-pdf text-red-500';
-    if (nom.match(/\.(doc|docx)$/) || type.includes('word'))                  return 'pi pi-file-word text-blue-600';
-    if (nom.match(/\.(xls|xlsx)$/) || type.includes('sheet'))                 return 'pi pi-file-excel text-green-600';
-    if (nom.match(/\.(ppt|pptx)$/) || type.includes('presentation'))          return 'pi pi-file text-orange-500';
-    if (nom.match(/\.(zip|rar|7z)$/) || type.includes('zip'))                 return 'pi pi-file-import text-purple-500';
+    if (type.includes('pdf') || nom.endsWith('.pdf'))                return 'pi pi-file-pdf text-red-500';
+    if (nom.match(/\.(doc|docx)$/) || type.includes('word'))         return 'pi pi-file-word text-blue-600';
+    if (nom.match(/\.(xls|xlsx)$/) || type.includes('sheet'))        return 'pi pi-file-excel text-green-600';
+    if (nom.match(/\.(ppt|pptx)$/) || type.includes('presentation')) return 'pi pi-file text-orange-500';
+    if (nom.match(/\.(zip|rar|7z)$/) || type.includes('zip'))        return 'pi pi-file-import text-purple-500';
     return 'pi pi-file text-gray-500';
   }
 
-  /** Fond de l'icône selon le type */
   getFileIconBg(pub: Publication): string {
     const nom = (pub.mediaNom ?? '').toLowerCase();
     const type = (pub.mediaType ?? '').toLowerCase();
@@ -335,7 +395,6 @@ export class MarketPace implements OnInit {
     return 'bg-gray-100';
   }
 
-  /** Label lisible du type de fichier */
   getFileTypeLabel(pub: Publication): string {
     const nom = (pub.mediaNom ?? '').toLowerCase();
     const type = (pub.mediaType ?? '').toLowerCase();
@@ -348,71 +407,15 @@ export class MarketPace implements OnInit {
   }
 
   isImage(pub: Publication): boolean {
-    return pub.mediaType?.startsWith('image') ?? pub.mediaUrl?.match(/\.(jpg|jpeg|png|gif|webp)$/i) != null;
+    return pub.mediaType?.startsWith('image') ??
+      pub.mediaUrl?.match(/\.(jpg|jpeg|png|gif|webp)$/i) != null;
   }
 
-  // ── Toast ────────────────────────────────────────────────────────────────
-  showToast(type: 'success' | 'error', message: string): void {
+  // ── Toast ─────────────────────────────────────────────────────────────────
+
+  showToast(type: 'success' | 'error' | 'info', message: string): void {
+    if (this.toastTimer) clearTimeout(this.toastTimer);
     this.toast = { type, message };
-    setTimeout(() => this.toast = null, 4000);
-  }
-
-  // ── Données de démo ──────────────────────────────────────────────────────
-  private buildDemoPublication(req: CreatePublicationRequest): Publication {
-    return {
-      id: Date.now(),
-      titre: req.titre,
-      contenu: req.contenu,
-      auteurNom: 'Mon Entreprise',
-      auteurInitiales: 'ME',
-      auteurType: 'ENTREPRISE',
-      typesEntreprisesVisibles: req.typesEntreprisesVisibles,
-      visibleParTous: req.typesEntreprisesVisibles.length === 0,
-      nombreVues: 0,
-      mediaUrl: this.mediaUrl,
-      mediaNom: this.mediaNom,
-      createdAt: new Date().toISOString(),
-    };
-  }
-
-  private demoPublications(): Publication[] {
-    return [
-      {
-        id: 1,
-        titre: 'Nouvelles opportunités d\'investissement — T1 2025',
-        contenu: 'Nous avons identifié plusieurs opportunités prometteuses dans le secteur des infrastructures en Côte d\'Ivoire et dans la zone UEMOA. ROI estimé entre 12% et 18% sur 5 ans. Notre équipe d\'analystes reste disponible pour tout renseignement complémentaire.',
-        auteurNom: 'SGCI Capital',
-        auteurInitiales: 'SC',
-        auteurType: 'ENTREPRISE',
-        typesEntreprisesVisibles: ['BANQUES', 'FONDS_INVESTISSEMENT'],
-        visibleParTous: false,
-        nombreVues: 142,
-        createdAt: new Date(Date.now() - 3600000).toISOString(),
-      },
-      {
-        id: 2,
-        titre: 'Appel d\'offres : Couverture risques industriels',
-        contenu: 'Groupe industriel implanté en Afrique de l\'Ouest recherche assureur pour couverture globale risques industriels. Capacité souhaitée : 50 Mds FCFA. Dossiers à soumettre avant le 15 mars 2025. Contact : risques@groupecigl.ci',
-        auteurNom: 'Groupe CIGL',
-        auteurInitiales: 'GC',
-        auteurType: 'ENTREPRISE',
-        typesEntreprisesVisibles: ['ASSURANCES', 'COURTIERS'],
-        visibleParTous: false,
-        nombreVues: 87,
-        createdAt: new Date(Date.now() - 86400000).toISOString(),
-      },
-      {
-        id: 3,
-        titre: 'Lancement fonds obligataire Abidjan Finance 2025',
-        contenu: 'ABI Asset Management est fier d\'annoncer le lancement de son nouveau fonds obligataire ciblant les émissions souveraines et quasi-souveraines de la zone UEMOA. Ticket minimum : 25 millions FCFA. Rendement cible annuel : 7,5%.',
-        auteurNom: 'ABI Asset Management',
-        auteurInitiales: 'AA',
-        auteurType: 'ENTREPRISE',
-        typesEntreprisesVisibles: [],
-        visibleParTous: true,
-        nombreVues: 310,
-        createdAt: new Date(Date.now() - 172800000).toISOString(),
-      },
-    ];
+    this.toastTimer = setTimeout(() => { this.toast = null; }, 4000);
   }
 }

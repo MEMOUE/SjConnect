@@ -14,6 +14,11 @@ export interface Publication {
   auteurNom?: string;
   auteurType?: string;
   auteurInitiales?: string;
+  /**
+   * ID de l'entreprise publieure — null pour les particuliers.
+   * Utilisé pour afficher/activer le bouton "Contacter" sur le marketplace.
+   */
+  auteurEntrepriseId?: number;
   typesEntreprisesVisibles: string[];
   visibleParTous?: boolean;
   nombreVues?: number;

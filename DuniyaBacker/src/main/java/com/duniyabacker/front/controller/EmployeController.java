@@ -108,9 +108,8 @@ public class EmployeController {
     )
     @GetMapping("/auth/check-invitation")
     public ResponseEntity<ApiResponse<Void>> checkInvitation(
-            @Parameter(description = "Token d'invitation")
             @RequestParam String token) {
-        return ResponseEntity.ok(ApiResponse.success("Token d'invitation valide"));
+        return ResponseEntity.ok(employeService.checkInvitationToken(token));
     }
 
     /**

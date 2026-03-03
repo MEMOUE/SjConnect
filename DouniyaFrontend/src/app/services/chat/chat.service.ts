@@ -4,11 +4,6 @@ import { Observable, BehaviorSubject, Subject } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse, ChatNotification, Conversation, Message } from '../../models/chat.model';
 
-// ── Installation requise pour le temps réel ──────────────────────
-// npm install @stomp/stompjs sockjs-client
-// npm install --save-dev @types/sockjs-client
-// ─────────────────────────────────────────────────────────────────
-
 @Injectable({
   providedIn: 'root'
 })
@@ -27,7 +22,7 @@ export class ChatService {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private stompClient: any = null;
-  private subscribedConversations   = new Set<number>();
+  private subscribedConversations = new Set<number>();
 
   constructor(private http: HttpClient) {}
 
@@ -57,6 +52,37 @@ export class ChatService {
   searchConversations(searchTerm: string): Observable<Conversation[]> {
     const params = new HttpParams().set('q', searchTerm);
     return this.http.get<Conversation[]>(`${this.apiUrl}/conversations/search`, { params });
+  }
+
+  // ============================================
+  // B2B — Contacter une entreprise depuis le Marketplace
+  // ============================================
+
+  /**
+   * Crée ou récupère une conversation de groupe B2B avec l'entreprise cible.
+   * Tous les employés actifs des deux entreprises sont inclus automatiquement.
+   * Idempotent : retourne la conversation existante si déjà créée.
+   *
+   * @param entrepriseId  ID de l'entreprise publieure à contacter
+   */
+  contacterEntreprise(entrepriseId: number): Observable<ApiResponse<Conversation>> {
+    return this.http.post<ApiResponse<Conversation>>(
+      `${this.apiUrl}/b2b/${entrepriseId}`,
+      null
+    );
+  }
+
+  /**
+   * Crée ou récupère une conversation privée 1-to-1 entre l'utilisateur courant
+   * et un autre utilisateur (ex. depuis le panneau Participants d'un groupe).
+   *
+   * @param targetUserId  ID de l'utilisateur cible
+   */
+  startPrivateConversation(targetUserId: number): Observable<ApiResponse<Conversation>> {
+    return this.http.post<ApiResponse<Conversation>>(
+      `${this.apiUrl}/private/${targetUserId}`,
+      null
+    );
   }
 
   // ============================================
@@ -112,7 +138,7 @@ export class ChatService {
   }
 
   // ============================================
-  // WEBSOCKET — import dynamique (pas d'erreur TS si packages absents)
+  // WEBSOCKET
   // ============================================
 
   connect(): void {
@@ -159,17 +185,9 @@ export class ChatService {
         });
       },
 
-      onDisconnect: () => {
-        this.isConnectedSubject.next(false);
-      },
-
-      onStompError: () => {
-        this.isConnectedSubject.next(false);
-      },
-
-      onWebSocketError: () => {
-        this.fallbackConnect();
-      }
+      onDisconnect: () => { this.isConnectedSubject.next(false); },
+      onStompError:  () => { this.isConnectedSubject.next(false); },
+      onWebSocketError: () => { this.fallbackConnect(); }
     });
 
     this.stompClient.activate();
