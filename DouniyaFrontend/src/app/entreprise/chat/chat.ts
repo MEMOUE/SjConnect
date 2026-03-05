@@ -9,8 +9,9 @@ import { MessageService } from 'primeng/api';
 import { ChatService } from '../../services/chat/chat.service';
 import { EmployeService } from '../../services/auth/employe.service';
 import { AuthService } from '../../services/auth/auth.service';
+import { TranslationService, Language } from '../../services/translation/translation.service';
 import { Conversation, Message, ChatNotification } from '../../models/chat.model';
-import { Subscription } from 'rxjs';
+import { Subscription, forkJoin } from 'rxjs';
 import { EmployeSimple } from '../../models/auth.model';
 
 @Component({
@@ -79,6 +80,35 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   // ── Utilisateur courant ───────────────────────────────────────────────────
   currentUserId: number = 0;
 
+  // ── Traduction ────────────────────────────────────────────────────────────
+  /** Langue cible sélectionnée par l'utilisateur ('original' = pas de traduction) */
+  selectedLanguageCode = 'original';
+
+  /** Sélecteur de langue ouvert/fermé */
+  showLanguageSelector = false;
+
+  /** translatedContents[messageId] = texte traduit */
+  translatedContents: Map<number, string> = new Map();
+
+  /** IDs des messages en cours de traduction */
+  translatingMessages: Set<number> = new Set();
+
+  /** IDs des messages affichés en version originale malgré la traduction active */
+  showOriginalFor: Set<number> = new Set();
+
+  get availableLanguages(): Language[] {
+    return this.translationService.languages;
+  }
+
+  get currentLanguage(): Language {
+    return this.translationService.getLanguageByCode(this.selectedLanguageCode)
+      ?? this.availableLanguages[0];
+  }
+
+  get isTranslationActive(): boolean {
+    return this.selectedLanguageCode !== 'original';
+  }
+
   private subscriptions: Subscription[] = [];
 
   constructor(
@@ -86,7 +116,8 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     private employeService: EmployeService,
     private authService: AuthService,
     private messageService: MessageService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    public translationService: TranslationService
   ) {}
 
   ngOnInit(): void {
@@ -95,7 +126,6 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
       this.currentUserId = currentUser.id;
     }
 
-    // Lire le deep-link depuis le marketplace (?conversationId=X)
     const sub = this.route.queryParams.subscribe(params => {
       if (params['conversationId']) {
         this.targetConversationId = +params['conversationId'];
@@ -144,7 +174,6 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
         this.filteredConversations = [...this.conversations];
         this.isLoading = false;
 
-        // Sélection automatique via deep-link ou première conversation
         if (this.targetConversationId) {
           const target = this.conversations.find(c => c.id === this.targetConversationId);
           if (target) {
@@ -201,6 +230,11 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
 
         this.chatService.markAsRead(conversationId).subscribe();
         this.shouldScrollToBottom = true;
+
+        // Si une traduction est active, traduire tous les nouveaux messages
+        if (this.isTranslationActive) {
+          this.translateAllMessages();
+        }
       },
       error: (error) => {
         console.error('Erreur chargement messages:', error);
@@ -243,9 +277,12 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     this.selectedConversation = conversation;
     conversation.unreadCount = 0;
     this.messages = [];
+    this.translatedContents.clear();
+    this.showOriginalFor.clear();
     this.loadMessages(conversation.id);
     this.chatService.subscribeToConversation(conversation.id);
     this.showEmojiPicker = false;
+    this.showLanguageSelector = false;
   }
 
   searchConversations(): void {
@@ -289,7 +326,7 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
       this.isGroupConversation,
       conversationName
     ).subscribe({
-      next: (response) => {
+      next: () => {
         this.showNewConversationDialog = false;
         this.isGroupConversation = false;
         this.groupName = '';
@@ -344,6 +381,10 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
           conversationId: this.selectedConversation!.id
         };
         this.messages.push(message);
+        // Traduire le nouveau message si une langue est active
+        if (this.isTranslationActive) {
+          this.translateSingleMessage(message);
+        }
         this.updateConversationLastMessage(content);
         this.shouldScrollToBottom = true;
         this.isSendingMessage = false;
@@ -473,7 +514,10 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     if (this.fileInput) this.fileInput.nativeElement.value = '';
   }
 
-  toggleEmojiPicker(): void { this.showEmojiPicker = !this.showEmojiPicker; }
+  toggleEmojiPicker(): void {
+    this.showEmojiPicker = !this.showEmojiPicker;
+    if (this.showEmojiPicker) this.showLanguageSelector = false;
+  }
 
   addEmoji(emoji: string): void {
     this.newMessage += emoji;
@@ -500,6 +544,97 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     return iconMap[ext || ''] || 'pi-file';
   }
 
+  // ── Traduction ────────────────────────────────────────────────────────────
+
+  /** Ouvre/ferme le panneau de sélection de langue */
+  toggleLanguageSelector(): void {
+    this.showLanguageSelector = !this.showLanguageSelector;
+    if (this.showLanguageSelector) this.showEmojiPicker = false;
+  }
+
+  /** Appelé quand l'utilisateur choisit une langue */
+  selectLanguage(langCode: string): void {
+    this.selectedLanguageCode = langCode;
+    this.showLanguageSelector = false;
+
+    if (langCode === 'original') {
+      // Supprimer toutes les traductions affichées
+      this.translatedContents.clear();
+      this.showOriginalFor.clear();
+    } else {
+      // Traduire tous les messages texte visibles
+      this.translateAllMessages();
+    }
+  }
+
+  /** Traduit tous les messages texte de la conversation courante */
+  translateAllMessages(): void {
+    const textMessages = this.messages.filter(
+      m => m.type === 'TEXT' && m.content?.trim()
+    );
+
+    textMessages.forEach(msg => {
+      if (!this.translatedContents.has(msg.id)) {
+        this.translateSingleMessage(msg);
+      }
+    });
+  }
+
+  /** Traduit un seul message */
+  translateSingleMessage(message: Message): void {
+    if (!message.content?.trim() || message.type !== 'TEXT') return;
+
+    this.translatingMessages.add(message.id);
+
+    const sub = this.translationService
+      .translate(message.content, this.selectedLanguageCode)
+      .subscribe({
+        next: (translated) => {
+          this.translatedContents.set(message.id, translated);
+          this.translatingMessages.delete(message.id);
+        },
+        error: () => {
+          this.translatingMessages.delete(message.id);
+        }
+      });
+
+    this.subscriptions.push(sub);
+  }
+
+  /** Retourne le contenu à afficher pour un message (traduit ou original) */
+  getMessageContent(message: Message): string {
+    if (!this.isTranslationActive || message.type !== 'TEXT') {
+      return message.content;
+    }
+    if (this.showOriginalFor.has(message.id)) {
+      return message.content;
+    }
+    return this.translatedContents.get(message.id) ?? message.content;
+  }
+
+  /** Vérifie si un message est en train d'être traduit */
+  isTranslating(messageId: number): boolean {
+    return this.translatingMessages.has(messageId);
+  }
+
+  /** Vérifie si un message a été traduit */
+  isTranslated(messageId: number): boolean {
+    return this.isTranslationActive && this.translatedContents.has(messageId);
+  }
+
+  /** Bascule entre le contenu traduit et l'original pour un message */
+  toggleOriginal(messageId: number): void {
+    if (this.showOriginalFor.has(messageId)) {
+      this.showOriginalFor.delete(messageId);
+    } else {
+      this.showOriginalFor.add(messageId);
+    }
+  }
+
+  isShowingOriginal(messageId: number): boolean {
+    return this.showOriginalFor.has(messageId);
+  }
+
   // ── Notifications WebSocket ───────────────────────────────────────────────
 
   handleNewMessage(notification: ChatNotification): void {
@@ -520,6 +655,10 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     if (this.selectedConversation?.id === notification.conversationId) {
       if (!this.messages.find(m => m.id === message.id)) {
         this.messages.push(message);
+        // Auto-traduction du message entrant si traduction active
+        if (this.isTranslationActive && message.type === 'TEXT') {
+          this.translateSingleMessage(message);
+        }
         this.shouldScrollToBottom = true;
       }
       this.chatService.markAsRead(notification.conversationId).subscribe();
@@ -529,7 +668,6 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
         conversation.unreadCount++;
         conversation.lastMessage = message.content;
         conversation.lastMessageTime = message.timestamp;
-        // Remonter la conversation en haut
         const idx = this.conversations.indexOf(conversation);
         if (idx > 0) {
           this.conversations.splice(idx, 1);

@@ -64,3 +64,9 @@ springdoc:
     displayRequestDuration: true
   show-actuator: true
   packages-to-scan: com.duniyabacker.front.controller
+
+  ######## Pour la traduction des messages ######################################
+translation:
+  libretranslate:
+    api-key=:
+    url: http://localhost:5000
