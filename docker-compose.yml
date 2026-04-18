@@ -1,35 +1,45 @@
-version: '3.8'
-
 services:
+  # ==========================================
+  # TRAEFIK - REVERSE PROXY + SSL
+  # ==========================================
   traefik:
     image: traefik:v2.10
     container_name: duniya-traefik
+    restart: unless-stopped
     command:
-      - --api.insecure=true
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
+      # Entrypoints
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
+      # Redirection HTTP → HTTPS (MANQUAIT)
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      # Let's Encrypt
       - --certificatesresolvers.le.acme.tlschallenge=true
       - --certificatesresolvers.le.acme.email=${TRAEFIK_ACME_EMAIL}
       - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
     ports:
       - "80:80"
       - "443:443"
-      - "8080:8080"
     volumes:
-      - ./letsencrypt:/letsencrypt
+      - letsencrypt:/letsencrypt
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - duniya-network
 
+  # ==========================================
+  # BACKEND SPRING BOOT
+  # ==========================================
   backend:
     build:
       context: ./duniyaBackend
       dockerfile: Dockerfile
     container_name: duniya-backend
-    expose:
-      - "8080"
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
       SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
@@ -47,8 +57,6 @@ services:
       UPLOAD_DIR_DIRECTEURS: ${UPLOAD_DIR_DIRECTEURS}
       TZ: ${TZ}
       JAVA_OPTS: ${JAVA_OPTS}
-      ENVIRONMENT: ${ENVIRONMENT}
-      DEBUG: ${DEBUG}
     volumes:
       - ./uploads/actualites:/app/uploads/actualites
       - ./uploads/directeurs:/app/uploads/directeurs
@@ -57,36 +65,41 @@ services:
       - duniya-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.backend-http.rule=Host(`${DOMAIN_BACKEND}`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.backend-http.entrypoints=web"
-      - "traefik.http.routers.backend-http.priority=1"
-      - "traefik.http.routers.backend-https.rule=Host(`${DOMAIN_BACKEND}`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.backend-https.entrypoints=websecure"
-      - "traefik.http.routers.backend-https.tls.certresolver=${CERT_RESOLVER}"
-      - "traefik.http.routers.backend-https.priority=2"
+      - "traefik.http.routers.backend.rule=Host(`${DOMAIN_BACKEND}`)"
+      - "traefik.http.routers.backend.entrypoints=websecure"
+      - "traefik.http.routers.backend.tls.certresolver=${CERT_RESOLVER}"
       - "traefik.http.services.backend.loadbalancer.server.port=8080"
 
+  # ==========================================
+  # FRONTEND ANGULAR
+  # ==========================================
   frontend:
     build:
       context: ./duniyaFrontend
       dockerfile: Dockerfile
     container_name: duniya-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
     networks:
       - duniya-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend-http.rule=Host(`${DOMAIN_FRONTEND}`,`www.${DOMAIN_FRONTEND}`)"
-      - "traefik.http.routers.frontend-http.entrypoints=web"
-      - "traefik.http.routers.frontend-http.priority=1"
-      - "traefik.http.routers.frontend-https.rule=Host(`${DOMAIN_FRONTEND}`,`www.${DOMAIN_FRONTEND}`)"
-      - "traefik.http.routers.frontend-https.entrypoints=websecure"
-      - "traefik.http.routers.frontend-https.tls.certresolver=${CERT_RESOLVER}"
-      - "traefik.http.routers.frontend-https.priority=2"
+      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN_FRONTEND}`,`www.${DOMAIN_FRONTEND}`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls.certresolver=${CERT_RESOLVER}"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
 
+  # ==========================================
+  # PHPMYADMIN
+  # ==========================================
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
     container_name: duniya-phpmyadmin
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
     environment:
       PMA_HOST: duniya-mysql
       PMA_USER: ${MYSQL_USER}
@@ -95,19 +108,18 @@ services:
       - duniya-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.phpmyadmin-http.rule=Host(`${DOMAIN_PHPMYADMIN}`)"
-      - "traefik.http.routers.phpmyadmin-http.entrypoints=web"
-      - "traefik.http.routers.phpmyadmin-http.priority=1"
-      - "traefik.http.routers.phpmyadmin-https.rule=Host(`${DOMAIN_PHPMYADMIN}`)"
-      - "traefik.http.routers.phpmyadmin-https.entrypoints=websecure"
-      - "traefik.http.routers.phpmyadmin-https.tls.certresolver=${CERT_RESOLVER}"
-      - "traefik.http.routers.phpmyadmin-https.priority=2"
+      - "traefik.http.routers.phpmyadmin.rule=Host(`${DOMAIN_PHPMYADMIN}`)"
+      - "traefik.http.routers.phpmyadmin.entrypoints=websecure"
+      - "traefik.http.routers.phpmyadmin.tls.certresolver=${CERT_RESOLVER}"
       - "traefik.http.services.phpmyadmin.loadbalancer.server.port=80"
 
+  # ==========================================
+  # MYSQL
+  # ==========================================
   mysql:
     image: mysql:8.0
     container_name: duniya-mysql
-    restart: always
+    restart: unless-stopped
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
@@ -117,12 +129,16 @@ services:
       - mysql-data:/var/lib/mysql
     networks:
       - duniya-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 volumes:
   mysql-data:
   letsencrypt:
-  uploads:
-  logs:
 
 networks:
   duniya-network:
