@@ -1,0 +1,129 @@
+version: '3.8'
+
+services:
+  traefik:
+    image: traefik:v2.10
+    container_name: duniya-traefik
+    command:
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.le.acme.tlschallenge=true
+      - --certificatesresolvers.le.acme.email=${TRAEFIK_ACME_EMAIL}
+      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - ./letsencrypt:/letsencrypt
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - duniya-network
+
+  backend:
+    build:
+      context: ./duniyaBackend
+      dockerfile: Dockerfile
+    container_name: duniya-backend
+    expose:
+      - "8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      EMAIL_HOST: ${EMAIL_HOST}
+      EMAIL_PORT: ${EMAIL_PORT}
+      EMAIL_USERNAME: ${EMAIL_USERNAME}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD}
+      EMAIL_FROM: ${EMAIL_FROM}
+      EMAIL_SECRETARIAT: ${EMAIL_SECRETARIAT}
+      UPLOAD_DIR_ACTUALITES: ${UPLOAD_DIR_ACTUALITES}
+      UPLOAD_DIR_DIRECTEURS: ${UPLOAD_DIR_DIRECTEURS}
+      TZ: ${TZ}
+      JAVA_OPTS: ${JAVA_OPTS}
+      ENVIRONMENT: ${ENVIRONMENT}
+      DEBUG: ${DEBUG}
+    volumes:
+      - ./uploads/actualites:/app/uploads/actualites
+      - ./uploads/directeurs:/app/uploads/directeurs
+      - ./logs:/app/logs
+    networks:
+      - duniya-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend-http.rule=Host(`${DOMAIN_BACKEND}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend-http.entrypoints=web"
+      - "traefik.http.routers.backend-http.priority=1"
+      - "traefik.http.routers.backend-https.rule=Host(`${DOMAIN_BACKEND}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend-https.entrypoints=websecure"
+      - "traefik.http.routers.backend-https.tls.certresolver=${CERT_RESOLVER}"
+      - "traefik.http.routers.backend-https.priority=2"
+      - "traefik.http.services.backend.loadbalancer.server.port=8080"
+
+  frontend:
+    build:
+      context: ./duniyaFrontend
+      dockerfile: Dockerfile
+    container_name: duniya-frontend
+    networks:
+      - duniya-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend-http.rule=Host(`${DOMAIN_FRONTEND}`,`www.${DOMAIN_FRONTEND}`)"
+      - "traefik.http.routers.frontend-http.entrypoints=web"
+      - "traefik.http.routers.frontend-http.priority=1"
+      - "traefik.http.routers.frontend-https.rule=Host(`${DOMAIN_FRONTEND}`,`www.${DOMAIN_FRONTEND}`)"
+      - "traefik.http.routers.frontend-https.entrypoints=websecure"
+      - "traefik.http.routers.frontend-https.tls.certresolver=${CERT_RESOLVER}"
+      - "traefik.http.routers.frontend-https.priority=2"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: duniya-phpmyadmin
+    environment:
+      PMA_HOST: duniya-mysql
+      PMA_USER: ${MYSQL_USER}
+      PMA_PASSWORD: ${MYSQL_PASSWORD}
+    networks:
+      - duniya-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.phpmyadmin-http.rule=Host(`${DOMAIN_PHPMYADMIN}`)"
+      - "traefik.http.routers.phpmyadmin-http.entrypoints=web"
+      - "traefik.http.routers.phpmyadmin-http.priority=1"
+      - "traefik.http.routers.phpmyadmin-https.rule=Host(`${DOMAIN_PHPMYADMIN}`)"
+      - "traefik.http.routers.phpmyadmin-https.entrypoints=websecure"
+      - "traefik.http.routers.phpmyadmin-https.tls.certresolver=${CERT_RESOLVER}"
+      - "traefik.http.routers.phpmyadmin-https.priority=2"
+      - "traefik.http.services.phpmyadmin.loadbalancer.server.port=80"
+
+  mysql:
+    image: mysql:8.0
+    container_name: duniya-mysql
+    restart: always
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - duniya-network
+
+volumes:
+  mysql-data:
+  letsencrypt:
+  uploads:
+  logs:
+
+networks:
+  duniya-network:
+    driver: bridge
