@@ -6,5 +6,5 @@
 
 export const environment = {
   production: true,
-  apiUrl: 'https://api.duniyaconnect.com/api'
+  apiUrl: 'https://duniyaconnect.com/api'
 };
