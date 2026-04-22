@@ -93,7 +93,7 @@ export const routes: Routes = [
     path: 'accept-invitation',
     component: AcceptInvitation,
   },
-
+ 
   // Route par défaut
   { path: '**', redirectTo: '' }
 ];

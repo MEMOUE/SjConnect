@@ -3,19 +3,16 @@ services:
   # TRAEFIK - REVERSE PROXY + SSL
   # ==========================================
   traefik:
-    image: traefik:v2.10
+    image: traefik:v3.3
     container_name: duniya-traefik
     restart: unless-stopped
     command:
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
-      # Entrypoints
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
-      # Redirection HTTP → HTTPS (MANQUAIT)
       - --entrypoints.web.http.redirections.entrypoint.to=websecure
       - --entrypoints.web.http.redirections.entrypoint.scheme=https
-      # Let's Encrypt
       - --certificatesresolvers.le.acme.tlschallenge=true
       - --certificatesresolvers.le.acme.email=${TRAEFIK_ACME_EMAIL}
       - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
