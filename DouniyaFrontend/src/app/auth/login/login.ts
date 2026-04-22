@@ -5,7 +5,6 @@ import { Router, RouterLink } from '@angular/router';
 import { InputText } from 'primeng/inputtext';
 import { Password } from 'primeng/password';
 import { Checkbox } from 'primeng/checkbox';
-import { ButtonDirective } from 'primeng/button';
 import { Toast } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { AuthService } from '../../services/auth/auth.service';
@@ -20,7 +19,7 @@ import { LoginRequest } from '../../models/auth.model';
     InputText,
     Password,
     Checkbox,
-    ButtonDirective,
+    Toast,
   ],
   providers: [MessageService],
   templateUrl: './login.html',
@@ -65,7 +64,6 @@ export class Login {
             detail: `Bienvenue ${response.user.username} !`
           });
 
-          // Rediriger selon le rôle
           setTimeout(() => {
             if (response.user.role === 'ENTREPRISE') {
               this.router.navigate(['/dashboard-entreprise']);

@@ -1,3 +1,4 @@
+<p-toast></p-toast>
 <div class="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 py-12">
   <div class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
     <!-- Header -->
@@ -8,8 +9,27 @@
         </div>
         <span class="text-3xl font-bold text-blue-600">DouniyaConnect</span>
       </div>
-      <h1 class="text-3xl font-bold text-gray-900 mb-2">Créer un compte entreprise</h1>
+      <h1 class="text-3xl font-bold text-gray-900 mb-2">Créer un compte</h1>
       <p class="text-gray-600">Rejoignez le premier réseau professionnel africain souverain</p>
+    </div>
+
+    <!-- Toggle Entreprise / Individuel -->
+    <div class="flex justify-center mb-8">
+      <div class="bg-white rounded-xl shadow-md p-1.5 flex gap-2">
+        <button
+          type="button"
+          class="px-6 py-3 rounded-lg font-semibold text-sm transition-all duration-200 flex items-center gap-2 bg-blue-600 text-white shadow-md">
+          <i class="pi pi-building"></i>
+          Entreprise
+        </button>
+        <button
+          type="button"
+          routerLink="/inscription-individu"
+          class="px-6 py-3 rounded-lg font-semibold text-sm transition-all duration-200 flex items-center gap-2 bg-gray-100 text-gray-600 hover:bg-gray-200">
+          <i class="pi pi-user"></i>
+          Individuel
+        </button>
+      </div>
     </div>
 
     <!-- Formulaire -->
@@ -21,16 +41,16 @@
             <span class="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center mr-3 text-sm">1</span>
             Informations générales de l'entreprise
           </h2>
-          
+
           <div class="space-y-6">
             <!-- Nom de l'entreprise -->
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">
                 Nom de l'entreprise <span class="text-red-500">*</span>
               </label>
-              <input 
-                pInputText 
-                formControlName="nomEntreprise" 
+              <input
+                pInputText
+                formControlName="nomEntreprise"
                 placeholder="Raison sociale de l'entreprise"
                 class="w-full"
               />
@@ -44,11 +64,11 @@
               <label class="block text-sm font-semibold text-gray-700 mb-2">
                 Type d'entreprise <span class="text-red-500">*</span>
               </label>
-              <p-select 
-                [options]="typesEntreprise" 
-                formControlName="typeEntreprise" 
-                placeholder="Sélectionnez un type" 
-                optionLabel="label" 
+              <p-select
+                [options]="typesEntreprise"
+                formControlName="typeEntreprise"
+                placeholder="Sélectionnez un type"
+                optionLabel="label"
                 optionValue="value"
                 styleClass="w-full"
               ></p-select>
@@ -62,11 +82,11 @@
               <label class="block text-sm font-semibold text-gray-700 mb-2">
                 Secteur d'activité <span class="text-red-500">*</span>
               </label>
-              <p-select 
-                [options]="secteursActivite" 
-                formControlName="secteurActivite" 
-                placeholder="Sélectionnez un secteur" 
-                optionLabel="label" 
+              <p-select
+                [options]="secteursActivite"
+                formControlName="secteurActivite"
+                placeholder="Sélectionnez un secteur"
+                optionLabel="label"
                 optionValue="value"
                 styleClass="w-full"
               ></p-select>
@@ -83,17 +103,17 @@
             <span class="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center mr-3 text-sm">2</span>
             Coordonnées de l'entreprise
           </h2>
-          
+
           <div class="space-y-6">
             <!-- Adresse physique -->
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">
                 Adresse physique <span class="text-red-500">*</span>
               </label>
-              <textarea 
-                pTextarea 
-                formControlName="adressePhysique" 
-                rows="3" 
+              <textarea
+                pTextarea
+                formControlName="adressePhysique"
+                rows="3"
                 placeholder="Adresse complète, incluant le code postal et la ville"
                 class="w-full"
               ></textarea>
@@ -107,9 +127,9 @@
               <label class="block text-sm font-semibold text-gray-700 mb-2">
                 Numéro de téléphone <span class="text-red-500">*</span>
               </label>
-              <input 
-                pInputText 
-                formControlName="telephone" 
+              <input
+                pInputText
+                formControlName="telephone"
                 placeholder="Téléphone principal pour contact"
                 class="w-full"
               />
@@ -123,10 +143,10 @@
               <label class="block text-sm font-semibold text-gray-700 mb-2">
                 Adresse e-mail de contact <span class="text-red-500">*</span>
               </label>
-              <input 
-                pInputText 
-                type="email" 
-                formControlName="email" 
+              <input
+                pInputText
+                type="email"
+                formControlName="email"
                 placeholder="Adresse email principale pour les notifications"
                 class="w-full"
               />
@@ -143,16 +163,16 @@
             <span class="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center mr-3 text-sm">3</span>
             Compte utilisateur
           </h2>
-          
+
           <div class="space-y-6">
             <!-- Nom d'utilisateur -->
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">
                 Nom d'utilisateur <span class="text-red-500">*</span>
               </label>
-              <input 
-                pInputText 
-                formControlName="username" 
+              <input
+                pInputText
+                formControlName="username"
                 placeholder="Identifiant unique visible sur la plateforme"
                 class="w-full"
               />
@@ -166,9 +186,9 @@
               <label class="block text-sm font-semibold text-gray-700 mb-2">
                 Mot de passe <span class="text-red-500">*</span>
               </label>
-              <p-password 
-                formControlName="password" 
-                [toggleMask]="true" 
+              <p-password
+                formControlName="password"
+                [toggleMask]="true"
                 placeholder="Min. 8 caractères, incluant majuscules, chiffres et symboles"
                 styleClass="w-full"
               ></p-password>
@@ -182,10 +202,10 @@
               <label class="block text-sm font-semibold text-gray-700 mb-2">
                 Confirmation du mot de passe <span class="text-red-500">*</span>
               </label>
-              <p-password 
-                formControlName="confirmPassword" 
-                [toggleMask]="true" 
-                [feedback]="false" 
+              <p-password
+                formControlName="confirmPassword"
+                [toggleMask]="true"
+                [feedback]="false"
                 placeholder="Re-saisir le mot de passe"
                 styleClass="w-full"
               ></p-password>
@@ -200,18 +220,18 @@
         <div class="mb-8 p-6 bg-gradient-to-br from-blue-50 to-gray-50 rounded-xl border-2 border-blue-200 hover:border-blue-300 transition-all duration-200">
           <div class="flex items-start gap-4">
             <div class="flex-shrink-0">
-              <p-checkbox 
-                formControlName="acceptTerms" 
-                [binary]="true" 
+              <p-checkbox
+                formControlName="acceptTerms"
+                [binary]="true"
                 inputId="terms"
                 styleClass="mt-1"
               ></p-checkbox>
             </div>
             <label for="terms" class="text-sm text-gray-700 cursor-pointer select-none flex-1 leading-relaxed">
-              <span class="font-semibold">J'accepte les</span> 
-              <a href="#" class="text-blue-600 hover:text-blue-700 underline font-semibold transition-colors">conditions d'utilisation</a> 
-              <span class="font-semibold">et la</span> 
-              <a href="#" class="text-blue-600 hover:text-blue-700 underline font-semibold transition-colors">politique de confidentialité</a> 
+              <span class="font-semibold">J'accepte les</span>
+              <a href="#" class="text-blue-600 hover:text-blue-700 underline font-semibold transition-colors">conditions d'utilisation</a>
+              <span class="font-semibold">et la</span>
+              <a href="#" class="text-blue-600 hover:text-blue-700 underline font-semibold transition-colors">politique de confidentialité</a>
               <span class="font-semibold">de DouniyaConnect.</span>
               <span class="text-red-500 ml-1">*</span>
             </label>
@@ -238,32 +258,37 @@
 
         <!-- Boutons -->
         <div class="flex flex-col sm:flex-row gap-4">
-          <button 
-            pButton 
-            type="submit" 
-            [disabled]="registerForm.invalid || isLoading" 
-            class="flex-1 bg-blue-600 hover:bg-blue-700 text-white relative"
+          <button
+            type="submit"
+            [disabled]="registerForm.invalid || isLoading"
+            class="flex-1 py-3 px-6 rounded-lg font-semibold text-white transition-all duration-200 flex items-center justify-center gap-2"
+            [ngClass]="{
+              'bg-blue-600 hover:bg-blue-700 cursor-pointer': !registerForm.invalid && !isLoading,
+              'bg-blue-300 cursor-not-allowed': registerForm.invalid || isLoading
+            }"
           >
-            <span *ngIf="!isLoading">Créer mon compte entreprise</span>
-            <span *ngIf="isLoading" class="flex items-center justify-center">
-              <i class="pi pi-spin pi-spinner mr-2"></i>
+            <ng-container *ngIf="!isLoading">
+              <i class="pi pi-check-circle"></i>
+              Créer mon compte entreprise
+            </ng-container>
+            <ng-container *ngIf="isLoading">
+              <i class="pi pi-spin pi-spinner"></i>
               Création en cours...
-            </span>
+            </ng-container>
           </button>
-          <button 
-            pButton 
-            type="button" 
-            label="Annuler" 
-            (click)="onCancel()" 
-            class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700" 
-            severity="secondary"
-          ></button>
+          <button
+            type="button"
+            (click)="onCancel()"
+            class="flex-1 py-3 px-6 rounded-lg font-semibold bg-gray-200 hover:bg-gray-300 text-gray-700 transition-all duration-200"
+          >
+            Annuler
+          </button>
         </div>
 
         <!-- Lien vers connexion -->
         <div class="mt-6 text-center">
           <p class="text-gray-600">
-            Vous avez déjà un compte ? 
+            Vous avez déjà un compte ?
             <a routerLink="/connexion" class="text-blue-600 hover:underline font-semibold">Se connecter</a>
           </p>
         </div>

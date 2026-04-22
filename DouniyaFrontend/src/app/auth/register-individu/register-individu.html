@@ -1,3 +1,4 @@
+<p-toast></p-toast>
 <div class="min-h-screen bg-gradient-to-br from-green-50 to-gray-100 py-12">
   <div class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
     <!-- Header -->
@@ -8,8 +9,27 @@
         </div>
         <span class="text-3xl font-bold text-green-600">DouniyaConnect</span>
       </div>
-      <h1 class="text-3xl font-bold text-gray-900 mb-2">Créer un compte individuel</h1>
+      <h1 class="text-3xl font-bold text-gray-900 mb-2">Créer un compte</h1>
       <p class="text-gray-600">Rejoignez la communauté professionnelle africaine</p>
+    </div>
+
+    <!-- Toggle Entreprise / Individuel -->
+    <div class="flex justify-center mb-8">
+      <div class="bg-white rounded-xl shadow-md p-1.5 flex gap-2">
+        <button
+          type="button"
+          routerLink="/inscription-entreprise"
+          class="px-6 py-3 rounded-lg font-semibold text-sm transition-all duration-200 flex items-center gap-2 bg-gray-100 text-gray-600 hover:bg-gray-200">
+          <i class="pi pi-building"></i>
+          Entreprise
+        </button>
+        <button
+          type="button"
+          class="px-6 py-3 rounded-lg font-semibold text-sm transition-all duration-200 flex items-center gap-2 bg-green-600 text-white shadow-md">
+          <i class="pi pi-user"></i>
+          Individuel
+        </button>
+      </div>
     </div>
 
     <!-- Formulaire -->
@@ -21,7 +41,7 @@
             <span class="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center mr-3 text-sm">1</span>
             Informations personnelles
           </h2>
-          
+
           <div class="space-y-6">
             <!-- Prénom et Nom -->
             <div class="grid md:grid-cols-2 gap-6">
@@ -29,9 +49,9 @@
                 <label class="block text-sm font-semibold text-gray-700 mb-2">
                   Prénom <span class="text-red-500">*</span>
                 </label>
-                <input 
-                  pInputText 
-                  formControlName="prenom" 
+                <input
+                  pInputText
+                  formControlName="prenom"
                   placeholder="Votre prénom"
                   class="w-full"
                 />
@@ -44,9 +64,9 @@
                 <label class="block text-sm font-semibold text-gray-700 mb-2">
                   Nom <span class="text-red-500">*</span>
                 </label>
-                <input 
-                  pInputText 
-                  formControlName="nom" 
+                <input
+                  pInputText
+                  formControlName="nom"
                   placeholder="Votre nom de famille"
                   class="w-full"
                 />
@@ -62,11 +82,11 @@
                 <label class="block text-sm font-semibold text-gray-700 mb-2">
                   Genre <span class="text-red-500">*</span>
                 </label>
-                <p-select 
-                  [options]="genres" 
-                  formControlName="genre" 
-                  placeholder="Sélectionnez votre genre" 
-                  optionLabel="label" 
+                <p-select
+                  [options]="genres"
+                  formControlName="genre"
+                  placeholder="Sélectionnez votre genre"
+                  optionLabel="label"
                   optionValue="value"
                   styleClass="w-full"
                 ></p-select>
@@ -79,8 +99,8 @@
                 <label class="block text-sm font-semibold text-gray-700 mb-2">
                   Date de naissance <span class="text-red-500">*</span>
                 </label>
-                <p-datepicker 
-                  formControlName="dateNaissance" 
+                <p-datepicker
+                  formControlName="dateNaissance"
                   dateFormat="dd/mm/yy"
                   placeholder="JJ/MM/AAAA"
                   [showIcon]="true"
@@ -101,16 +121,16 @@
             <span class="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center mr-3 text-sm">2</span>
             Coordonnées
           </h2>
-          
+
           <div class="space-y-6">
             <!-- Téléphone -->
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">
                 Numéro de téléphone <span class="text-red-500">*</span>
               </label>
-              <input 
-                pInputText 
-                formControlName="telephone" 
+              <input
+                pInputText
+                formControlName="telephone"
                 placeholder="+225 XX XX XX XX XX"
                 class="w-full"
               />
@@ -124,10 +144,10 @@
               <label class="block text-sm font-semibold text-gray-700 mb-2">
                 Adresse e-mail <span class="text-red-500">*</span>
               </label>
-              <input 
-                pInputText 
-                type="email" 
-                formControlName="email" 
+              <input
+                pInputText
+                type="email"
+                formControlName="email"
                 placeholder="votre@email.com"
                 class="w-full"
               />
@@ -144,18 +164,18 @@
             <span class="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center mr-3 text-sm">3</span>
             Profil professionnel
           </h2>
-          
+
           <div class="space-y-6">
             <!-- Secteur d'activité -->
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">
                 Secteur d'activité <span class="text-red-500">*</span>
               </label>
-              <p-select 
-                [options]="secteursActivite" 
-                formControlName="secteurActivite" 
-                placeholder="Sélectionnez votre secteur" 
-                optionLabel="label" 
+              <p-select
+                [options]="secteursActivite"
+                formControlName="secteurActivite"
+                placeholder="Sélectionnez votre secteur"
+                optionLabel="label"
                 optionValue="value"
                 styleClass="w-full"
               ></p-select>
@@ -169,9 +189,9 @@
               <label class="block text-sm font-semibold text-gray-700 mb-2">
                 Poste actuel (optionnel)
               </label>
-              <input 
-                pInputText 
-                formControlName="posteActuel" 
+              <input
+                pInputText
+                formControlName="posteActuel"
                 placeholder="Ex: Développeur Full Stack, Chef de projet..."
                 class="w-full"
               />
@@ -185,16 +205,16 @@
             <span class="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center mr-3 text-sm">4</span>
             Informations de connexion
           </h2>
-          
+
           <div class="space-y-6">
             <!-- Nom d'utilisateur -->
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">
                 Nom d'utilisateur <span class="text-red-500">*</span>
               </label>
-              <input 
-                pInputText 
-                formControlName="username" 
+              <input
+                pInputText
+                formControlName="username"
                 placeholder="Identifiant unique"
                 class="w-full"
               />
@@ -208,9 +228,9 @@
               <label class="block text-sm font-semibold text-gray-700 mb-2">
                 Mot de passe <span class="text-red-500">*</span>
               </label>
-              <p-password 
-                formControlName="password" 
-                [toggleMask]="true" 
+              <p-password
+                formControlName="password"
+                [toggleMask]="true"
                 placeholder="Min. 8 caractères"
                 styleClass="w-full"
               ></p-password>
@@ -224,10 +244,10 @@
               <label class="block text-sm font-semibold text-gray-700 mb-2">
                 Confirmation du mot de passe <span class="text-red-500">*</span>
               </label>
-              <p-password 
-                formControlName="confirmPassword" 
-                [toggleMask]="true" 
-                [feedback]="false" 
+              <p-password
+                formControlName="confirmPassword"
+                [toggleMask]="true"
+                [feedback]="false"
                 placeholder="Re-saisir le mot de passe"
                 styleClass="w-full"
               ></p-password>
@@ -242,18 +262,18 @@
         <div class="mb-6 p-6 bg-gradient-to-br from-green-50 to-gray-50 rounded-xl border-2 border-green-200 hover:border-green-300 transition-all duration-200">
           <div class="flex items-start gap-4">
             <div class="flex-shrink-0">
-              <p-checkbox 
-                formControlName="acceptTerms" 
-                [binary]="true" 
+              <p-checkbox
+                formControlName="acceptTerms"
+                [binary]="true"
                 inputId="terms"
                 styleClass="mt-1"
               ></p-checkbox>
             </div>
             <label for="terms" class="text-sm text-gray-700 cursor-pointer select-none flex-1 leading-relaxed">
-              <span class="font-semibold">J'accepte les</span> 
-              <a href="#" class="text-green-600 hover:text-green-700 underline font-semibold transition-colors">conditions d'utilisation</a> 
-              <span class="font-semibold">et la</span> 
-              <a href="#" class="text-green-600 hover:text-green-700 underline font-semibold transition-colors">politique de confidentialité</a> 
+              <span class="font-semibold">J'accepte les</span>
+              <a href="#" class="text-green-600 hover:text-green-700 underline font-semibold transition-colors">conditions d'utilisation</a>
+              <span class="font-semibold">et la</span>
+              <a href="#" class="text-green-600 hover:text-green-700 underline font-semibold transition-colors">politique de confidentialité</a>
               <span class="text-red-500 ml-1">*</span>
             </label>
           </div>
@@ -270,9 +290,9 @@
         <!-- Newsletter -->
         <div class="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
           <div class="flex items-start gap-3">
-            <p-checkbox 
-              formControlName="newsletter" 
-              [binary]="true" 
+            <p-checkbox
+              formControlName="newsletter"
+              [binary]="true"
               inputId="newsletter"
             ></p-checkbox>
             <label for="newsletter" class="text-sm text-gray-700 cursor-pointer select-none">
@@ -283,32 +303,37 @@
 
         <!-- Boutons -->
         <div class="flex flex-col sm:flex-row gap-4">
-          <button 
-            pButton 
-            type="submit" 
-            [disabled]="registerForm.invalid || isLoading" 
-            class="flex-1 bg-green-600 hover:bg-green-700 text-white relative"
+          <button
+            type="submit"
+            [disabled]="registerForm.invalid || isLoading"
+            class="flex-1 py-3 px-6 rounded-lg font-semibold text-white transition-all duration-200 flex items-center justify-center gap-2"
+            [ngClass]="{
+              'bg-green-600 hover:bg-green-700 cursor-pointer': !registerForm.invalid && !isLoading,
+              'bg-green-300 cursor-not-allowed': registerForm.invalid || isLoading
+            }"
           >
-            <span *ngIf="!isLoading">Créer mon compte</span>
-            <span *ngIf="isLoading" class="flex items-center justify-center">
-              <i class="pi pi-spin pi-spinner mr-2"></i>
+            <ng-container *ngIf="!isLoading">
+              <i class="pi pi-check-circle"></i>
+              Créer mon compte
+            </ng-container>
+            <ng-container *ngIf="isLoading">
+              <i class="pi pi-spin pi-spinner"></i>
               Création en cours...
-            </span>
+            </ng-container>
           </button>
-          <button 
-            pButton 
-            type="button" 
-            label="Annuler" 
-            (click)="onCancel()" 
-            class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700" 
-            severity="secondary"
-          ></button>
+          <button
+            type="button"
+            (click)="onCancel()"
+            class="flex-1 py-3 px-6 rounded-lg font-semibold bg-gray-200 hover:bg-gray-300 text-gray-700 transition-all duration-200"
+          >
+            Annuler
+          </button>
         </div>
 
         <!-- Lien vers connexion -->
         <div class="mt-6 text-center">
           <p class="text-gray-600">
-            Vous avez déjà un compte ? 
+            Vous avez déjà un compte ?
             <a routerLink="/connexion" class="text-green-600 hover:underline font-semibold">Se connecter</a>
           </p>
         </div>

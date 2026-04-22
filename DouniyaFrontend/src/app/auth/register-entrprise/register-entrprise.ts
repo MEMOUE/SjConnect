@@ -7,7 +7,6 @@ import { Textarea } from 'primeng/textarea';
 import { Select } from 'primeng/select';
 import { Password } from 'primeng/password';
 import { Checkbox } from 'primeng/checkbox';
-import { ButtonDirective } from 'primeng/button';
 import { Toast } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { AuthService } from '../../services/auth/auth.service';
@@ -24,7 +23,7 @@ import { RegisterEntrepriseRequest } from '../../models/auth.model';
     Select,
     Password,
     Checkbox,
-    ButtonDirective,
+    Toast,
   ],
   providers: [MessageService],
   templateUrl: './register-entrprise.html',
@@ -133,7 +132,6 @@ export class RegisterEntrprise {
           if (error.error?.message) {
             errorMessage = error.error.message;
           } else if (error.error?.data) {
-            // Erreurs de validation
             const validationErrors = Object.values(error.error.data).join(', ');
             errorMessage = validationErrors;
           }

@@ -54,6 +54,7 @@ services:
       UPLOAD_DIR_DIRECTEURS: ${UPLOAD_DIR_DIRECTEURS}
       TZ: ${TZ}
       JAVA_OPTS: ${JAVA_OPTS}
+      DOMAIN_FRONTEND: ${DOMAIN_FRONTEND}
     volumes:
       - ./uploads/actualites:/app/uploads/actualites
       - ./uploads/directeurs:/app/uploads/directeurs

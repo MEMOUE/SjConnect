@@ -1,3 +1,4 @@
+<p-toast></p-toast>
 <div class="min-h-screen bg-gradient-to-br from-purple-50 to-gray-100 py-12">
   <div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
     <!-- Header -->
@@ -20,7 +21,7 @@
             <i class="pi pi-user text-purple-600 mr-3"></i>
             Informations personnelles
           </h2>
-          
+
           <div class="space-y-6">
             <!-- Prénom et Nom -->
             <div class="grid md:grid-cols-2 gap-6">
@@ -28,9 +29,9 @@
                 <label class="block text-sm font-semibold text-gray-700 mb-2">
                   Prénom <span class="text-red-500">*</span>
                 </label>
-                <input 
-                  pInputText 
-                  formControlName="prenom" 
+                <input
+                  pInputText
+                  formControlName="prenom"
                   placeholder="Prénom de l'employé"
                   class="w-full"
                 />
@@ -43,9 +44,9 @@
                 <label class="block text-sm font-semibold text-gray-700 mb-2">
                   Nom <span class="text-red-500">*</span>
                 </label>
-                <input 
-                  pInputText 
-                  formControlName="nom" 
+                <input
+                  pInputText
+                  formControlName="nom"
                   placeholder="Nom de l'employé"
                   class="w-full"
                 />
@@ -61,10 +62,10 @@
                 <label class="block text-sm font-semibold text-gray-700 mb-2">
                   Email professionnel <span class="text-red-500">*</span>
                 </label>
-                <input 
-                  pInputText 
-                  type="email" 
-                  formControlName="email" 
+                <input
+                  pInputText
+                  type="email"
+                  formControlName="email"
                   placeholder="prenom.nom@entreprise.com"
                   class="w-full"
                 />
@@ -80,9 +81,9 @@
                 <label class="block text-sm font-semibold text-gray-700 mb-2">
                   Téléphone <span class="text-red-500">*</span>
                 </label>
-                <input 
-                  pInputText 
-                  formControlName="telephone" 
+                <input
+                  pInputText
+                  formControlName="telephone"
                   placeholder="+225 XX XX XX XX XX"
                   class="w-full"
                 />
@@ -100,7 +101,7 @@
             <i class="pi pi-briefcase text-purple-600 mr-3"></i>
             Informations professionnelles
           </h2>
-          
+
           <div class="space-y-6">
             <!-- Poste et Département -->
             <div class="grid md:grid-cols-2 gap-6">
@@ -108,9 +109,9 @@
                 <label class="block text-sm font-semibold text-gray-700 mb-2">
                   Poste <span class="text-red-500">*</span>
                 </label>
-                <input 
-                  pInputText 
-                  formControlName="poste" 
+                <input
+                  pInputText
+                  formControlName="poste"
                   placeholder="Ex: Développeur, Chef de projet..."
                   class="w-full"
                 />
@@ -123,11 +124,11 @@
                 <label class="block text-sm font-semibold text-gray-700 mb-2">
                   Département <span class="text-red-500">*</span>
                 </label>
-                <p-select 
-                  [options]="departements" 
-                  formControlName="departement" 
-                  placeholder="Sélectionnez un département" 
-                  optionLabel="label" 
+                <p-select
+                  [options]="departements"
+                  formControlName="departement"
+                  placeholder="Sélectionnez un département"
+                  optionLabel="label"
                   optionValue="value"
                   styleClass="w-full"
                 ></p-select>
@@ -143,11 +144,11 @@
                 <label class="block text-sm font-semibold text-gray-700 mb-2">
                   Rôle dans la plateforme <span class="text-red-500">*</span>
                 </label>
-                <p-select 
-                  [options]="roles" 
-                  formControlName="role" 
-                  placeholder="Sélectionnez un rôle" 
-                  optionLabel="label" 
+                <p-select
+                  [options]="roles"
+                  formControlName="role"
+                  placeholder="Sélectionnez un rôle"
+                  optionLabel="label"
                   optionValue="value"
                   styleClass="w-full"
                 ></p-select>
@@ -163,9 +164,9 @@
                 <label class="block text-sm font-semibold text-gray-700 mb-2">
                   Numéro de matricule (optionnel)
                 </label>
-                <input 
-                  pInputText 
-                  formControlName="numeroMatricule" 
+                <input
+                  pInputText
+                  formControlName="numeroMatricule"
                   placeholder="Ex: EMP-2025-001"
                   class="w-full"
                 />
@@ -191,29 +192,31 @@
 
         <!-- Boutons -->
         <div class="flex flex-col sm:flex-row gap-4">
-          <button 
-            pButton 
-            type="submit" 
-            [disabled]="employerForm.invalid || isLoading" 
-            class="flex-1 bg-purple-600 hover:bg-purple-700 text-white relative"
+          <button
+            type="submit"
+            [disabled]="employerForm.invalid || isLoading"
+            class="flex-1 py-3 px-6 rounded-lg font-semibold text-white transition-all duration-200 flex items-center justify-center gap-2"
+            [ngClass]="{
+              'bg-purple-600 hover:bg-purple-700 cursor-pointer': !employerForm.invalid && !isLoading,
+              'bg-purple-300 cursor-not-allowed': employerForm.invalid || isLoading
+            }"
           >
-            <span *ngIf="!isLoading">
-              <i class="pi pi-user-plus mr-2"></i>
+            <ng-container *ngIf="!isLoading">
+              <i class="pi pi-user-plus"></i>
               Ajouter l'employé
-            </span>
-            <span *ngIf="isLoading" class="flex items-center justify-center">
-              <i class="pi pi-spin pi-spinner mr-2"></i>
+            </ng-container>
+            <ng-container *ngIf="isLoading">
+              <i class="pi pi-spin pi-spinner"></i>
               Ajout en cours...
-            </span>
+            </ng-container>
           </button>
-          <button 
-            pButton 
-            type="button" 
-            label="Annuler" 
-            (click)="onCancel()" 
-            class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700" 
-            severity="secondary"
-          ></button>
+          <button
+            type="button"
+            (click)="onCancel()"
+            class="flex-1 py-3 px-6 rounded-lg font-semibold bg-gray-200 hover:bg-gray-300 text-gray-700 transition-all duration-200"
+          >
+            Annuler
+          </button>
         </div>
       </form>
     </div>

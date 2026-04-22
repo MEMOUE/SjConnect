@@ -6,8 +6,8 @@ import { InputText } from 'primeng/inputtext';
 import { Select } from 'primeng/select';
 import { Password } from 'primeng/password';
 import { Checkbox } from 'primeng/checkbox';
-import { ButtonDirective } from 'primeng/button';
 import { DatePicker } from 'primeng/datepicker';
+import { Toast } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { AuthService } from '../../services/auth/auth.service';
 import { RegisterParticulierRequest } from '../../models/auth.model';
@@ -22,8 +22,8 @@ import { RegisterParticulierRequest } from '../../models/auth.model';
     Select,
     Password,
     Checkbox,
-    ButtonDirective,
     DatePicker,
+    Toast,
   ],
   providers: [MessageService],
   templateUrl: './register-individu.html',
@@ -93,7 +93,6 @@ export class RegisterIndividu {
     if (this.registerForm.valid) {
       this.isLoading = true;
 
-      // Convertir la date au format ISO (YYYY-MM-DD)
       const dateNaissance = this.registerForm.value.dateNaissance;
       const formattedDate = dateNaissance instanceof Date
         ? dateNaissance.toISOString().split('T')[0]

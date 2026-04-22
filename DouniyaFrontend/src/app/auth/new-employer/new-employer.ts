@@ -4,7 +4,7 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angula
 import { Router } from '@angular/router';
 import { InputText } from 'primeng/inputtext';
 import { Select } from 'primeng/select';
-import { ButtonDirective } from 'primeng/button';
+import { Toast } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { EmployeService} from '../../services/auth/employe.service'
 import { CreateEmployeRequest } from '../../models/auth.model';
@@ -16,7 +16,7 @@ import { CreateEmployeRequest } from '../../models/auth.model';
     ReactiveFormsModule,
     InputText,
     Select,
-    ButtonDirective
+    Toast,
   ],
   providers: [MessageService],
   templateUrl: './new-employer.html',
