@@ -3,16 +3,21 @@ services:
   # TRAEFIK - REVERSE PROXY + SSL
   # ==========================================
   traefik:
-    image: traefik:v3.3
+    image: traefik:latest
     container_name: duniya-traefik
     restart: unless-stopped
+    environment:
+      - DOCKER_API_VERSION=1.45
     command:
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
+      # Entrypoints
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
+      # Redirection HTTP → HTTPS
       - --entrypoints.web.http.redirections.entrypoint.to=websecure
       - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      # Let's Encrypt
       - --certificatesresolvers.le.acme.tlschallenge=true
       - --certificatesresolvers.le.acme.email=${TRAEFIK_ACME_EMAIL}
       - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
@@ -63,9 +68,11 @@ services:
       - duniya-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`${DOMAIN_BACKEND}`)"
+      # Route /api + /swagger + /v3/api-docs + /ws sur le domaine principal
+      - "traefik.http.routers.backend.rule=(Host(`duniyaconnect.com`) || Host(`www.duniyaconnect.com`)) && (PathPrefix(`/api`) || PathPrefix(`/swagger-ui`) || PathPrefix(`/v3/api-docs`) || PathPrefix(`/ws`))"
       - "traefik.http.routers.backend.entrypoints=websecure"
-      - "traefik.http.routers.backend.tls.certresolver=${CERT_RESOLVER}"
+      - "traefik.http.routers.backend.tls.certresolver=le"
+      - "traefik.http.routers.backend.priority=100"
       - "traefik.http.services.backend.loadbalancer.server.port=8080"
 
   # ==========================================
@@ -83,9 +90,11 @@ services:
       - duniya-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN_FRONTEND}`,`www.${DOMAIN_FRONTEND}`)"
+      # Syntaxe Traefik v3 : || au lieu de virgule
+      - "traefik.http.routers.frontend.rule=Host(`duniyaconnect.com`) || Host(`www.duniyaconnect.com`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
-      - "traefik.http.routers.frontend.tls.certresolver=${CERT_RESOLVER}"
+      - "traefik.http.routers.frontend.tls.certresolver=le"
+      - "traefik.http.routers.frontend.priority=1"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
 
   # ==========================================
@@ -106,9 +115,9 @@ services:
       - duniya-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.phpmyadmin.rule=Host(`${DOMAIN_PHPMYADMIN}`)"
+      - "traefik.http.routers.phpmyadmin.rule=Host(`phpmyadmin.duniyaconnect.com`)"
       - "traefik.http.routers.phpmyadmin.entrypoints=websecure"
-      - "traefik.http.routers.phpmyadmin.tls.certresolver=${CERT_RESOLVER}"
+      - "traefik.http.routers.phpmyadmin.tls.certresolver=le"
       - "traefik.http.services.phpmyadmin.loadbalancer.server.port=80"
 
   # ==========================================
