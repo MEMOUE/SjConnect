@@ -11,13 +11,21 @@ services:
     command:
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
+      # Entrypoints
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
+      # Redirection HTTP → HTTPS
       - --entrypoints.web.http.redirections.entrypoint.to=websecure
       - --entrypoints.web.http.redirections.entrypoint.scheme=https
-      - --certificatesresolvers.le.acme.tlschallenge=true
+      - --entrypoints.web.http.redirections.entrypoint.permanent=true
+      # Let's Encrypt — HTTP challenge (plus fiable que TLS challenge)
+      - --certificatesresolvers.le.acme.httpchallenge=true
+      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
       - --certificatesresolvers.le.acme.email=${TRAEFIK_ACME_EMAIL}
       - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+      # Logs pour debug certificats (à retirer une fois OK)
+      - --log.level=INFO
+      - --accesslog=false
     ports:
       - "80:80"
       - "443:443"
@@ -52,14 +60,14 @@ services:
       # JWT & CORS
       JWT_SECRET: ${JWT_SECRET}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
-      # Email custom vars (pour le YAML ${EMAIL_*})
+      # Email custom vars
       EMAIL_HOST: ${EMAIL_HOST}
       EMAIL_PORT: ${EMAIL_PORT}
       EMAIL_USERNAME: ${EMAIL_USERNAME}
       EMAIL_PASSWORD: ${EMAIL_PASSWORD}
       EMAIL_FROM: ${EMAIL_FROM}
-      EMAIL_SECRETARIAT: ${EMAIL_SECRETARIAT}
-      # Forcer la config mail Spring Boot (écrase le YAML, priorité absolue)
+      # EMAIL_SECRETARIAT: ${EMAIL_SECRETARIAT}
+      # Forcer la config mail Spring Boot
       SPRING_MAIL_HOST: smtp.gmail.com
       SPRING_MAIL_PORT: "587"
       SPRING_MAIL_USERNAME: memko021@gmail.com
@@ -84,11 +92,16 @@ services:
       - duniya-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=(Host(`duniyaconnect.com`) || Host(`www.duniyaconnect.com`)) && (PathPrefix(`/api`) || PathPrefix(`/swagger-ui`) || PathPrefix(`/v3/api-docs`) || PathPrefix(`/ws`))"
+      # Router backend — API, Swagger, WebSocket
+      - "traefik.http.routers.backend.rule=(Host(`duniyaconnect.com`) || Host(`www.duniyaconnect.com`)) && (PathPrefix(`/api`) || PathPrefix(`/swagger-ui`) || PathPrefix(`/v3/api-docs`) || PathPrefix(`/ws`) || PathPrefix(`/uploads`))"
       - "traefik.http.routers.backend.entrypoints=websecure"
+      - "traefik.http.routers.backend.tls=true"
       - "traefik.http.routers.backend.tls.certresolver=le"
       - "traefik.http.routers.backend.priority=100"
       - "traefik.http.services.backend.loadbalancer.server.port=8080"
+      # SAN : certificat couvre les deux domaines
+      - "traefik.http.routers.backend.tls.domains[0].main=duniyaconnect.com"
+      - "traefik.http.routers.backend.tls.domains[0].sans=www.duniyaconnect.com"
 
   # ==========================================
   # FRONTEND ANGULAR
@@ -105,11 +118,21 @@ services:
       - duniya-network
     labels:
       - "traefik.enable=true"
+      # Router frontend — pages Angular
       - "traefik.http.routers.frontend.rule=Host(`duniyaconnect.com`) || Host(`www.duniyaconnect.com`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls=true"
       - "traefik.http.routers.frontend.tls.certresolver=le"
       - "traefik.http.routers.frontend.priority=1"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
+      # SAN : même certificat pour les deux domaines
+      - "traefik.http.routers.frontend.tls.domains[0].main=duniyaconnect.com"
+      - "traefik.http.routers.frontend.tls.domains[0].sans=www.duniyaconnect.com"
+      # Middleware : rediriger www → non-www (optionnel mais recommandé)
+      - "traefik.http.middlewares.www-redirect.redirectregex.regex=^https://www\\.duniyaconnect\\.com/(.*)"
+      - "traefik.http.middlewares.www-redirect.redirectregex.replacement=https://duniyaconnect.com/$${1}"
+      - "traefik.http.middlewares.www-redirect.redirectregex.permanent=true"
+      - "traefik.http.routers.frontend.middlewares=www-redirect"
 
   # ==========================================
   # PHPMYADMIN
@@ -131,6 +154,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.phpmyadmin.rule=Host(`phpmyadmin.duniyaconnect.com`)"
       - "traefik.http.routers.phpmyadmin.entrypoints=websecure"
+      - "traefik.http.routers.phpmyadmin.tls=true"
       - "traefik.http.routers.phpmyadmin.tls.certresolver=le"
       - "traefik.http.services.phpmyadmin.loadbalancer.server.port=80"
 
