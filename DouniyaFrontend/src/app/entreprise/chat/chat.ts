@@ -81,19 +81,10 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   currentUserId: number = 0;
 
   // ── Traduction ────────────────────────────────────────────────────────────
-  /** Langue cible sélectionnée par l'utilisateur ('original' = pas de traduction) */
   selectedLanguageCode = 'original';
-
-  /** Sélecteur de langue ouvert/fermé */
   showLanguageSelector = false;
-
-  /** translatedContents[messageId] = texte traduit */
   translatedContents: Map<number, string> = new Map();
-
-  /** IDs des messages en cours de traduction */
   translatingMessages: Set<number> = new Set();
-
-  /** IDs des messages affichés en version originale malgré la traduction active */
   showOriginalFor: Set<number> = new Set();
 
   get availableLanguages(): Language[] {
@@ -189,7 +180,7 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
       error: (error) => {
         console.error('Erreur chargement conversations:', error);
         this.isLoading = false;
-        this.showToast('error', 'Erreur', 'Impossible de charger les conversations');
+        this.showToast('error', 'Erreur', error.error?.message || 'Impossible de charger les conversations');
       }
     });
     this.subscriptions.push(sub);
@@ -231,14 +222,13 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
         this.chatService.markAsRead(conversationId).subscribe();
         this.shouldScrollToBottom = true;
 
-        // Si une traduction est active, traduire tous les nouveaux messages
         if (this.isTranslationActive) {
           this.translateAllMessages();
         }
       },
       error: (error) => {
         console.error('Erreur chargement messages:', error);
-        this.showToast('error', 'Erreur', 'Impossible de charger les messages');
+        this.showToast('error', 'Erreur', error.error?.message || 'Impossible de charger les messages');
       }
     });
     this.subscriptions.push(sub);
@@ -326,14 +316,14 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
       this.isGroupConversation,
       conversationName
     ).subscribe({
-      next: () => {
+      next: (response) => {
         this.showNewConversationDialog = false;
         this.isGroupConversation = false;
         this.groupName = '';
         this.selectedParticipants = [];
         this.isCreatingConversation = false;
         this.loadConversations();
-        this.showToast('success', 'Succès', 'Conversation créée avec succès');
+        this.showToast('success', 'Succès', response.message || 'Conversation créée avec succès');
       },
       error: (error) => {
         console.error('Erreur création conversation:', error);
@@ -381,7 +371,6 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
           conversationId: this.selectedConversation!.id
         };
         this.messages.push(message);
-        // Traduire le nouveau message si une langue est active
         if (this.isTranslationActive) {
           this.translateSingleMessage(message);
         }
@@ -393,7 +382,7 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
         console.error('Erreur envoi message:', error);
         this.newMessage = content;
         this.isSendingMessage = false;
-        this.showToast('error', 'Erreur', 'Impossible d\'envoyer le message');
+        this.showToast('error', 'Erreur', error.error?.message || 'Impossible d\'envoyer le message');
       }
     });
     this.subscriptions.push(sub);
@@ -444,7 +433,7 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
             console.error('Erreur envoi fichier:', error);
             this.isUploadingFile = false;
             this.isSendingMessage = false;
-            this.showToast('error', 'Erreur', 'Impossible d\'envoyer le fichier');
+            this.showToast('error', 'Erreur', error.error?.message || 'Impossible d\'envoyer le fichier');
           }
         });
         this.subscriptions.push(msgSub);
@@ -453,7 +442,7 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
         console.error('Erreur upload fichier:', error);
         this.isUploadingFile = false;
         this.isSendingMessage = false;
-        this.showToast('error', 'Erreur', 'Impossible d\'uploader le fichier');
+        this.showToast('error', 'Erreur', error.error?.message || 'Impossible d\'uploader le fichier');
       }
     });
     this.subscriptions.push(uploadSub);
@@ -546,28 +535,23 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
 
   // ── Traduction ────────────────────────────────────────────────────────────
 
-  /** Ouvre/ferme le panneau de sélection de langue */
   toggleLanguageSelector(): void {
     this.showLanguageSelector = !this.showLanguageSelector;
     if (this.showLanguageSelector) this.showEmojiPicker = false;
   }
 
-  /** Appelé quand l'utilisateur choisit une langue */
   selectLanguage(langCode: string): void {
     this.selectedLanguageCode = langCode;
     this.showLanguageSelector = false;
 
     if (langCode === 'original') {
-      // Supprimer toutes les traductions affichées
       this.translatedContents.clear();
       this.showOriginalFor.clear();
     } else {
-      // Traduire tous les messages texte visibles
       this.translateAllMessages();
     }
   }
 
-  /** Traduit tous les messages texte de la conversation courante */
   translateAllMessages(): void {
     const textMessages = this.messages.filter(
       m => m.type === 'TEXT' && m.content?.trim()
@@ -580,7 +564,6 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     });
   }
 
-  /** Traduit un seul message */
   translateSingleMessage(message: Message): void {
     if (!message.content?.trim() || message.type !== 'TEXT') return;
 
@@ -601,7 +584,6 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     this.subscriptions.push(sub);
   }
 
-  /** Retourne le contenu à afficher pour un message (traduit ou original) */
   getMessageContent(message: Message): string {
     if (!this.isTranslationActive || message.type !== 'TEXT') {
       return message.content;
@@ -612,17 +594,14 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     return this.translatedContents.get(message.id) ?? message.content;
   }
 
-  /** Vérifie si un message est en train d'être traduit */
   isTranslating(messageId: number): boolean {
     return this.translatingMessages.has(messageId);
   }
 
-  /** Vérifie si un message a été traduit */
   isTranslated(messageId: number): boolean {
     return this.isTranslationActive && this.translatedContents.has(messageId);
   }
 
-  /** Bascule entre le contenu traduit et l'original pour un message */
   toggleOriginal(messageId: number): void {
     if (this.showOriginalFor.has(messageId)) {
       this.showOriginalFor.delete(messageId);
@@ -655,7 +634,6 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     if (this.selectedConversation?.id === notification.conversationId) {
       if (!this.messages.find(m => m.id === message.id)) {
         this.messages.push(message);
-        // Auto-traduction du message entrant si traduction active
         if (this.isTranslationActive && message.type === 'TEXT') {
           this.translateSingleMessage(message);
         }

@@ -60,41 +60,29 @@ export class Equipe implements OnInit {
     this.loadEmployees();
   }
 
-  /**
-   * Charger tous les employés depuis l'API
-   */
   loadEmployees(): void {
     this.isLoading = true;
 
     this.employeService.getAllEmployes().subscribe({
       next: (employes: EmployeResponse[]) => {
-        // Transformer les données de l'API en format local
         this.employees = employes.map(emp => this.transformEmploye(emp));
         this.filteredEmployees = [...this.employees];
-
-        // Calculer les statistiques
         this.calculateStats();
-
         this.isLoading = false;
       },
       error: (error) => {
         console.error('Erreur lors du chargement des employés:', error);
-
         this.messageService.add({
           severity: 'error',
           summary: 'Erreur',
-          detail: 'Impossible de charger la liste des employés',
+          detail: error.error?.message || 'Impossible de charger la liste des employés',
           life: 5000
         });
-
         this.isLoading = false;
       }
     });
   }
 
-  /**
-   * Transformer un EmployeResponse en Employee local
-   */
   private transformEmploye(emp: EmployeResponse): Employee {
     const nomComplet = `${emp.prenom} ${emp.nom}`;
 
@@ -117,9 +105,6 @@ export class Equipe implements OnInit {
     };
   }
 
-  /**
-   * Formater le département
-   */
   private formatDepartement(dept: string): string {
     const departementMap: { [key: string]: string } = {
       'direction': 'Direction Générale',
@@ -137,9 +122,6 @@ export class Equipe implements OnInit {
     return departementMap[dept] || dept;
   }
 
-  /**
-   * Formater la date
-   */
   private formatDate(dateString: string): string {
     const date = new Date(dateString);
     return date.toLocaleDateString('fr-FR', {
@@ -149,15 +131,11 @@ export class Equipe implements OnInit {
     });
   }
 
-  /**
-   * Calculer les statistiques
-   */
   private calculateStats(): void {
     const totalEmployees = this.employees.length;
     const activeEmployees = this.employees.filter(e => e.invitationAccepted).length;
     const pendingEmployees = this.employees.filter(e => !e.invitationAccepted).length;
 
-    // Compter les départements uniques
     const uniqueDepartements = new Set(this.employees.map(e => e.departement));
     this.departements = Array.from(uniqueDepartements);
 
@@ -169,9 +147,6 @@ export class Equipe implements OnInit {
     ];
   }
 
-  /**
-   * Filtrer les employés
-   */
   filterEmployees(): void {
     this.filteredEmployees = this.employees.filter(emp => {
       const matchSearch = !this.searchTerm ||
@@ -186,9 +161,6 @@ export class Equipe implements OnInit {
     });
   }
 
-  /**
-   * Obtenir la classe CSS du statut
-   */
   getStatusClass(statut: string): string {
     switch(statut) {
       case 'Actif':
@@ -202,9 +174,6 @@ export class Equipe implements OnInit {
     }
   }
 
-  /**
-   * Obtenir la couleur du département
-   */
   getDepartmentColor(departement: string): string {
     const colors: {[key: string]: string} = {
       'Direction Générale': 'gray',
@@ -221,27 +190,14 @@ export class Equipe implements OnInit {
     return colors[departement] || 'gray';
   }
 
-  /**
-   * Voir les détails d'un employé
-   */
   viewEmployee(employee: Employee): void {
     console.log('Voir employé:', employee);
-    // TODO: Implémenter la navigation vers la page de détails
-    // this.router.navigate(['/entreprise/employe', employee.id]);
   }
 
-  /**
-   * Modifier un employé
-   */
   editEmployee(employee: Employee): void {
     console.log('Modifier employé:', employee);
-    // TODO: Implémenter la navigation vers la page de modification
-    // this.router.navigate(['/entreprise/employe/modifier', employee.id]);
   }
 
-  /**
-   * Supprimer un employé
-   */
   deleteEmployee(employee: Employee): void {
     if (confirm(`Êtes-vous sûr de vouloir supprimer ${employee.nomComplet} ?`)) {
       this.employeService.deleteEmploye(employee.id).subscribe({
@@ -249,20 +205,17 @@ export class Equipe implements OnInit {
           this.messageService.add({
             severity: 'success',
             summary: 'Employé supprimé',
-            detail: response.message,
+            detail: response.message || 'Employé supprimé avec succès.',
             life: 3000
           });
-
-          // Recharger la liste
           this.loadEmployees();
         },
         error: (error) => {
           console.error('Erreur lors de la suppression:', error);
-
           this.messageService.add({
             severity: 'error',
             summary: 'Erreur',
-            detail: 'Impossible de supprimer l\'employé',
+            detail: error.error?.message || 'Impossible de supprimer l\'employé',
             life: 5000
           });
         }
@@ -270,9 +223,6 @@ export class Equipe implements OnInit {
     }
   }
 
-  /**
-   * Renvoyer l'invitation à un employé
-   */
   resendInvitation(employee: Employee): void {
     if (!employee.invitationAccepted) {
       this.employeService.resendInvitation(employee.id).subscribe({
@@ -280,17 +230,16 @@ export class Equipe implements OnInit {
           this.messageService.add({
             severity: 'success',
             summary: 'Invitation renvoyée',
-            detail: response.message,
+            detail: response.message || 'Invitation renvoyée avec succès.',
             life: 3000
           });
         },
         error: (error) => {
           console.error('Erreur lors du renvoi de l\'invitation:', error);
-
           this.messageService.add({
             severity: 'error',
             summary: 'Erreur',
-            detail: 'Impossible de renvoyer l\'invitation',
+            detail: error.error?.message || 'Impossible de renvoyer l\'invitation',
             life: 5000
           });
         }
@@ -298,9 +247,6 @@ export class Equipe implements OnInit {
     }
   }
 
-  /**
-   * Obtenir les initiales d'un nom
-   */
   private getInitials(nom: string): string {
     return nom
       .split(' ')
@@ -310,9 +256,6 @@ export class Equipe implements OnInit {
       .substring(0, 2);
   }
 
-  /**
-   * Obtenir une couleur aléatoire
-   */
   private getRandomColor(): string {
     const colors = ['blue-600', 'purple-600', 'green-600', 'orange-600', 'pink-600', 'indigo-600', 'red-600', 'teal-600'];
     return colors[Math.floor(Math.random() * colors.length)];

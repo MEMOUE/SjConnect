@@ -28,6 +28,7 @@ export class AcceptInvitation implements OnInit {
   isLoading = false;
   isSuccess = false;
   errorMessage = '';
+  successMessage = '';
   showPassword = false;
   showConfirmPassword = false;
 
@@ -55,9 +56,10 @@ export class AcceptInvitation implements OnInit {
         this.tokenValid = true;
         this.isCheckingToken = false;
       },
-      error: () => {
+      error: (err) => {
         this.tokenValid = false;
         this.isCheckingToken = false;
+        this.errorMessage = err.error?.message || '';
       }
     });
   }
@@ -92,9 +94,10 @@ export class AcceptInvitation implements OnInit {
     };
 
     this.employeService.acceptInvitation(request).subscribe({
-      next: () => {
+      next: (response) => {
         this.isLoading = false;
         this.isSuccess = true;
+        this.successMessage = response.message || 'Compte activé avec succès.';
       },
       error: (err) => {
         this.isLoading = false;
