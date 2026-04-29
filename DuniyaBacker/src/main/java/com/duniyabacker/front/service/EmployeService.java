@@ -5,6 +5,7 @@ import com.duniyabacker.front.dto.request.CreateEmployeRequest;
 import com.duniyabacker.front.dto.response.ApiResponse;
 import com.duniyabacker.front.dto.response.EmployeResponse;
 import com.duniyabacker.front.entity.Role;
+import com.duniyabacker.front.entity.User;
 import com.duniyabacker.front.entity.auth.Employe;
 import com.duniyabacker.front.entity.auth.Entreprise;
 import com.duniyabacker.front.exception.CustomExceptions.*;
@@ -34,11 +35,55 @@ public class EmployeService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
 
+    // =========================================================================
+    // HELPER : résoudre l'entreprise depuis un username
+    // =========================================================================
+
+    /**
+     * Résout l'entreprise associée à un utilisateur.
+     *
+     * - Si l'utilisateur est une ENTREPRISE → retourne directement l'entreprise
+     * - Si l'utilisateur est un EMPLOYE    → retourne l'entreprise de l'employé
+     * - Sinon → erreur 403
+     *
+     * Utilisé par toutes les méthodes de LECTURE pour que les employés
+     * puissent accéder aux ressources de leur entreprise.
+     */
+    private Entreprise resolveEntreprise(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé : " + username));
+
+        if (user instanceof Entreprise entreprise) {
+            return entreprise;
+        }
+
+        if (user instanceof Employe employe) {
+            Entreprise entreprise = employe.getEntreprise();
+            if (entreprise == null) {
+                throw new ForbiddenException("Cet employé n'est rattaché à aucune entreprise");
+            }
+            return entreprise;
+        }
+
+        throw new ForbiddenException("Seuls les entreprises et employés peuvent accéder à cette ressource");
+    }
+
+    /**
+     * Résout l'entreprise en exigeant que l'appelant soit une ENTREPRISE.
+     * Utilisé par les méthodes d'ÉCRITURE (create, update, delete).
+     */
+    private Entreprise resolveEntrepriseStrict(String username) {
+        return entrepriseRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Entreprise non trouvée"));
+    }
+
+    // =========================================================================
+    // CRÉATION (ENTREPRISE uniquement)
+    // =========================================================================
+
     @Transactional
     public ApiResponse<EmployeResponse> createEmploye(String entrepriseUsername, CreateEmployeRequest request) {
-        // Récupérer l'entreprise
-        Entreprise entreprise = entrepriseRepository.findByUsername(entrepriseUsername)
-                .orElseThrow(() -> new ResourceNotFoundException("Entreprise non trouvée"));
+        Entreprise entreprise = resolveEntrepriseStrict(entrepriseUsername);
 
         // Vérifier si l'email existe déjà
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -95,6 +140,10 @@ public class EmployeService {
         );
     }
 
+    // =========================================================================
+    // ACCEPTATION D'INVITATION (public)
+    // =========================================================================
+
     @Transactional
     public ApiResponse<Void> acceptInvitation(AcceptInvitationRequest request) {
         if (!request.getPassword().equals(request.getConfirmPassword())) {
@@ -128,26 +177,27 @@ public class EmployeService {
         return ApiResponse.success("Compte activé avec succès. Vous pouvez maintenant vous connecter.");
     }
 
-    public Page<EmployeResponse> getEmployesByEntreprise(String entrepriseUsername, Pageable pageable) {
-        Entreprise entreprise = entrepriseRepository.findByUsername(entrepriseUsername)
-                .orElseThrow(() -> new ResourceNotFoundException("Entreprise non trouvée"));
+    // =========================================================================
+    // LECTURE : ENTREPRISE + EMPLOYE (utilise resolveEntreprise)
+    // =========================================================================
+
+    public Page<EmployeResponse> getEmployesByEntreprise(String username, Pageable pageable) {
+        Entreprise entreprise = resolveEntreprise(username);
 
         return employeRepository.findByEntreprise(entreprise, pageable)
                 .map(this::mapToEmployeResponse);
     }
 
-    public List<EmployeResponse> getAllEmployesByEntreprise(String entrepriseUsername) {
-        Entreprise entreprise = entrepriseRepository.findByUsername(entrepriseUsername)
-                .orElseThrow(() -> new ResourceNotFoundException("Entreprise non trouvée"));
+    public List<EmployeResponse> getAllEmployesByEntreprise(String username) {
+        Entreprise entreprise = resolveEntreprise(username);
 
         return employeRepository.findByEntreprise(entreprise).stream()
                 .map(this::mapToEmployeResponse)
                 .collect(Collectors.toList());
     }
 
-    public EmployeResponse getEmployeById(String entrepriseUsername, Long employeId) {
-        Entreprise entreprise = entrepriseRepository.findByUsername(entrepriseUsername)
-                .orElseThrow(() -> new ResourceNotFoundException("Entreprise non trouvée"));
+    public EmployeResponse getEmployeById(String username, Long employeId) {
+        Entreprise entreprise = resolveEntreprise(username);
 
         Employe employe = employeRepository.findById(employeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employé non trouvé"));
@@ -160,10 +210,18 @@ public class EmployeService {
         return mapToEmployeResponse(employe);
     }
 
+    public long getEmployeCount(String username) {
+        Entreprise entreprise = resolveEntreprise(username);
+        return employeRepository.countByEntreprise(entreprise);
+    }
+
+    // =========================================================================
+    // MISE À JOUR (ENTREPRISE uniquement)
+    // =========================================================================
+
     @Transactional
     public ApiResponse<EmployeResponse> updateEmploye(String entrepriseUsername, Long employeId, CreateEmployeRequest request) {
-        Entreprise entreprise = entrepriseRepository.findByUsername(entrepriseUsername)
-                .orElseThrow(() -> new ResourceNotFoundException("Entreprise non trouvée"));
+        Entreprise entreprise = resolveEntrepriseStrict(entrepriseUsername);
 
         Employe employe = employeRepository.findById(employeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employé non trouvé"));
@@ -213,10 +271,13 @@ public class EmployeService {
         return ApiResponse.success("Employé mis à jour avec succès.", mapToEmployeResponse(employe));
     }
 
+    // =========================================================================
+    // SUPPRESSION (ENTREPRISE uniquement)
+    // =========================================================================
+
     @Transactional
     public ApiResponse<Void> deleteEmploye(String entrepriseUsername, Long employeId) {
-        Entreprise entreprise = entrepriseRepository.findByUsername(entrepriseUsername)
-                .orElseThrow(() -> new ResourceNotFoundException("Entreprise non trouvée"));
+        Entreprise entreprise = resolveEntrepriseStrict(entrepriseUsername);
 
         Employe employe = employeRepository.findById(employeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employé non trouvé"));
@@ -233,10 +294,13 @@ public class EmployeService {
         return ApiResponse.success("Employé supprimé avec succès.");
     }
 
+    // =========================================================================
+    // RENVOI D'INVITATION (ENTREPRISE uniquement)
+    // =========================================================================
+
     @Transactional
     public ApiResponse<Void> resendInvitation(String entrepriseUsername, Long employeId) {
-        Entreprise entreprise = entrepriseRepository.findByUsername(entrepriseUsername)
-                .orElseThrow(() -> new ResourceNotFoundException("Entreprise non trouvée"));
+        Entreprise entreprise = resolveEntrepriseStrict(entrepriseUsername);
 
         Employe employe = employeRepository.findById(employeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employé non trouvé"));
@@ -268,11 +332,24 @@ public class EmployeService {
         return ApiResponse.success("Invitation renvoyée avec succès.");
     }
 
-    public long getEmployeCount(String entrepriseUsername) {
-        Entreprise entreprise = entrepriseRepository.findByUsername(entrepriseUsername)
-                .orElseThrow(() -> new ResourceNotFoundException("Entreprise non trouvée"));
-        return employeRepository.countByEntreprise(entreprise);
+    // =========================================================================
+    // VÉRIFICATION TOKEN (public)
+    // =========================================================================
+
+    public ApiResponse<Void> checkInvitationToken(String token) {
+        Employe employe = employeRepository.findByInvitationToken(token)
+                .orElseThrow(() -> new BadRequestException("Token invalide ou expiré"));
+
+        if (employe.isInvitationAccepted()) {
+            throw new BadRequestException("Cette invitation a déjà été utilisée");
+        }
+
+        return ApiResponse.success("Token valide");
     }
+
+    // =========================================================================
+    // MAPPER
+    // =========================================================================
 
     private EmployeResponse mapToEmployeResponse(Employe employe) {
         return EmployeResponse.builder()
@@ -290,16 +367,5 @@ public class EmployeService {
                 .enabled(employe.isEnabled())
                 .createdAt(employe.getCreatedAt())
                 .build();
-    }
-
-    public ApiResponse<Void> checkInvitationToken(String token) {
-        Employe employe = employeRepository.findByInvitationToken(token)
-                .orElseThrow(() -> new BadRequestException("Token invalide ou expiré"));
-
-        if (employe.isInvitationAccepted()) {
-            throw new BadRequestException("Cette invitation a déjà été utilisée");
-        }
-
-        return ApiResponse.success("Token valide");
     }
 }

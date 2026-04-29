@@ -51,14 +51,8 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html/**",
                                 "/v3/api-docs/**",
-                                "/api/auth/login/**",
-                                "/api/auth/verify-email/**",
                                 "/api/projets-b2b/**",
-                                "api/projets-b2b",
-                                "/api/auth/accept-invitation",
-                                "/api/auth/check-invitation",
                                 "/uploads/**",
-                                "/uploads/shared/**",
                                 "/api/shared/view/**",
                                 "/api/shared/download/**"
                         ).permitAll()
@@ -66,14 +60,24 @@ public class SecurityConfig {
                         // ── Espace partagé ────────────────────────────────────────────────────
                         .requestMatchers("/api/shared/**").authenticated()
 
-                        // ── Chat : toutes les routes nécessitent une authentification ─────────
-                        // (y compris /api/chat/b2b/** et /api/chat/private/**)
+                        // ── Chat ──────────────────────────────────────────────────────────────
                         .requestMatchers("/api/chat/**").authenticated()
 
-                        // ── Entreprise ────────────────────────────────────────────────────────
-                        .requestMatchers("/api/entreprise/**").hasRole("ENTREPRISE")
+                        // ── Marketplace ───────────────────────────────────────────────────────
+                        .requestMatchers("/api/marketplace/**").authenticated()
 
-                        // ── Employés ──────────────────────────────────────────────────────────
+                        // ── Meetings ──────────────────────────────────────────────────────────
+                        .requestMatchers("/api/meetings/**").authenticated()
+
+                        // ── Traduction ────────────────────────────────────────────────────────
+                        .requestMatchers("/api/translate/**").authenticated()
+
+                        // ── Entreprise + Employés : les deux rôles ont accès ──────────────────
+                        // Le contrôle fin (lecture vs écriture) est géré par @PreAuthorize
+                        // dans les controllers
+                        .requestMatchers("/api/entreprise/**").hasAnyRole("ENTREPRISE", "EMPLOYE")
+
+                        // ── Endpoints employé (/api/employe) ─────────────────────────────────
                         .requestMatchers("/api/employe/**").hasAnyRole("ENTREPRISE", "EMPLOYE")
 
                         // ── Tout le reste ─────────────────────────────────────────────────────

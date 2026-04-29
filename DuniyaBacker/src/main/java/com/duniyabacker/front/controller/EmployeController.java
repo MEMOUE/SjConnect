@@ -32,6 +32,10 @@ public class EmployeController {
 
     private final EmployeService employeService;
 
+    // =========================================================================
+    // ÉCRITURE : réservé à ENTREPRISE uniquement
+    // =========================================================================
+
     /**
      * Créer un nouvel employé (entreprise uniquement)
      */
@@ -69,126 +73,6 @@ public class EmployeController {
             @Valid @RequestBody CreateEmployeRequest request) {
         return ResponseEntity.ok(
                 employeService.createEmploye(userDetails.getUsername(), request)
-        );
-    }
-
-    /**
-     * Accepter une invitation (public)
-     */
-    @Operation(
-            summary = "Accepter une invitation",
-            description = "Permettre à un employé invité de créer son compte et d'accepter l'invitation"
-    )
-    @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "Invitation acceptée avec succès"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "400",
-                    description = "Token invalide ou invitation déjà acceptée"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "409",
-                    description = "Nom d'utilisateur déjà utilisé"
-            )
-    })
-    @PostMapping("/auth/accept-invitation")
-    public ResponseEntity<ApiResponse<Void>> acceptInvitation(
-            @Valid @RequestBody AcceptInvitationRequest request) {
-        return ResponseEntity.ok(employeService.acceptInvitation(request));
-    }
-
-    /**
-     * Vérifier la validité d'un token d'invitation (public)
-     */
-    @Operation(
-            summary = "Vérifier token d'invitation",
-            description = "Vérifier si un token d'invitation est valide"
-    )
-    @GetMapping("/auth/check-invitation")
-    public ResponseEntity<ApiResponse<Void>> checkInvitation(
-            @RequestParam String token) {
-        return ResponseEntity.ok(employeService.checkInvitationToken(token));
-    }
-
-    /**
-     * Obtenir la liste paginée des employés (entreprise uniquement)
-     */
-    @Operation(
-            summary = "Liste des employés (paginée)",
-            description = "Obtenir la liste paginée des employés de l'entreprise"
-    )
-    @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "Liste des employés"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "401",
-                    description = "Non authentifié"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "403",
-                    description = "Accès réservé aux entreprises"
-            )
-    })
-    @GetMapping("/entreprise/employes")
-    @PreAuthorize("hasRole('ENTREPRISE')")
-    public ResponseEntity<Page<EmployeResponse>> getEmployes(
-            @AuthenticationPrincipal UserDetails userDetails,
-            @PageableDefault(size = 10) Pageable pageable) {
-        return ResponseEntity.ok(
-                employeService.getEmployesByEntreprise(userDetails.getUsername(), pageable)
-        );
-    }
-
-    /**
-     * Obtenir tous les employés sans pagination (entreprise uniquement)
-     */
-    @Operation(
-            summary = "Liste complète des employés",
-            description = "Obtenir tous les employés de l'entreprise sans pagination"
-    )
-    @GetMapping("/entreprise/employes/all")
-    @PreAuthorize("hasRole('ENTREPRISE')")
-    public ResponseEntity<List<EmployeResponse>> getAllEmployes(
-            @AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(
-                employeService.getAllEmployesByEntreprise(userDetails.getUsername())
-        );
-    }
-
-    /**
-     * Obtenir un employé par son ID (entreprise uniquement)
-     */
-    @Operation(
-            summary = "Détails d'un employé",
-            description = "Obtenir les informations détaillées d'un employé"
-    )
-    @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "Détails de l'employé",
-                    content = @Content(schema = @Schema(implementation = EmployeResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "403",
-                    description = "L'employé n'appartient pas à votre entreprise"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "404",
-                    description = "Employé non trouvé"
-            )
-    })
-    @GetMapping("/entreprise/employes/{id}")
-    @PreAuthorize("hasRole('ENTREPRISE')")
-    public ResponseEntity<EmployeResponse> getEmployeById(
-            @AuthenticationPrincipal UserDetails userDetails,
-            @Parameter(description = "ID de l'employé")
-            @PathVariable Long id) {
-        return ResponseEntity.ok(
-                employeService.getEmployeById(userDetails.getUsername(), id)
         );
     }
 
@@ -297,19 +181,148 @@ public class EmployeController {
         );
     }
 
+    // =========================================================================
+    // LECTURE : accessible à ENTREPRISE + EMPLOYE
+    // (les employés ont besoin de voir la liste pour le chat, l'équipe, etc.)
+    // =========================================================================
+
     /**
-     * Obtenir le nombre d'employés (entreprise uniquement)
+     * Obtenir la liste paginée des employés
+     */
+    @Operation(
+            summary = "Liste des employés (paginée)",
+            description = "Obtenir la liste paginée des employés de l'entreprise"
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Liste des employés"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "Non authentifié"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "Accès réservé aux membres de l'entreprise"
+            )
+    })
+    @GetMapping("/entreprise/employes")
+    @PreAuthorize("hasAnyRole('ENTREPRISE', 'EMPLOYE')")
+    public ResponseEntity<Page<EmployeResponse>> getEmployes(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PageableDefault(size = 10) Pageable pageable) {
+        return ResponseEntity.ok(
+                employeService.getEmployesByEntreprise(userDetails.getUsername(), pageable)
+        );
+    }
+
+    /**
+     * Obtenir tous les employés sans pagination
+     */
+    @Operation(
+            summary = "Liste complète des employés",
+            description = "Obtenir tous les employés de l'entreprise sans pagination"
+    )
+    @GetMapping("/entreprise/employes/all")
+    @PreAuthorize("hasAnyRole('ENTREPRISE', 'EMPLOYE')")
+    public ResponseEntity<List<EmployeResponse>> getAllEmployes(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(
+                employeService.getAllEmployesByEntreprise(userDetails.getUsername())
+        );
+    }
+
+    /**
+     * Obtenir un employé par son ID
+     */
+    @Operation(
+            summary = "Détails d'un employé",
+            description = "Obtenir les informations détaillées d'un employé"
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Détails de l'employé",
+                    content = @Content(schema = @Schema(implementation = EmployeResponse.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "L'employé n'appartient pas à votre entreprise"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "Employé non trouvé"
+            )
+    })
+    @GetMapping("/entreprise/employes/{id}")
+    @PreAuthorize("hasAnyRole('ENTREPRISE', 'EMPLOYE')")
+    public ResponseEntity<EmployeResponse> getEmployeById(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Parameter(description = "ID de l'employé")
+            @PathVariable Long id) {
+        return ResponseEntity.ok(
+                employeService.getEmployeById(userDetails.getUsername(), id)
+        );
+    }
+
+    /**
+     * Obtenir le nombre d'employés
      */
     @Operation(
             summary = "Nombre d'employés",
             description = "Obtenir le nombre total d'employés de l'entreprise"
     )
     @GetMapping("/entreprise/employes/count")
-    @PreAuthorize("hasRole('ENTREPRISE')")
+    @PreAuthorize("hasAnyRole('ENTREPRISE', 'EMPLOYE')")
     public ResponseEntity<Long> getEmployeCount(
             @AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.ok(
                 employeService.getEmployeCount(userDetails.getUsername())
         );
+    }
+
+    // =========================================================================
+    // PUBLIC : acceptation et vérification d'invitation
+    // =========================================================================
+
+    /**
+     * Accepter une invitation (public)
+     */
+    @Operation(
+            summary = "Accepter une invitation",
+            description = "Permettre à un employé invité de créer son compte et d'accepter l'invitation"
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Invitation acceptée avec succès"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Token invalide ou invitation déjà acceptée"
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "409",
+                    description = "Nom d'utilisateur déjà utilisé"
+            )
+    })
+    @PostMapping("/auth/accept-invitation")
+    public ResponseEntity<ApiResponse<Void>> acceptInvitation(
+            @Valid @RequestBody AcceptInvitationRequest request) {
+        return ResponseEntity.ok(employeService.acceptInvitation(request));
+    }
+
+    /**
+     * Vérifier la validité d'un token d'invitation (public)
+     */
+    @Operation(
+            summary = "Vérifier token d'invitation",
+            description = "Vérifier si un token d'invitation est valide"
+    )
+    @GetMapping("/auth/check-invitation")
+    public ResponseEntity<ApiResponse<Void>> checkInvitation(
+            @RequestParam String token) {
+        return ResponseEntity.ok(employeService.checkInvitationToken(token));
     }
 }
