@@ -13,7 +13,9 @@ import java.util.List;
 @Entity
 @Table(name = "users")
 @Inheritance(strategy = InheritanceType.JOINED)
-@Data
+@Getter
+@Setter
+@ToString(exclude = {"password", "verificationToken", "resetPasswordToken"})
 @NoArgsConstructor
 @AllArgsConstructor
 public class User implements UserDetails {
@@ -78,6 +80,37 @@ public class User implements UserDetails {
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
     }
+
+    // =========================================================================
+    // FIX : equals/hashCode basés UNIQUEMENT sur l'id
+    // Indispensable pour que Set<User> fonctionne avec les proxies Hibernate
+    // =========================================================================
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null) return false;
+
+        // Gérer les proxies Hibernate : comparer sur la classe de base
+        Class<?> thisClass = org.hibernate.Hibernate.getClass(this);
+        Class<?> otherClass = org.hibernate.Hibernate.getClass(o);
+        if (thisClass != otherClass) return false;
+
+        User user = (User) o;
+        // Deux entités non persistées (id == null) ne sont jamais égales
+        return id != null && id.equals(user.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        // hashCode constant pour les entités JPA
+        // (évite les problèmes quand l'id passe de null à une valeur après persist)
+        return getClass().hashCode();
+    }
+
+    // =========================================================================
+    // Spring Security
+    // =========================================================================
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

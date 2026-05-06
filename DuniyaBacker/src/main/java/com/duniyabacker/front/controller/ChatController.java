@@ -10,7 +10,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -27,6 +29,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/chat")
 @RequiredArgsConstructor
+@Slf4j
 @Tag(name = "Messagerie", description = "API pour la messagerie interne en temps réel")
 public class ChatController {
 
@@ -71,7 +74,7 @@ public class ChatController {
     }
 
     // =========================================================================
-    // Gestion de groupe (NOUVEAU)
+    // Gestion de groupe
     // =========================================================================
 
     @Operation(summary = "Modifier une conversation",
@@ -94,12 +97,15 @@ public class ChatController {
     public ResponseEntity<ApiResponse<ConversationResponse>> addParticipants(
             @AuthenticationPrincipal UserDetails userDetails,
             @PathVariable Long conversationId,
-            @RequestBody Map<String, List<Long>> body
+            @RequestBody AddParticipantsBody body
     ) {
-        List<Long> participantIds = body.get("participantIds");
+        log.info("Ajout participants à la conversation {} : ids={}",
+                conversationId, body.getParticipantIds());
+
         return ResponseEntity.ok(
                 chatService.addParticipants(
-                        userDetails.getUsername(), conversationId, participantIds));
+                        userDetails.getUsername(), conversationId,
+                        body.getParticipantIds()));
     }
 
     @Operation(summary = "Retirer un participant",
@@ -110,6 +116,9 @@ public class ChatController {
             @PathVariable Long conversationId,
             @PathVariable Long userId
     ) {
+        log.info("Retrait participant {} de la conversation {}",
+                userId, conversationId);
+
         return ResponseEntity.ok(
                 chatService.removeParticipant(
                         userDetails.getUsername(), conversationId, userId));
@@ -173,7 +182,7 @@ public class ChatController {
     }
 
     // =========================================================================
-    // Édition & suppression de messages (NOUVEAU)
+    // Édition & suppression de messages
     // =========================================================================
 
     @Operation(summary = "Modifier un message",
@@ -299,8 +308,19 @@ public class ChatController {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DTO interne pour la réponse d'upload de fichier
+// DTOs internes
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * DTO typé pour l'ajout de participants.
+ * Remplace Map<String, List<Long>> qui pose des problèmes de désérialisation
+ * Jackson (Integer vs Long).
+ */
+@Data
+class AddParticipantsBody {
+    private List<Long> participantIds;
+}
+
 @lombok.Data
 @lombok.Builder
 class FileUploadResponse {

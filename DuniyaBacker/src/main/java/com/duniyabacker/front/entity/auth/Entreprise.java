@@ -9,10 +9,11 @@ import java.util.List;
 
 @Entity
 @Table(name = "entreprises")
-@Data
+@Getter
+@Setter
+@ToString(callSuper = true, exclude = {"employes"})
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(callSuper = true)
 public class Entreprise extends User {
 
     @Column(name = "nom_entreprise", nullable = false)
@@ -43,15 +44,15 @@ public class Entreprise extends User {
     @OneToMany(mappedBy = "entreprise", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Employe> employes = new ArrayList<>();
 
-    // Méthode utilitaire pour ajouter un employé
     public void addEmploye(Employe employe) {
         employes.add(employe);
         employe.setEntreprise(this);
     }
 
-    // Méthode utilitaire pour supprimer un employé
     public void removeEmploye(Employe employe) {
         employes.remove(employe);
         employe.setEntreprise(null);
     }
+
+    // equals/hashCode hérité de User (basé sur id uniquement)
 }

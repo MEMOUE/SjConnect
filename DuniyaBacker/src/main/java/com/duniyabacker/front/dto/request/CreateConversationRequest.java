@@ -1,5 +1,6 @@
 package com.duniyabacker.front.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -11,12 +12,13 @@ import java.util.List;
  * DTO pour créer une nouvelle conversation
  */
 @Data
- public class CreateConversationRequest {
+public class CreateConversationRequest {
 
     @NotBlank(message = "Le nom de la conversation est requis")
     @Size(max = 100, message = "Le nom ne peut pas dépasser 100 caractères")
     private String name;
 
+    @JsonProperty("isGroup")
     private boolean isGroup = false;
 
     @NotNull(message = "La liste des participants est requise")

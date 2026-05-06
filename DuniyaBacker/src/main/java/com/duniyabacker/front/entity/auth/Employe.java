@@ -6,10 +6,11 @@ import lombok.*;
 
 @Entity
 @Table(name = "employes")
-@Data
+@Getter
+@Setter
+@ToString(callSuper = true)
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(callSuper = true)
 public class Employe extends User {
 
     @Column(nullable = false)
@@ -43,4 +44,6 @@ public class Employe extends User {
 
     @Column(name = "invitation_accepted")
     private boolean invitationAccepted = false;
+
+    // equals/hashCode hérité de User (basé sur id uniquement)
 }

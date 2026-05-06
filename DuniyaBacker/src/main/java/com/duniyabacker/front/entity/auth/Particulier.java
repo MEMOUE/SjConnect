@@ -8,10 +8,11 @@ import java.time.LocalDate;
 
 @Entity
 @Table(name = "particuliers")
-@Data
+@Getter
+@Setter
+@ToString(callSuper = true)
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(callSuper = true)
 public class Particulier extends User {
 
     @Column(nullable = false)
@@ -40,4 +41,6 @@ public class Particulier extends User {
 
     @Column
     private boolean newsletter = false;
+
+    // equals/hashCode hérité de User (basé sur id uniquement)
 }

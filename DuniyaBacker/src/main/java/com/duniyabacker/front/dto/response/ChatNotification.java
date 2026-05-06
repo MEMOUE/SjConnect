@@ -30,6 +30,13 @@ public class ChatNotification {
     private String type;
     private Long conversationId;
     private MessageResponse message;
+
+    /**
+     * ID du message supprimé — utilisé par le frontend pour MESSAGE_DELETED.
+     * Le frontend lit notification.messageId directement.
+     */
+    private Long messageId;
+
     private Long userId;
     private String username;
     private LocalDateTime timestamp;
