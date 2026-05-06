@@ -65,4 +65,4 @@ springdoc:
 translation:
   libretranslate:
     api-key: 
-    url: http://localhost:5000
+    url: http://translate:5000

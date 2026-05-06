@@ -1,17 +1,18 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { DialogModule } from 'primeng/dialog';
 import { MultiSelectModule } from 'primeng/multiselect';
 import { ToastModule } from 'primeng/toast';
-import { MessageService } from 'primeng/api';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { MessageService, ConfirmationService } from 'primeng/api';
 import { ChatService } from '../../services/chat/chat.service';
 import { EmployeService } from '../../services/auth/employe.service';
 import { AuthService } from '../../services/auth/auth.service';
 import { TranslationService, Language } from '../../services/translation/translation.service';
-import { Conversation, Message, ChatNotification } from '../../models/chat.model';
-import { Subscription, forkJoin } from 'rxjs';
+import { Conversation, Message, ChatNotification, Participant } from '../../models/chat.model';
+import { Subscription } from 'rxjs';
 import { EmployeSimple } from '../../models/auth.model';
 
 @Component({
@@ -22,9 +23,10 @@ import { EmployeSimple } from '../../models/auth.model';
     FormsModule,
     DialogModule,
     MultiSelectModule,
-    ToastModule
+    ToastModule,
+    ConfirmDialogModule
   ],
-  providers: [MessageService],
+  providers: [MessageService, ConfirmationService],
   templateUrl: './chat.html',
   styleUrl: './chat.css'
 })
@@ -86,6 +88,27 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   translatedContents: Map<number, string> = new Map();
   translatingMessages: Set<number> = new Set();
   showOriginalFor: Set<number> = new Set();
+  skippedTranslation: Set<number> = new Set(); // Messages déjà dans la bonne langue
+
+  // ── NOUVEAU : Menu contextuel message ─────────────────────────────────────
+  contextMenuVisible = false;
+  contextMenuX = 0;
+  contextMenuY = 0;
+  contextMenuMessage: Message | null = null;
+
+  // ── NOUVEAU : Édition de message ──────────────────────────────────────────
+  editingMessage: Message | null = null;
+  editMessageContent = '';
+
+  // ── NOUVEAU : Panneau membres du groupe ───────────────────────────────────
+  showMembersPanel = false;
+
+  // ── NOUVEAU : Dialog gestion groupe ───────────────────────────────────────
+  showEditGroupDialog = false;
+  editGroupName = '';
+  showAddMembersDialog = false;
+  addMembersSelectedParticipants: EmployeSimple[] = [];
+  existingParticipantIds: Set<number> = new Set();
 
   get availableLanguages(): Language[] {
     return this.translationService.languages;
@@ -107,7 +130,9 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     private employeService: EmployeService,
     private authService: AuthService,
     private messageService: MessageService,
+    private confirmationService: ConfirmationService,
     private route: ActivatedRoute,
+    private router: Router,
     public translationService: TranslationService
   ) {}
 
@@ -141,6 +166,20 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     this.subscriptions.forEach(sub => sub.unsubscribe());
     this.chatService.disconnect();
     if (this.typingTimeout) clearTimeout(this.typingTimeout);
+  }
+
+  // ── Fermer menus au clic extérieur ────────────────────────────────────────
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    this.contextMenuVisible = false;
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscapeKey(): void {
+    this.contextMenuVisible = false;
+    this.showEmojiPicker = false;
+    this.showLanguageSelector = false;
+    this.cancelEditMessage();
   }
 
   // ── Chargement des données ────────────────────────────────────────────────
@@ -213,10 +252,13 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
           content: msg.content,
           timestamp: new Date(msg.createdAt || Date.now()),
           isRead: msg.isRead,
+          isEdited: msg.isEdited || false,
           type: (msg.type || 'TEXT').toUpperCase(),
           fileUrl: msg.fileUrl,
           fileName: msg.fileName,
-          conversationId: conversationId
+          conversationId: conversationId,
+          parentMessageId: msg.parentMessageId,
+          parentMessageContent: msg.parentMessageContent
         })).reverse();
 
         this.chatService.markAsRead(conversationId).subscribe();
@@ -259,6 +301,17 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
       next: (notification: ChatNotification) => this.handleUserStatusChange(notification)
     });
     this.subscriptions.push(statusSub);
+
+    // Écouter les éditions et suppressions de messages
+    const editSub = this.chatService.onMessageEdited$.subscribe({
+      next: (notification: ChatNotification) => this.handleMessageEdited(notification)
+    });
+    this.subscriptions.push(editSub);
+
+    const deleteSub = this.chatService.onMessageDeleted$.subscribe({
+      next: (notification: ChatNotification) => this.handleMessageDeleted(notification)
+    });
+    this.subscriptions.push(deleteSub);
   }
 
   // ── Gestion des conversations ─────────────────────────────────────────────
@@ -269,10 +322,19 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     this.messages = [];
     this.translatedContents.clear();
     this.showOriginalFor.clear();
+    this.skippedTranslation.clear();
+    this.showMembersPanel = false;
+    this.editingMessage = null;
+    this.contextMenuVisible = false;
     this.loadMessages(conversation.id);
     this.chatService.subscribeToConversation(conversation.id);
     this.showEmojiPicker = false;
     this.showLanguageSelector = false;
+
+    // Collecter les IDs des participants existants
+    this.existingParticipantIds = new Set(
+      (conversation.participants || []).map(p => p.id)
+    );
   }
 
   searchConversations(): void {
@@ -334,6 +396,185 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     this.subscriptions.push(sub);
   }
 
+  // ── NOUVEAU : Gestion du groupe ───────────────────────────────────────────
+
+  toggleMembersPanel(): void {
+    this.showMembersPanel = !this.showMembersPanel;
+  }
+
+  openEditGroupDialog(): void {
+    if (!this.selectedConversation?.isGroup) return;
+    this.editGroupName = this.selectedConversation.name;
+    this.showEditGroupDialog = true;
+  }
+
+  saveGroupName(): void {
+    if (!this.selectedConversation || !this.editGroupName.trim()) return;
+    const sub = this.chatService.updateConversation(
+      this.selectedConversation.id,
+      { name: this.editGroupName.trim() }
+    ).subscribe({
+      next: () => {
+        this.selectedConversation!.name = this.editGroupName.trim();
+        const conv = this.conversations.find(c => c.id === this.selectedConversation!.id);
+        if (conv) conv.name = this.editGroupName.trim();
+        this.filteredConversations = [...this.conversations];
+        this.showEditGroupDialog = false;
+        this.showToast('success', 'Succès', 'Nom du groupe modifié');
+      },
+      error: (error) => {
+        this.showToast('error', 'Erreur', error.error?.message || 'Impossible de modifier le groupe');
+      }
+    });
+    this.subscriptions.push(sub);
+  }
+
+  openAddMembersDialog(): void {
+    this.addMembersSelectedParticipants = [];
+    this.showAddMembersDialog = true;
+    if (this.availableEmployes.length === 0) {
+      this.loadEmployes();
+    }
+  }
+
+  get availableEmployesForAdd(): EmployeSimple[] {
+    return this.availableEmployes.filter(e => !this.existingParticipantIds.has(e.id));
+  }
+
+  addMembersToGroup(): void {
+    if (!this.selectedConversation || this.addMembersSelectedParticipants.length === 0) return;
+    const ids = this.addMembersSelectedParticipants.map(p => p.id);
+    const sub = this.chatService.addParticipants(
+      this.selectedConversation.id, ids
+    ).subscribe({
+      next: () => {
+        this.addMembersSelectedParticipants.forEach(p => {
+          this.existingParticipantIds.add(p.id);
+          this.selectedConversation!.participants?.push({
+            id: p.id,
+            username: '',
+            fullName: p.name,
+            name: p.name,
+            avatar: (p as any).avatar || this.getInitials(p.name),
+            isOnline: false,
+            role: ''
+          });
+        });
+        this.showAddMembersDialog = false;
+        this.addMembersSelectedParticipants = [];
+        this.showToast('success', 'Succès', 'Participants ajoutés au groupe');
+      },
+      error: (error) => {
+        this.showToast('error', 'Erreur', error.error?.message || 'Impossible d\'ajouter les participants');
+      }
+    });
+    this.subscriptions.push(sub);
+  }
+
+  removeFromGroup(participant: Participant): void {
+    if (!this.selectedConversation) return;
+    this.confirmationService.confirm({
+      message: `Retirer ${participant.name || participant.fullName} du groupe ?`,
+      header: 'Confirmer',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Retirer',
+      rejectLabel: 'Annuler',
+      accept: () => {
+        const sub = this.chatService.removeParticipant(
+          this.selectedConversation!.id, participant.id
+        ).subscribe({
+          next: () => {
+            const idx = this.selectedConversation!.participants?.findIndex(p => p.id === participant.id);
+            if (idx !== undefined && idx > -1) {
+              this.selectedConversation!.participants?.splice(idx, 1);
+            }
+            this.existingParticipantIds.delete(participant.id);
+            this.showToast('success', 'Succès', 'Participant retiré du groupe');
+          },
+          error: (error) => {
+            this.showToast('error', 'Erreur', error.error?.message || 'Impossible de retirer le participant');
+          }
+        });
+        this.subscriptions.push(sub);
+      }
+    });
+  }
+
+  leaveGroup(): void {
+    if (!this.selectedConversation) return;
+    this.confirmationService.confirm({
+      message: 'Voulez-vous vraiment quitter ce groupe ?',
+      header: 'Quitter le groupe',
+      icon: 'pi pi-sign-out',
+      acceptLabel: 'Quitter',
+      rejectLabel: 'Annuler',
+      accept: () => {
+        const sub = this.chatService.leaveConversation(this.selectedConversation!.id).subscribe({
+          next: () => {
+            this.selectedConversation = null;
+            this.showMembersPanel = false;
+            this.loadConversations();
+            this.showToast('success', 'Succès', 'Vous avez quitté le groupe');
+          },
+          error: (error) => {
+            this.showToast('error', 'Erreur', error.error?.message || 'Impossible de quitter le groupe');
+          }
+        });
+        this.subscriptions.push(sub);
+      }
+    });
+  }
+
+  deleteGroup(): void {
+    if (!this.selectedConversation) return;
+    this.confirmationService.confirm({
+      message: 'Supprimer définitivement cette conversation ? Tous les messages seront perdus.',
+      header: 'Supprimer la conversation',
+      icon: 'pi pi-trash',
+      acceptLabel: 'Supprimer',
+      rejectLabel: 'Annuler',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => {
+        const sub = this.chatService.deleteConversation(this.selectedConversation!.id).subscribe({
+          next: () => {
+            this.selectedConversation = null;
+            this.showMembersPanel = false;
+            this.loadConversations();
+            this.showToast('success', 'Succès', 'Conversation supprimée');
+          },
+          error: (error) => {
+            this.showToast('error', 'Erreur', error.error?.message || 'Impossible de supprimer');
+          }
+        });
+        this.subscriptions.push(sub);
+      }
+    });
+  }
+
+  // ── NOUVEAU : Conversation privée depuis un membre du groupe ──────────────
+
+  startPrivateChat(participant: Participant): void {
+    if (participant.id === this.currentUserId) return;
+    const sub = this.chatService.startPrivateConversation(participant.id).subscribe({
+      next: (response) => {
+        this.showMembersPanel = false;
+        this.loadConversations();
+        // Sélectionner la conversation privée après rechargement
+        setTimeout(() => {
+          const conv = this.conversations.find(c => c.id === (response.data as any)?.id);
+          if (conv) {
+            this.selectConversation(conv);
+          }
+        }, 500);
+        this.showToast('success', 'Succès', 'Conversation privée ouverte');
+      },
+      error: (error) => {
+        this.showToast('error', 'Erreur', error.error?.message || 'Impossible de créer la conversation privée');
+      }
+    });
+    this.subscriptions.push(sub);
+  }
+
   // ── Gestion des messages ──────────────────────────────────────────────────
 
   sendMessage(): void {
@@ -341,6 +582,12 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
 
     if (this.typingTimeout) clearTimeout(this.typingTimeout);
     this.chatService.sendStopTypingNotification(this.selectedConversation.id);
+
+    // Si on est en mode édition
+    if (this.editingMessage) {
+      this.saveEditedMessage();
+      return;
+    }
 
     if (this.selectedFile) {
       this.sendFileMessage();
@@ -448,6 +695,136 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     this.subscriptions.push(uploadSub);
   }
 
+  // ── NOUVEAU : Menu contextuel message ─────────────────────────────────────
+
+  onMessageContextMenu(event: MouseEvent, message: Message): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.contextMenuMessage = message;
+    this.contextMenuX = event.clientX;
+    this.contextMenuY = event.clientY;
+
+    // Ajuster la position si trop proche du bord
+    const menuWidth = 180;
+    const menuHeight = 160;
+    if (this.contextMenuX + menuWidth > window.innerWidth) {
+      this.contextMenuX = window.innerWidth - menuWidth - 10;
+    }
+    if (this.contextMenuY + menuHeight > window.innerHeight) {
+      this.contextMenuY = window.innerHeight - menuHeight - 10;
+    }
+
+    this.contextMenuVisible = true;
+  }
+
+  copyMessageContent(): void {
+    if (!this.contextMenuMessage) return;
+    navigator.clipboard.writeText(this.contextMenuMessage.content).then(() => {
+      this.showToast('success', 'Copié', 'Message copié dans le presse-papier');
+    });
+    this.contextMenuVisible = false;
+  }
+
+  startEditMessage(): void {
+    if (!this.contextMenuMessage || this.contextMenuMessage.senderId !== this.currentUserId) return;
+    this.editingMessage = this.contextMenuMessage;
+    this.editMessageContent = this.contextMenuMessage.content;
+    this.newMessage = this.contextMenuMessage.content;
+    this.contextMenuVisible = false;
+  }
+
+  cancelEditMessage(): void {
+    this.editingMessage = null;
+    this.editMessageContent = '';
+    this.newMessage = '';
+  }
+
+  saveEditedMessage(): void {
+    if (!this.editingMessage || !this.newMessage.trim()) return;
+    const messageId = this.editingMessage.id;
+    const content = this.newMessage.trim();
+
+    const sub = this.chatService.editMessage(messageId, content).subscribe({
+      next: () => {
+        const msg = this.messages.find(m => m.id === messageId);
+        if (msg) {
+          msg.content = content;
+          msg.isEdited = true;
+        }
+        // Mettre à jour la traduction si active
+        if (this.isTranslationActive && msg) {
+          this.translatedContents.delete(messageId);
+          this.skippedTranslation.delete(messageId);
+          this.translateSingleMessage(msg);
+        }
+        this.cancelEditMessage();
+        this.showToast('success', 'Succès', 'Message modifié');
+      },
+      error: (error) => {
+        this.showToast('error', 'Erreur', error.error?.message || 'Impossible de modifier le message');
+      }
+    });
+    this.subscriptions.push(sub);
+  }
+
+  confirmDeleteMessage(): void {
+    if (!this.contextMenuMessage) return;
+    this.contextMenuVisible = false;
+    const messageId = this.contextMenuMessage.id;
+
+    this.confirmationService.confirm({
+      message: 'Supprimer ce message ?',
+      header: 'Confirmer la suppression',
+      icon: 'pi pi-trash',
+      acceptLabel: 'Supprimer',
+      rejectLabel: 'Annuler',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => {
+        const sub = this.chatService.deleteMessage(messageId).subscribe({
+          next: () => {
+            this.messages = this.messages.filter(m => m.id !== messageId);
+            this.translatedContents.delete(messageId);
+            this.showToast('success', 'Succès', 'Message supprimé');
+          },
+          error: (error) => {
+            this.showToast('error', 'Erreur', error.error?.message || 'Impossible de supprimer le message');
+          }
+        });
+        this.subscriptions.push(sub);
+      }
+    });
+  }
+
+  // ── Notifications WebSocket — édition/suppression ─────────────────────────
+
+  handleMessageEdited(notification: ChatNotification): void {
+    if (!notification.message) return;
+    const msgData = notification.message;
+    if (this.selectedConversation?.id === notification.conversationId) {
+      const msg = this.messages.find(m => m.id === msgData.id);
+      if (msg) {
+        msg.content = msgData.content;
+        msg.isEdited = true;
+        if (this.isTranslationActive) {
+          this.translatedContents.delete(msg.id);
+          this.skippedTranslation.delete(msg.id);
+          this.translateSingleMessage(msg);
+        }
+      }
+    }
+  }
+
+  handleMessageDeleted(notification: ChatNotification): void {
+    const deletedId = notification.messageId ?? notification.message?.id;
+    if (this.selectedConversation?.id === notification.conversationId && deletedId) {
+      this.messages = this.messages.filter(m => m.id !== deletedId);
+      this.translatedContents.delete(deletedId);
+      this.skippedTranslation.delete(deletedId);
+    }
+  }
+
+  // ── Suite : update conversation, typing, etc. ─────────────────────────────
+
   private updateConversationLastMessage(content: string): void {
     if (this.selectedConversation) {
       this.selectedConversation.lastMessage = content;
@@ -533,7 +910,7 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     return iconMap[ext || ''] || 'pi-file';
   }
 
-  // ── Traduction ────────────────────────────────────────────────────────────
+  // ── Traduction (avec détection langue identique) ──────────────────────────
 
   toggleLanguageSelector(): void {
     this.showLanguageSelector = !this.showLanguageSelector;
@@ -547,7 +924,10 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     if (langCode === 'original') {
       this.translatedContents.clear();
       this.showOriginalFor.clear();
+      this.skippedTranslation.clear();
     } else {
+      this.translatedContents.clear();
+      this.skippedTranslation.clear();
       this.translateAllMessages();
     }
   }
@@ -558,7 +938,7 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     );
 
     textMessages.forEach(msg => {
-      if (!this.translatedContents.has(msg.id)) {
+      if (!this.translatedContents.has(msg.id) && !this.skippedTranslation.has(msg.id)) {
         this.translateSingleMessage(msg);
       }
     });
@@ -573,8 +953,18 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
       .translate(message.content, this.selectedLanguageCode)
       .subscribe({
         next: (translated) => {
-          this.translatedContents.set(message.id, translated);
           this.translatingMessages.delete(message.id);
+
+          // AMÉLIORATION #4 : Ne pas afficher "traduit" si le texte n'a pas changé
+          const originalNormalized = message.content.trim().toLowerCase();
+          const translatedNormalized = translated.trim().toLowerCase();
+
+          if (originalNormalized === translatedNormalized) {
+            // Le texte est déjà dans la langue cible — on ne marque pas comme traduit
+            this.skippedTranslation.add(message.id);
+          } else {
+            this.translatedContents.set(message.id, translated);
+          }
         },
         error: () => {
           this.translatingMessages.delete(message.id);
@@ -591,6 +981,9 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     if (this.showOriginalFor.has(message.id)) {
       return message.content;
     }
+    if (this.skippedTranslation.has(message.id)) {
+      return message.content;
+    }
     return this.translatedContents.get(message.id) ?? message.content;
   }
 
@@ -599,7 +992,10 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   isTranslated(messageId: number): boolean {
-    return this.isTranslationActive && this.translatedContents.has(messageId);
+    // Ne pas afficher le badge "Traduit" si la traduction a été sautée
+    return this.isTranslationActive
+      && this.translatedContents.has(messageId)
+      && !this.skippedTranslation.has(messageId);
   }
 
   toggleOriginal(messageId: number): void {

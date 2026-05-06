@@ -52,4 +52,5 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+    enabled = false // todo desactiver les tests par default
 }

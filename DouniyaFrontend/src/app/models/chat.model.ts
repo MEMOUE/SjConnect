@@ -1,4 +1,3 @@
-
 export interface Conversation {
   id: number;
   name: string;
@@ -15,8 +14,10 @@ export interface Participant {
   id: number;
   username: string;
   fullName: string;
+  name?: string;
   avatar?: string;
   isOnline: boolean;
+  role?: string;
 }
 
 export interface Message {
@@ -27,17 +28,21 @@ export interface Message {
   content: string;
   timestamp: Date;
   isRead: boolean;
+  isEdited?: boolean;
   type: string;
   fileUrl?: string;
   fileName?: string;
   conversationId: number;
   createdAt?: string;
+  parentMessageId?: number;
+  parentMessageContent?: string;
 }
 
 export interface ChatNotification {
   type: string;
   conversationId: number;
   username?: string;
+  messageId?: number;
   message?: {
     createdAt: string;
     id: number;
@@ -48,6 +53,7 @@ export interface ChatNotification {
     timestamp: string;
     type: string;
     conversationId: number;
+    isEdited?: boolean;
   };
 }
 

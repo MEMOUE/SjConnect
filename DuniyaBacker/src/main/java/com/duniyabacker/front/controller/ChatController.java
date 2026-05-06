@@ -22,6 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/chat")
@@ -36,9 +37,6 @@ public class ChatController {
     // Conversations classiques
     // =========================================================================
 
-    /**
-     * Créer une nouvelle conversation (usage général)
-     */
     @Operation(summary = "Créer une conversation",
             description = "Créer une nouvelle conversation privée ou de groupe")
     @PostMapping("/conversations")
@@ -50,9 +48,6 @@ public class ChatController {
                 chatService.createConversation(userDetails.getUsername(), request));
     }
 
-    /**
-     * Récupérer toutes les conversations de l'utilisateur connecté
-     */
     @Operation(summary = "Liste des conversations",
             description = "Obtenir toutes les conversations de l'utilisateur connecté")
     @GetMapping("/conversations")
@@ -64,9 +59,6 @@ public class ChatController {
                 chatService.getConversations(userDetails.getUsername(), pageable));
     }
 
-    /**
-     * Rechercher des conversations
-     */
     @Operation(summary = "Rechercher des conversations",
             description = "Rechercher des conversations par nom")
     @GetMapping("/conversations/search")
@@ -78,9 +70,79 @@ public class ChatController {
                 chatService.searchConversations(userDetails.getUsername(), q));
     }
 
-    /**
-     * Récupérer les messages d'une conversation
-     */
+    // =========================================================================
+    // Gestion de groupe (NOUVEAU)
+    // =========================================================================
+
+    @Operation(summary = "Modifier une conversation",
+            description = "Mettre à jour le nom d'une conversation (groupe)")
+    @PutMapping("/conversations/{conversationId}")
+    public ResponseEntity<ApiResponse<ConversationResponse>> updateConversation(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long conversationId,
+            @RequestBody Map<String, String> body
+    ) {
+        String newName = body.get("name");
+        return ResponseEntity.ok(
+                chatService.updateConversation(
+                        userDetails.getUsername(), conversationId, newName));
+    }
+
+    @Operation(summary = "Ajouter des participants",
+            description = "Ajouter des participants à une conversation de groupe")
+    @PostMapping("/conversations/{conversationId}/participants")
+    public ResponseEntity<ApiResponse<ConversationResponse>> addParticipants(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long conversationId,
+            @RequestBody Map<String, List<Long>> body
+    ) {
+        List<Long> participantIds = body.get("participantIds");
+        return ResponseEntity.ok(
+                chatService.addParticipants(
+                        userDetails.getUsername(), conversationId, participantIds));
+    }
+
+    @Operation(summary = "Retirer un participant",
+            description = "Retirer un participant d'une conversation de groupe")
+    @DeleteMapping("/conversations/{conversationId}/participants/{userId}")
+    public ResponseEntity<ApiResponse<Void>> removeParticipant(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long conversationId,
+            @PathVariable Long userId
+    ) {
+        return ResponseEntity.ok(
+                chatService.removeParticipant(
+                        userDetails.getUsername(), conversationId, userId));
+    }
+
+    @Operation(summary = "Quitter un groupe",
+            description = "L'utilisateur quitte une conversation de groupe")
+    @PostMapping("/conversations/{conversationId}/leave")
+    public ResponseEntity<ApiResponse<Void>> leaveConversation(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long conversationId
+    ) {
+        return ResponseEntity.ok(
+                chatService.leaveConversation(
+                        userDetails.getUsername(), conversationId));
+    }
+
+    @Operation(summary = "Supprimer une conversation",
+            description = "Supprimer une conversation et tous ses messages")
+    @DeleteMapping("/conversations/{conversationId}")
+    public ResponseEntity<ApiResponse<Void>> deleteConversation(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long conversationId
+    ) {
+        return ResponseEntity.ok(
+                chatService.deleteConversation(
+                        userDetails.getUsername(), conversationId));
+    }
+
+    // =========================================================================
+    // Messages
+    // =========================================================================
+
     @Operation(summary = "Messages d'une conversation",
             description = "Obtenir les messages d'une conversation spécifique")
     @GetMapping("/conversations/{conversationId}/messages")
@@ -93,9 +155,6 @@ public class ChatController {
                 userDetails.getUsername(), conversationId, pageable));
     }
 
-    /**
-     * Envoyer un message dans une conversation
-     */
     @Operation(summary = "Envoyer un message",
             description = "Envoyer un nouveau message dans une conversation")
     @PostMapping("/conversations/{conversationId}/messages")
@@ -113,9 +172,39 @@ public class ChatController {
                 content, type, fileUrl, fileName, parentMessageId));
     }
 
-    /**
-     * Marquer les messages comme lus
-     */
+    // =========================================================================
+    // Édition & suppression de messages (NOUVEAU)
+    // =========================================================================
+
+    @Operation(summary = "Modifier un message",
+            description = "Modifier le contenu d'un message envoyé par l'utilisateur")
+    @PutMapping("/messages/{messageId}")
+    public ResponseEntity<ApiResponse<MessageResponse>> editMessage(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long messageId,
+            @RequestParam String content
+    ) {
+        return ResponseEntity.ok(
+                chatService.editMessage(
+                        userDetails.getUsername(), messageId, content));
+    }
+
+    @Operation(summary = "Supprimer un message",
+            description = "Supprimer un message envoyé par l'utilisateur")
+    @DeleteMapping("/messages/{messageId}")
+    public ResponseEntity<ApiResponse<Void>> deleteMessage(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long messageId
+    ) {
+        return ResponseEntity.ok(
+                chatService.deleteMessage(
+                        userDetails.getUsername(), messageId));
+    }
+
+    // =========================================================================
+    // Marquer comme lu
+    // =========================================================================
+
     @Operation(summary = "Marquer comme lu",
             description = "Marquer un ou plusieurs messages comme lus")
     @PostMapping("/conversations/{conversationId}/read")
@@ -133,9 +222,6 @@ public class ChatController {
     // Upload de fichier
     // =========================================================================
 
-    /**
-     * Upload un fichier pour l'envoyer dans une conversation
-     */
     @Operation(summary = "Upload fichier",
             description = "Upload un fichier pour l'envoyer dans une conversation")
     @PostMapping("/upload")
@@ -177,19 +263,10 @@ public class ChatController {
     // B2B — Contacter une entreprise depuis la Marketplace
     // =========================================================================
 
-    /**
-     * Crée ou récupère une conversation de groupe B2B avec l'entreprise cible.
-     * Tous les employés actifs des deux entreprises sont inclus automatiquement.
-     *
-     * Utilisé par le bouton "Contacter" sur chaque publication du Marketplace.
-     *
-     * @param entrepriseId  ID de l'entreprise publieure à contacter
-     */
     @Operation(
             summary = "Contacter une entreprise (B2B)",
             description = "Crée ou récupère une conversation de groupe incluant tous les " +
-                    "employés actifs des deux entreprises. Idempotent : retourne la " +
-                    "conversation existante si elle a déjà été créée."
+                    "employés actifs des deux entreprises. Idempotent."
     )
     @PostMapping("/b2b/{entrepriseId}")
     public ResponseEntity<ApiResponse<ConversationResponse>> contacterEntreprise(
@@ -202,17 +279,9 @@ public class ChatController {
     }
 
     // =========================================================================
-    // Message privé — depuis le panneau Participants d'un groupe
+    // Message privé
     // =========================================================================
 
-    /**
-     * Crée ou récupère une conversation privée 1-to-1 entre l'utilisateur courant
-     * et un autre membre d'un groupe de conversation.
-     *
-     * Utilisé par le bouton "Message privé" dans le panneau des participants.
-     *
-     * @param targetUserId  ID de l'utilisateur à contacter en privé
-     */
     @Operation(
             summary = "Démarrer une conversation privée",
             description = "Crée ou récupère une conversation privée entre l'utilisateur " +

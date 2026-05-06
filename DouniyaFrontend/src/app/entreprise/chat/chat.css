@@ -25,6 +25,32 @@
   animation: fadeIn 0.2s ease-out;
 }
 
+/* ============================================
+   PANNEAU MEMBRES — animation slide-left
+   ============================================ */
+
+@keyframes slideLeft {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.animate-slide-left {
+  animation: slideLeft 0.2s ease-out;
+}
+
+/* ============================================
+   MENU CONTEXTUEL MESSAGE
+   ============================================ */
+
+@keyframes contextPop {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.context-menu {
+  animation: contextPop 0.12s ease-out;
+}
+
 /* Sélecteur d'emojis - positionnement */
 .emoji-picker {
   animation: slideUp 0.15s ease-out;
@@ -102,6 +128,36 @@ textarea {
 }
 
 /* ============================================
+   PRIMENG CONFIRMDIALOG OVERRIDES
+   ============================================ */
+
+::ng-deep .p-confirm-dialog .p-dialog-content {
+  padding: 1.5rem !important;
+}
+
+::ng-deep .p-confirm-dialog .p-confirm-dialog-icon {
+  font-size: 1.5rem !important;
+  margin-right: 0.75rem !important;
+}
+
+::ng-deep .p-confirm-dialog .p-confirm-dialog-message {
+  font-size: 0.9rem !important;
+  color: #475569 !important;
+}
+
+::ng-deep .p-confirm-dialog .p-dialog-footer {
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: 0.5rem !important;
+}
+
+::ng-deep .p-confirm-dialog .p-dialog-footer button {
+  border-radius: 0.75rem !important;
+  font-size: 0.875rem !important;
+  padding: 0.5rem 1rem !important;
+}
+
+/* ============================================
    PRIMENG MULTISELECT OVERRIDES
    ============================================ */
 
@@ -144,6 +200,8 @@ textarea {
   margin-top: 4px !important;
   overflow: hidden !important;
   animation: fadeIn 0.15s ease !important;
+  /* S'assurer que le panneau est bien visible au-dessus du dialog */
+  z-index: 10000 !important;
 }
 
 ::ng-deep .p-multiselect-header {
@@ -169,7 +227,7 @@ textarea {
 }
 
 ::ng-deep .p-multiselect-items-wrapper {
-  max-height: 260px !important;
+  max-height: 280px !important;
   padding: 0.375rem !important;
 }
 
@@ -239,11 +297,9 @@ textarea {
 
 .language-panel {
   animation: slideUp 0.15s ease-out;
-  /* Éviter la coupure dans le viewport */
   max-height: 420px;
 }
 
-/* Scrollbar du panneau de langues */
 .language-panel .max-h-72::-webkit-scrollbar {
   width: 4px;
 }
@@ -268,7 +324,7 @@ textarea {
 
 .translation-badge {
   cursor: pointer;
-  font-size: 0.6875rem; /* 11px */
+  font-size: 0.6875rem;
   line-height: 1;
   border-radius: 0.375rem;
   padding: 0.2rem 0.4rem;
@@ -281,7 +337,6 @@ textarea {
   transform: scale(0.97);
 }
 
-/* Animation d'apparition du badge */
 .translation-badge {
   animation: fadeIn 0.2s ease-out;
 }
@@ -292,4 +347,14 @@ textarea {
 
 .rotate-180 {
   transform: rotate(180deg);
+}
+
+/* ============================================
+   LAYOUT FIXE — empêcher les déplacements
+   ============================================ */
+
+:host {
+  display: block;
+  height: 100vh;
+  overflow: hidden;
 }

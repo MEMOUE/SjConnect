@@ -19,6 +19,11 @@ export class ChatService {
   public  onTypingNotification$     = this.typingNotificationSubject.asObservable();
   private userStatusChangeSubject   = new Subject<ChatNotification>();
   public  onUserStatusChange$       = this.userStatusChangeSubject.asObservable();
+  // Nouveaux sujets pour édition/suppression temps réel
+  private messageEditedSubject      = new Subject<ChatNotification>();
+  public  onMessageEdited$          = this.messageEditedSubject.asObservable();
+  private messageDeletedSubject     = new Subject<ChatNotification>();
+  public  onMessageDeleted$         = this.messageDeletedSubject.asObservable();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private stompClient: any = null;
@@ -55,16 +60,75 @@ export class ChatService {
   }
 
   // ============================================
-  // B2B — Contacter une entreprise depuis le Marketplace
+  // GESTION DE GROUPE (NOUVEAU)
   // ============================================
 
   /**
-   * Crée ou récupère une conversation de groupe B2B avec l'entreprise cible.
-   * Tous les employés actifs des deux entreprises sont inclus automatiquement.
-   * Idempotent : retourne la conversation existante si déjà créée.
-   *
-   * @param entrepriseId  ID de l'entreprise publieure à contacter
+   * Mettre à jour une conversation (nom, etc.)
+   * Backend requis : PUT /api/chat/conversations/{id}
    */
+  updateConversation(
+    conversationId: number,
+    data: { name?: string }
+  ): Observable<ApiResponse<Conversation>> {
+    return this.http.put<ApiResponse<Conversation>>(
+      `${this.apiUrl}/conversations/${conversationId}`,
+      data
+    );
+  }
+
+  /**
+   * Ajouter des participants à une conversation de groupe
+   * Backend requis : POST /api/chat/conversations/{id}/participants
+   */
+  addParticipants(
+    conversationId: number,
+    participantIds: number[]
+  ): Observable<ApiResponse<Conversation>> {
+    return this.http.post<ApiResponse<Conversation>>(
+      `${this.apiUrl}/conversations/${conversationId}/participants`,
+      { participantIds }
+    );
+  }
+
+  /**
+   * Retirer un participant d'un groupe
+   * Backend requis : DELETE /api/chat/conversations/{id}/participants/{userId}
+   */
+  removeParticipant(
+    conversationId: number,
+    userId: number
+  ): Observable<ApiResponse<void>> {
+    return this.http.delete<ApiResponse<void>>(
+      `${this.apiUrl}/conversations/${conversationId}/participants/${userId}`
+    );
+  }
+
+  /**
+   * Quitter une conversation de groupe
+   * Backend requis : POST /api/chat/conversations/{id}/leave
+   */
+  leaveConversation(conversationId: number): Observable<ApiResponse<void>> {
+    return this.http.post<ApiResponse<void>>(
+      `${this.apiUrl}/conversations/${conversationId}/leave`,
+      null
+    );
+  }
+
+  /**
+   * Supprimer une conversation (admin/créateur uniquement)
+   * Backend requis : DELETE /api/chat/conversations/{id}
+   */
+  deleteConversation(conversationId: number): Observable<ApiResponse<void>> {
+    return this.http.delete<ApiResponse<void>>(
+      `${this.apiUrl}/conversations/${conversationId}`
+    );
+  }
+
+  // ============================================
+  // B2B — Contacter une entreprise depuis le Marketplace
+  // ============================================
+
   contacterEntreprise(entrepriseId: number): Observable<ApiResponse<Conversation>> {
     return this.http.post<ApiResponse<Conversation>>(
       `${this.apiUrl}/b2b/${entrepriseId}`,
@@ -72,12 +136,6 @@ export class ChatService {
     );
   }
 
-  /**
-   * Crée ou récupère une conversation privée 1-to-1 entre l'utilisateur courant
-   * et un autre utilisateur (ex. depuis le panneau Participants d'un groupe).
-   *
-   * @param targetUserId  ID de l'utilisateur cible
-   */
   startPrivateConversation(targetUserId: number): Observable<ApiResponse<Conversation>> {
     return this.http.post<ApiResponse<Conversation>>(
       `${this.apiUrl}/private/${targetUserId}`,
@@ -118,6 +176,28 @@ export class ChatService {
       `${this.apiUrl}/conversations/${conversationId}/messages`,
       null,
       { params }
+    );
+  }
+
+  /**
+   * Modifier un message existant
+   * Backend requis : PUT /api/chat/messages/{messageId}
+   */
+  editMessage(messageId: number, content: string): Observable<ApiResponse<Message>> {
+    return this.http.put<ApiResponse<Message>>(
+      `${this.apiUrl}/messages/${messageId}`,
+      null,
+      { params: new HttpParams().set('content', content) }
+    );
+  }
+
+  /**
+   * Supprimer un message
+   * Backend requis : DELETE /api/chat/messages/{messageId}
+   */
+  deleteMessage(messageId: number): Observable<ApiResponse<void>> {
+    return this.http.delete<ApiResponse<void>>(
+      `${this.apiUrl}/messages/${messageId}`
     );
   }
 
@@ -171,7 +251,17 @@ export class ChatService {
         this.stompClient.subscribe('/user/queue/messages', (msg: { body: string }) => {
           try {
             const notif: ChatNotification = JSON.parse(msg.body);
-            if (notif.type === 'NEW_MESSAGE') this.messageReceivedSubject.next(notif);
+            switch (notif.type) {
+              case 'NEW_MESSAGE':
+                this.messageReceivedSubject.next(notif);
+                break;
+              case 'MESSAGE_EDITED':
+                this.messageEditedSubject.next(notif);
+                break;
+              case 'MESSAGE_DELETED':
+                this.messageDeletedSubject.next(notif);
+                break;
+            }
           } catch { /* ignore */ }
         });
 
@@ -217,10 +307,20 @@ export class ChatService {
       (msg: { body: string }) => {
         try {
           const notif: ChatNotification = JSON.parse(msg.body);
-          if (notif.type === 'NEW_MESSAGE') {
-            this.messageReceivedSubject.next(notif);
-          } else if (notif.type === 'USER_TYPING' || notif.type === 'USER_STOP_TYPING') {
-            this.typingNotificationSubject.next(notif);
+          switch (notif.type) {
+            case 'NEW_MESSAGE':
+              this.messageReceivedSubject.next(notif);
+              break;
+            case 'USER_TYPING':
+            case 'USER_STOP_TYPING':
+              this.typingNotificationSubject.next(notif);
+              break;
+            case 'MESSAGE_EDITED':
+              this.messageEditedSubject.next(notif);
+              break;
+            case 'MESSAGE_DELETED':
+              this.messageDeletedSubject.next(notif);
+              break;
           }
         } catch { /* ignore */ }
       }
