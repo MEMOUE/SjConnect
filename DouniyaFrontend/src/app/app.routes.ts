@@ -52,7 +52,8 @@ export const routes: Routes = [
   {
     path: 'entreprise/chat',
     component: Chat,
-    canActivate: [AuthGuard]
+    canActivate: [AuthGuard],
+    data: { hideFooter: true }
   },
   {
     path: 'entreprise/espace-b2b',
@@ -93,7 +94,7 @@ export const routes: Routes = [
     path: 'accept-invitation',
     component: AcceptInvitation,
   },
- 
+
   // Route par défaut
   { path: '**', redirectTo: '' }
 ];

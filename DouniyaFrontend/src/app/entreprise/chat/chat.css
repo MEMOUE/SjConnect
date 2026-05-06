@@ -1,8 +1,10 @@
 /* ============================================
    CHAT COMPONENT STYLES
    ============================================ */
-
-/* Fond subtil pour la zone de messages */
+/*html, body {*/
+/*  height: 100%;*/
+/*  overflow: hidden;*/
+/*}*/
 .chat-messages-bg {
   background-color: #f8fafc;
   background-image:
@@ -10,7 +12,6 @@
     radial-gradient(circle at 0% 0%, rgba(139, 92, 246, 0.03) 0%, transparent 50%);
 }
 
-/* Animation d'entrée */
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -51,7 +52,6 @@
   animation: contextPop 0.12s ease-out;
 }
 
-/* Sélecteur d'emojis - positionnement */
 .emoji-picker {
   animation: slideUp 0.15s ease-out;
   max-width: 320px;
@@ -91,133 +91,248 @@ textarea {
 }
 
 /* ============================================
-   PRIMENG DIALOG OVERRIDES
+   PRIMENG DIALOG — FOND + TEXTE BIEN VISIBLE
    ============================================ */
 
 ::ng-deep .p-dialog {
   border-radius: 1.25rem !important;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.2) !important;
   border: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
 }
 
 ::ng-deep .p-dialog .p-dialog-header {
   padding: 1.25rem 1.5rem 1rem !important;
-  border-bottom: 1px solid #f1f5f9 !important;
+  border-bottom: 1px solid #e2e8f0 !important;
   border-top-left-radius: 1.25rem !important;
   border-top-right-radius: 1.25rem !important;
-  background: #fff !important;
+  background: #ffffff !important;
 }
 
 ::ng-deep .p-dialog .p-dialog-header .p-dialog-title {
-  font-size: 1rem !important;
-  font-weight: 600 !important;
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+}
+
+/* Bouton X fermer */
+::ng-deep .p-dialog-header-icon {
+  color: #64748b !important;
+  background: transparent !important;
+  border: none !important;
+  width: 2rem !important;
+  height: 2rem !important;
+  border-radius: 0.5rem !important;
+}
+::ng-deep .p-dialog-header-icon:hover {
+  background: #f1f5f9 !important;
   color: #1e293b !important;
 }
 
 ::ng-deep .p-dialog .p-dialog-content {
-  padding: 1rem 1.5rem !important;
-  background: #fff !important;
+  padding: 1.25rem 1.5rem !important;
+  background: #ffffff !important;
+  color: #334155 !important;
 }
 
 ::ng-deep .p-dialog .p-dialog-footer {
   padding: 1rem 1.5rem 1.25rem !important;
-  border-top: 1px solid #f1f5f9 !important;
+  border-top: 1px solid #e2e8f0 !important;
   border-bottom-left-radius: 1.25rem !important;
   border-bottom-right-radius: 1.25rem !important;
-  background: #fafafa !important;
+  background: #f8fafc !important;
 }
 
 /* ============================================
-   PRIMENG CONFIRMDIALOG OVERRIDES
+   CONFIRMDIALOG — TEXTE + BOUTONS VISIBLES
    ============================================ */
 
 ::ng-deep .p-confirm-dialog .p-dialog-content {
-  padding: 1.5rem !important;
+  padding: 1.75rem !important;
+  background: #ffffff !important;
 }
 
 ::ng-deep .p-confirm-dialog .p-confirm-dialog-icon {
   font-size: 1.5rem !important;
   margin-right: 0.75rem !important;
+  color: #f59e0b !important;
 }
 
 ::ng-deep .p-confirm-dialog .p-confirm-dialog-message {
   font-size: 0.9rem !important;
-  color: #475569 !important;
+  color: #334155 !important;
+  line-height: 1.6 !important;
 }
 
 ::ng-deep .p-confirm-dialog .p-dialog-footer {
   display: flex !important;
   justify-content: flex-end !important;
-  gap: 0.5rem !important;
+  gap: 0.625rem !important;
+  background: #f8fafc !important;
+  padding: 1rem 1.5rem 1.25rem !important;
 }
 
-::ng-deep .p-confirm-dialog .p-dialog-footer button {
+/* Bouton Annuler */
+::ng-deep .p-confirm-dialog .p-dialog-footer button:first-child {
   border-radius: 0.75rem !important;
   font-size: 0.875rem !important;
-  padding: 0.5rem 1rem !important;
+  padding: 0.5rem 1.125rem !important;
+  background: #ffffff !important;
+  color: #475569 !important;
+  border: 1.5px solid #cbd5e1 !important;
+  font-weight: 500 !important;
+}
+::ng-deep .p-confirm-dialog .p-dialog-footer button:first-child:hover {
+  background: #f1f5f9 !important;
+  color: #1e293b !important;
+  border-color: #94a3b8 !important;
+}
+
+/* Bouton Confirmer */
+::ng-deep .p-confirm-dialog .p-dialog-footer button:last-child {
+  border-radius: 0.75rem !important;
+  font-size: 0.875rem !important;
+  padding: 0.5rem 1.125rem !important;
+  background: #3b82f6 !important;
+  color: #ffffff !important;
+  border: none !important;
+  font-weight: 600 !important;
+}
+::ng-deep .p-confirm-dialog .p-dialog-footer button:last-child:hover {
+  background: #2563eb !important;
+}
+
+/* Bouton danger */
+::ng-deep .p-confirm-dialog .p-dialog-footer button.p-button-danger:last-child {
+  background: #ef4444 !important;
+  color: #ffffff !important;
+}
+::ng-deep .p-confirm-dialog .p-dialog-footer button.p-button-danger:last-child:hover {
+  background: #dc2626 !important;
 }
 
 /* ============================================
-   PRIMENG MULTISELECT OVERRIDES
+   MULTISELECT — TOUT VISIBLE, RIEN DE CACHÉ
    ============================================ */
 
+/* --- Champ principal --- */
 ::ng-deep .p-multiselect {
-  border: 1.5px solid #e2e8f0 !important;
+  border: 1.5px solid #cbd5e1 !important;
   border-radius: 0.75rem !important;
-  min-height: 44px !important;
-  background: #f8fafc !important;
+  min-height: 46px !important;
+  background: #ffffff !important;
+  color: #1e293b !important;
   transition: all 0.15s ease !important;
 }
 
 ::ng-deep .p-multiselect:not(.p-disabled):hover {
-  border-color: #cbd5e1 !important;
+  border-color: #94a3b8 !important;
 }
 
 ::ng-deep .p-multiselect.p-focus {
   border-color: #3b82f6 !important;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
   outline: none !important;
 }
 
+/* Label texte */
 ::ng-deep .p-multiselect-label {
   padding: 0.6rem 0.875rem !important;
   font-size: 0.875rem !important;
+  color: #1e293b !important;
 }
 
 ::ng-deep .p-multiselect-label.p-placeholder {
   color: #94a3b8 !important;
 }
 
+/* Flèche */
 ::ng-deep .p-multiselect-trigger {
-  width: 2.25rem !important;
-  color: #94a3b8 !important;
+  width: 2.5rem !important;
+  color: #64748b !important;
 }
 
+/* Chips sélectionnés dans le champ */
+::ng-deep .p-multiselect-token {
+  background: #dbeafe !important;
+  color: #1e40af !important;
+  border: 1px solid #93c5fd !important;
+  border-radius: 0.5rem !important;
+  padding: 0.25rem 0.625rem !important;
+  font-size: 0.8rem !important;
+  font-weight: 500 !important;
+}
+
+::ng-deep .p-multiselect-token-icon {
+  color: #3b82f6 !important;
+  margin-left: 0.375rem !important;
+}
+
+/* --- Panneau dropdown --- */
 ::ng-deep .p-multiselect-panel {
-  border: 1.5px solid #e2e8f0 !important;
+  border: 1.5px solid #cbd5e1 !important;
   border-radius: 0.875rem !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+  box-shadow: 0 12px 40px -8px rgba(0, 0, 0, 0.18) !important;
   margin-top: 4px !important;
   overflow: hidden !important;
-  animation: fadeIn 0.15s ease !important;
-  /* S'assurer que le panneau est bien visible au-dessus du dialog */
-  z-index: 10000 !important;
+  z-index: 10001 !important;
+  background: #ffffff !important;
 }
 
+/* Header du panneau */
 ::ng-deep .p-multiselect-header {
-  padding: 0.75rem 1rem !important;
-  border-bottom: 1px solid #f1f5f9 !important;
-  background: #fafafa !important;
+  padding: 0.75rem 0.875rem !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  background: #f8fafc !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+}
+
+/* Checkbox "Tout sélectionner" */
+::ng-deep .p-multiselect-header .p-checkbox .p-checkbox-box {
+  width: 1.25rem !important;
+  height: 1.25rem !important;
+  border: 2px solid #94a3b8 !important;
+  border-radius: 0.375rem !important;
+  background: #ffffff !important;
+}
+::ng-deep .p-multiselect-header .p-checkbox .p-checkbox-box.p-highlight {
+  background: #3b82f6 !important;
+  border-color: #3b82f6 !important;
+}
+::ng-deep .p-multiselect-header .p-checkbox .p-checkbox-box .p-checkbox-icon {
+  color: #ffffff !important;
+  font-size: 0.75rem !important;
+}
+
+/* Bouton fermer header */
+::ng-deep .p-multiselect-close {
+  color: #64748b !important;
+  border-radius: 0.375rem !important;
+}
+::ng-deep .p-multiselect-close:hover {
+  background: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+/* Input filtre */
+::ng-deep .p-multiselect-filter-container {
+  flex: 1 !important;
 }
 
 ::ng-deep .p-multiselect-filter {
   width: 100% !important;
-  padding: 0.5rem 2.25rem 0.5rem 0.75rem !important;
-  border: 1.5px solid #e2e8f0 !important;
+  padding: 0.5rem 0.75rem !important;
+  border: 1.5px solid #cbd5e1 !important;
   border-radius: 0.5rem !important;
   font-size: 0.875rem !important;
-  background: #fff !important;
-  transition: all 0.15s ease !important;
+  background: #ffffff !important;
+  color: #1e293b !important;
+}
+
+::ng-deep .p-multiselect-filter::placeholder {
+  color: #94a3b8 !important;
 }
 
 ::ng-deep .p-multiselect-filter:focus {
@@ -226,9 +341,19 @@ textarea {
   outline: none !important;
 }
 
+::ng-deep .p-multiselect-filter-icon {
+  color: #94a3b8 !important;
+}
+
+/* --- Items de la liste --- */
 ::ng-deep .p-multiselect-items-wrapper {
-  max-height: 280px !important;
+  max-height: 300px !important;
   padding: 0.375rem !important;
+  background: #ffffff !important;
+}
+
+::ng-deep .p-multiselect-items {
+  padding: 0 !important;
 }
 
 ::ng-deep .p-multiselect-item {
@@ -236,50 +361,112 @@ textarea {
   border-radius: 0.5rem !important;
   margin-bottom: 2px !important;
   font-size: 0.875rem !important;
-  transition: all 0.1s ease !important;
+  color: #334155 !important;
+  background: transparent !important;
+  transition: background 0.1s ease !important;
 }
 
 ::ng-deep .p-multiselect-item:hover {
-  background-color: #f8fafc !important;
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
 }
 
 ::ng-deep .p-multiselect-item.p-highlight {
-  background-color: #eff6ff !important;
-  color: #1d4ed8 !important;
+  background: #eff6ff !important;
+  color: #1e40af !important;
+  font-weight: 500 !important;
 }
 
+::ng-deep .p-multiselect-item.p-highlight:hover {
+  background: #dbeafe !important;
+}
+
+/* FORCE : tout texte dans les items toujours visible */
+::ng-deep .p-multiselect-item * {
+  color: inherit !important;
+}
+
+/* --- Checkboxes dans les items --- */
 ::ng-deep .p-multiselect-item .p-checkbox {
   margin-right: 0.625rem !important;
 }
 
+/* NON COCHÉ : bordure grise claire, fond blanc */
 ::ng-deep .p-multiselect-item .p-checkbox .p-checkbox-box {
-  width: 1.125rem !important;
-  height: 1.125rem !important;
-  border: 2px solid #d1d5db !important;
+  width: 1.25rem !important;
+  height: 1.25rem !important;
+  border: 2px solid #94a3b8 !important;
   border-radius: 0.375rem !important;
+  background: #ffffff !important;
   transition: all 0.15s ease !important;
 }
 
-::ng-deep .p-multiselect-item .p-checkbox .p-checkbox-box.p-highlight {
-  background-color: #3b82f6 !important;
+/* COCHÉ : fond bleu, bordure bleue, icône blanche */
+::ng-deep .p-multiselect-item .p-checkbox .p-checkbox-box.p-highlight,
+::ng-deep .p-multiselect-item.p-highlight .p-checkbox .p-checkbox-box {
+  background: #3b82f6 !important;
   border-color: #3b82f6 !important;
 }
 
+::ng-deep .p-multiselect-item .p-checkbox .p-checkbox-box .p-checkbox-icon,
+::ng-deep .p-multiselect-item.p-highlight .p-checkbox .p-checkbox-box .p-checkbox-icon {
+  color: #ffffff !important;
+  font-weight: bold !important;
+  font-size: 0.7rem !important;
+}
+
+/* FOCUS checkbox */
+::ng-deep .p-multiselect-item .p-checkbox .p-checkbox-box:focus {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+}
+
+/* Message vide */
+::ng-deep .p-multiselect-empty-message {
+  padding: 1rem !important;
+  color: #64748b !important;
+  text-align: center !important;
+  font-size: 0.875rem !important;
+}
+
 /* ============================================
-   TOAST OVERRIDES
+   TOAST — VISIBILITÉ
    ============================================ */
 
 ::ng-deep .p-toast {
-  z-index: 9999 !important;
+  z-index: 99999 !important;
 }
 
 ::ng-deep .p-toast .p-toast-message {
   border-radius: 0.875rem !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12) !important;
+}
+
+::ng-deep .p-toast .p-toast-summary {
+  color: #0f172a !important;
+  font-weight: 600 !important;
+}
+
+::ng-deep .p-toast .p-toast-detail {
+  color: #475569 !important;
+}
+
+::ng-deep .p-toast-message-success {
+  background: #f0fdf4 !important;
+  border: 1px solid #bbf7d0 !important;
+}
+
+::ng-deep .p-toast-message-error {
+  background: #fef2f2 !important;
+  border: 1px solid #fecaca !important;
+}
+
+::ng-deep .p-toast-message-warn {
+  background: #fffbeb !important;
+  border: 1px solid #fde68a !important;
 }
 
 /* ============================================
-   ANIMATIONS BOUNCE POUR TYPING INDICATOR
+   BOUNCE TYPING INDICATOR
    ============================================ */
 
 @keyframes bounce {
@@ -292,7 +479,7 @@ textarea {
 }
 
 /* ============================================
-   TRADUCTION — PANNEAU DE SÉLECTION DE LANGUE
+   TRADUCTION
    ============================================ */
 
 .language-panel {
@@ -309,18 +496,10 @@ textarea {
   border-radius: 4px;
 }
 
-/* ============================================
-   TRADUCTION — BANDEAU ACTIF
-   ============================================ */
-
 .translation-banner {
   animation: fadeIn 0.2s ease-out;
   font-size: 0.75rem;
 }
-
-/* ============================================
-   TRADUCTION — BADGE PAR MESSAGE
-   ============================================ */
 
 .translation-badge {
   cursor: pointer;
@@ -337,24 +516,69 @@ textarea {
   transform: scale(0.97);
 }
 
-.translation-badge {
-  animation: fadeIn 0.2s ease-out;
-}
-
-/* ============================================
-   ROTATION CHEVRON
-   ============================================ */
-
-.rotate-180 {
+.rotation-180, .rotate-180 {
   transform: rotate(180deg);
 }
 
 /* ============================================
-   LAYOUT FIXE — empêcher les déplacements
+   LAYOUT FIXE
    ============================================ */
 
 :host {
   display: block;
   height: 100vh;
   overflow: hidden;
+}
+
+/* ============================================
+   BOUTONS PRIMENG — TOUJOURS CONTRASTÉS
+   ============================================ */
+
+::ng-deep .p-button {
+  font-weight: 500 !important;
+}
+
+::ng-deep .p-button.p-button-text {
+  color: #475569 !important;
+  background: transparent !important;
+}
+
+::ng-deep .p-button.p-button-text:hover {
+  background: #f1f5f9 !important;
+  color: #1e293b !important;
+}
+
+/* Bouton primaire */
+::ng-deep .p-button:not(.p-button-text):not(.p-button-outlined):not(.p-button-link):not(.p-button-danger) {
+  background: #3b82f6 !important;
+  border-color: #3b82f6 !important;
+  color: #ffffff !important;
+}
+
+::ng-deep .p-button:not(.p-button-text):not(.p-button-outlined):not(.p-button-link):not(.p-button-danger):hover {
+  background: #2563eb !important;
+  border-color: #2563eb !important;
+}
+
+/* Bouton danger */
+::ng-deep .p-button.p-button-danger {
+  background: #ef4444 !important;
+  border-color: #ef4444 !important;
+  color: #ffffff !important;
+}
+
+::ng-deep .p-button.p-button-danger:hover {
+  background: #dc2626 !important;
+  border-color: #dc2626 !important;
+}
+
+/* Bouton outlined */
+::ng-deep .p-button.p-button-outlined {
+  background: #ffffff !important;
+  color: #3b82f6 !important;
+  border: 1.5px solid #3b82f6 !important;
+}
+
+::ng-deep .p-button.p-button-outlined:hover {
+  background: #eff6ff !important;
 }

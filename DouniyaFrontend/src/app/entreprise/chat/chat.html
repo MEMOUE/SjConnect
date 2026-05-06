@@ -4,7 +4,7 @@
 <div class="h-screen bg-slate-100 flex overflow-hidden">
 
   <!-- ====================================================
-       SIDEBAR : LISTE DES CONVERSATIONS
+       SIDEBAR : LISTE DES aCONVERSATIONS
        ==================================================== -->
   <div class="w-80 bg-white flex flex-col shadow-sm border-r border-slate-200 flex-shrink-0">
 
@@ -128,7 +128,7 @@
   <!-- ====================================================
        ZONE DE CHAT PRINCIPALE
        ==================================================== -->
-  <div *ngIf="selectedConversation" class="flex-1 flex flex-col min-w-0">
+  <div *ngIf="selectedConversation" class="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
 
     <!-- Header du chat (FIXE) -->
     <div class="bg-white border-b border-slate-200 px-5 py-3 flex items-center justify-between flex-shrink-0 shadow-sm">
@@ -765,7 +765,8 @@
       <div class="w-5 h-5 rounded flex items-center justify-center border-2 transition-all"
            [class.bg-blue-600]="isGroupConversation"
            [class.border-blue-600]="isGroupConversation"
-           [class.border-slate-300]="!isGroupConversation">
+           [class.bg-white]="!isGroupConversation"
+           [class.border-slate-400]="!isGroupConversation">
         <i *ngIf="isGroupConversation" class="pi pi-check text-white" style="font-size: 10px;"></i>
       </div>
       <div class="flex items-center gap-2">
