@@ -55,6 +55,7 @@ public class SecurityConfig {
                                 "/uploads/**",
                                 "/api/shared/view/**",
                                 "/api/shared/download/**"
+
                         ).permitAll()
 
                         // ── Espace partagé ────────────────────────────────────────────────────

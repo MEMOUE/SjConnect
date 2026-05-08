@@ -1,25 +1,11 @@
-<style>
-  :host ::ng-deep .p-dialog {
-    background: white !important;
-    border-radius: 1rem !important;
-    box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25) !important;
-    border: none !important;
-  }
-  :host ::ng-deep .p-dialog-mask {
-    background-color: rgba(0, 0, 0, 0.4) !important;
-    backdrop-filter: blur(4px);
-  }
-  :host ::ng-deep .p-dialog-header {
-    border-top-right-radius: 1rem !important;
-    border-top-left-radius: 1rem !important;
-    padding: 1.5rem !important;
-  }
-</style>
+<p-toast position="top-right"></p-toast>
+<p-confirmDialog></p-confirmDialog>
 
 <div class="max-w-7xl mx-auto p-6 space-y-6 bg-gray-50 min-h-screen font-sans text-gray-800">
 
-  <p-toast></p-toast>
-
+  <!-- ====================================================
+       HEADER
+       ==================================================== -->
   <div class="bg-white rounded-2xl shadow-sm border border-gray-100 px-8 py-6">
     <div class="flex flex-col md:flex-row items-center justify-between gap-6">
 
@@ -30,8 +16,9 @@
           </span>
           Espace Partagé B2B
         </h1>
+        <!-- Fil d'Ariane -->
         <div class="flex items-center gap-2 mt-2 text-sm text-gray-500" *ngIf="currentFolder">
-          <i class="pi pi-home cursor-pointer hover:text-blue-600" (click)="loadRoot()"></i>
+          <i class="pi pi-home cursor-pointer hover:text-blue-600 transition-colors" (click)="loadRoot()"></i>
           <i class="pi pi-angle-right text-xs"></i>
           <span class="font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded">{{ currentFolder.name }}</span>
         </div>
@@ -40,20 +27,18 @@
       <div class="flex items-center gap-3 w-full md:w-auto">
         <button
           (click)="showNewFolder = true"
-          class="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl font-semibold transition-all shadow-sm active:scale-95">
+          class="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-white border border-gray-200
+                 text-gray-700 hover:bg-gray-50 rounded-xl font-semibold transition-all shadow-sm active:scale-95">
           <i class="pi pi-folder-plus text-blue-600"></i>
           <span>Nouveau dossier</span>
         </button>
 
-        <input
-          type="file"
-          #fileInput
-          class="hidden"
-          (change)="onFileSelect($event); upload()">
+        <input type="file" #fileInput class="hidden" (change)="onFileSelect($event); upload()">
 
         <button
           (click)="fileInput.click()"
-          class="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-all shadow-md active:scale-95">
+          class="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600
+                 hover:bg-blue-700 text-white rounded-xl font-semibold transition-all shadow-md active:scale-95">
           <i class="pi pi-upload"></i>
           <span>Uploader</span>
         </button>
@@ -61,6 +46,9 @@
     </div>
   </div>
 
+  <!-- ====================================================
+       STATS
+       ==================================================== -->
   <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
     <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex items-center gap-4 hover:shadow-md transition-shadow">
       <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
@@ -93,6 +81,9 @@
     </div>
   </div>
 
+  <!-- ====================================================
+       BARRE DE RECHERCHE
+       ==================================================== -->
   <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
     <div class="relative w-full sm:w-96">
       <i class="pi pi-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
@@ -101,17 +92,20 @@
         [(ngModel)]="searchQuery"
         (keyup.enter)="doSearch()"
         placeholder="Rechercher un document..."
-        class="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm">
+        class="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-2xl
+               focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm">
     </div>
-
     <button
       (click)="refresh()"
       class="flex items-center gap-2 px-4 py-2 text-gray-500 hover:text-blue-600 font-medium transition-colors">
       <i class="pi pi-refresh" [class.pi-spin]="loading"></i>
-      Actualiser la vue
+      Actualiser
     </button>
   </div>
 
+  <!-- ====================================================
+       TABLEAU DES RESSOURCES
+       ==================================================== -->
   <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
 
     <div *ngIf="loading" class="flex flex-col items-center justify-center py-20 bg-white/80">
@@ -132,6 +126,7 @@
           <th class="py-4 px-6 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Nom</th>
           <th class="py-4 px-6 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Type</th>
           <th class="py-4 px-6 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Taille</th>
+          <th class="py-4 px-6 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Propriétaire</th>
           <th class="py-4 px-6 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Date</th>
           <th class="py-4 px-6 text-right text-xs font-bold text-gray-400 uppercase tracking-widest">Actions</th>
         </tr>
@@ -139,72 +134,90 @@
 
       <ng-template pTemplate="body" let-r>
         <tr class="hover:bg-blue-50/40 transition-colors group">
+          <!-- Nom -->
           <td class="py-4 px-6 cursor-pointer" (dblclick)="r.type === 'FOLDER' && loadFolder(r)">
             <div class="flex items-center gap-3">
-              <i class="pi text-xl shadow-sm"
+              <i class="pi text-xl"
                  [ngClass]="r.type === 'FOLDER' ? 'pi-folder text-amber-400' : getFileIcon(r.name)"></i>
-              <span class="font-semibold text-gray-700 group-hover:text-blue-700 transition-colors">{{ r.name }}</span>
+              <span class="font-semibold text-gray-700 group-hover:text-blue-700 transition-colors">
+                {{ r.name }}
+              </span>
+              <!-- Badge public -->
+              <span *ngIf="r.publicAccess"
+                    class="text-xs bg-green-50 text-green-600 px-1.5 py-0.5 rounded font-medium">
+                Public
+              </span>
             </div>
           </td>
+
+          <!-- Type -->
           <td class="py-4 px-6">
             <span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase border border-gray-100 bg-gray-50 text-gray-500">
               {{ r.type }}
             </span>
           </td>
+
+          <!-- Taille -->
           <td class="py-4 px-6 text-sm text-gray-500">
             {{ r.type === 'FILE' ? formatSize(r.fileSize!) : '--' }}
           </td>
+
+          <!-- Propriétaire -->
+          <td class="py-4 px-6 text-sm text-gray-500">
+            {{ r.ownerName || '--' }}
+          </td>
+
+          <!-- Date -->
           <td class="py-4 px-6 text-sm text-gray-500">
             {{ r.createdAt | date:'dd/MM/yyyy' }}
           </td>
+
+          <!-- Actions -->
           <td class="py-4 px-6 text-right">
-            <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <!-- Actions pour les DOSSIERS -->
-              <button
-                *ngIf="r.type === 'FOLDER'"
-                (click)="loadFolder(r)"
-                class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                pTooltip="Ouvrir le dossier"
-                tooltipPosition="top">
+            <div class="flex justify-end gap-1">
+
+              <!-- === DOSSIER === -->
+              <button *ngIf="r.type === 'FOLDER'"
+                      (click)="loadFolder(r)"
+                      class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                      pTooltip="Ouvrir" tooltipPosition="top">
                 <i class="pi pi-folder-open"></i>
               </button>
 
-              <!-- Actions pour les FICHIERS -->
-              <ng-container *ngIf="r.type === 'FILE'">
-                <!-- Bouton Visualiser -->
-                <button
-                  (click)="viewFile(r)"
-                  class="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
-                  pTooltip="Visualiser"
-                  tooltipPosition="top">
-                  <i class="pi pi-eye"></i>
-                </button>
+              <!-- === FICHIER : Visualiser === -->
+              <button *ngIf="r.type === 'FILE' && isViewable(r.name)"
+                      (click)="viewFile(r)"
+                      class="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
+                      pTooltip="Visualiser" tooltipPosition="top">
+                <i class="pi pi-eye"></i>
+              </button>
 
-                <!-- Bouton Télécharger -->
-                <button
-                  (click)="downloadFile(r)"
-                  class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                  pTooltip="Télécharger"
-                  tooltipPosition="top">
-                  <i class="pi pi-download"></i>
-                </button>
+              <!-- === FICHIER : Télécharger === -->
+              <button *ngIf="r.type === 'FILE'"
+                      (click)="downloadFile(r)"
+                      class="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                      pTooltip="Télécharger" tooltipPosition="top">
+                <i class="pi pi-download"></i>
+              </button>
 
-                <!-- Bouton Partager -->
-                <button
-                  (click)="shareFile(r)"
-                  class="p-2 text-purple-600 hover:bg-purple-100 rounded-lg transition-colors"
-                  pTooltip="Partager"
-                  tooltipPosition="top">
-                  <i class="pi pi-share-alt"></i>
-                </button>
-              </ng-container>
+              <!-- === Partager (fichier + dossier) === -->
+              <button (click)="openShareDialog(r)"
+                      class="p-2 text-purple-600 hover:bg-purple-100 rounded-lg transition-colors"
+                      pTooltip="Partager" tooltipPosition="top">
+                <i class="pi pi-share-alt"></i>
+              </button>
 
-              <!-- Bouton Supprimer (pour tous) -->
-              <button
-                (click)="confirmDelete(r)"
-                class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                pTooltip="Supprimer"
-                tooltipPosition="top">
+              <!-- === Renommer === -->
+              <button (click)="openRenameDialog(r)"
+                      class="p-2 text-amber-600 hover:bg-amber-100 rounded-lg transition-colors"
+                      pTooltip="Renommer" tooltipPosition="top">
+                <i class="pi pi-pencil"></i>
+              </button>
+
+              <!-- === Supprimer === -->
+              <button (click)="confirmDelete(r)"
+                      class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      pTooltip="Supprimer" tooltipPosition="top">
                 <i class="pi pi-trash"></i>
               </button>
             </div>
@@ -214,58 +227,212 @@
 
       <ng-template pTemplate="emptymessage">
         <tr>
-          <td colspan="5" class="py-24 text-center">
+          <td colspan="6" class="py-24 text-center">
             <div class="max-w-xs mx-auto flex flex-col items-center">
               <div class="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-4">
                 <i class="pi pi-search text-3xl text-gray-200"></i>
               </div>
               <h3 class="text-gray-900 font-bold italic">Aucun élément trouvé</h3>
-              <p class="text-gray-400 text-sm mt-1">Cet emplacement ne contient aucun fichier ou dossier pour le moment.</p>
+              <p class="text-gray-400 text-sm mt-1">Cet emplacement ne contient aucun fichier ou dossier.</p>
             </div>
           </td>
         </tr>
       </ng-template>
     </p-table>
   </div>
+</div>
 
-  <p-dialog
-    [(visible)]="showNewFolder"
-    [modal]="true"
-    [draggable]="false"
-    [resizable]="false"
-    [style]="{ width: '450px' }">
 
-    <ng-template pTemplate="header">
-      <div class="flex flex-col gap-1">
-        <h2 class="text-xl font-bold text-gray-900">Nouveau dossier</h2>
-        <p class="text-sm font-normal text-gray-500">Créez un espace de rangement pour vos fichiers.</p>
-      </div>
-    </ng-template>
+<!-- ====================================================
+     DIALOG NOUVEAU DOSSIER
+     ==================================================== -->
+<p-dialog
+  [(visible)]="showNewFolder"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '450px' }">
 
-    <div class="py-4 space-y-6">
-      <div class="flex flex-col gap-2">
-        <label class="text-sm font-bold text-gray-700 ml-1">Nom du dossier</label>
-        <input
-          type="text"
-          [(ngModel)]="folderName"
-          (keyup.enter)="createFolder()"
-          placeholder="Ex: Factures Clients 2024"
-          class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all">
-      </div>
+  <ng-template pTemplate="header">
+    <div class="flex flex-col gap-1">
+      <h2 class="text-xl font-bold text-gray-900">Nouveau dossier</h2>
+      <p class="text-sm font-normal text-gray-500">Créez un espace de rangement pour vos fichiers.</p>
+    </div>
+  </ng-template>
 
-      <div class="flex items-center gap-3 pt-2">
-        <button
-          (click)="showNewFolder=false"
-          class="flex-1 px-4 py-3 text-gray-500 hover:text-gray-700 font-bold transition-colors">
-          Annuler
-        </button>
-        <button
-          (click)="createFolder()"
-          class="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 active:scale-95 transition-all">
-          Créer maintenant
-        </button>
+  <div class="py-4 space-y-6">
+    <div class="flex flex-col gap-2">
+      <label class="text-sm font-bold text-gray-700 ml-1">Nom du dossier</label>
+      <input type="text"
+             [(ngModel)]="folderName"
+             (keyup.enter)="createFolder()"
+             placeholder="Ex: Factures Clients 2024"
+             class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl
+                    focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all">
+    </div>
+    <div class="flex items-center gap-3 pt-2">
+      <button (click)="showNewFolder=false"
+              class="flex-1 px-4 py-3 text-gray-500 hover:text-gray-700 font-bold transition-colors">
+        Annuler
+      </button>
+      <button (click)="createFolder()"
+              class="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg
+                     shadow-blue-100 hover:bg-blue-700 active:scale-95 transition-all">
+        Créer
+      </button>
+    </div>
+  </div>
+</p-dialog>
+
+
+<!-- ====================================================
+     DIALOG PARTAGER
+     ==================================================== -->
+<p-dialog
+  [(visible)]="showShareDialog"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '560px', maxHeight: '85vh' }"
+  header="Partager"
+  [closeOnEscape]="true">
+
+  <div class="space-y-5 py-1" *ngIf="shareResource">
+
+    <!-- Ressource concernée -->
+    <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+      <i class="pi text-xl"
+         [ngClass]="shareResource.type === 'FOLDER' ? 'pi-folder text-amber-400' : getFileIcon(shareResource.name)"></i>
+      <div>
+        <p class="text-sm font-semibold text-gray-800">{{ shareResource.name }}</p>
+        <p class="text-xs text-gray-500">{{ shareResource.type === 'FILE' ? formatSize(shareResource.fileSize!) : 'Dossier' }}</p>
       </div>
     </div>
-  </p-dialog>
 
-</div>
+    <!-- Sélecteur d'employés -->
+    <div>
+      <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
+        Ajouter des personnes
+      </label>
+
+      <div *ngIf="isLoadingShare" class="flex items-center gap-2 text-sm text-blue-600 py-3">
+        <i class="pi pi-spin pi-spinner"></i>
+        <span>Chargement des employés...</span>
+      </div>
+
+      <p-multiSelect
+        *ngIf="!isLoadingShare"
+        [(ngModel)]="selectedShareUsers"
+        [options]="shareEmployees"
+        optionLabel="name"
+        placeholder="Rechercher un employé..."
+        [style]="{ width: '100%' }"
+        [filter]="true"
+        filterPlaceholder="Rechercher..."
+        [maxSelectedLabels]="3"
+        selectedItemsLabel="{0} sélectionné(s)"
+        appendTo="body">
+
+        <ng-template let-emp pTemplate="item">
+          <div class="flex items-center gap-3 py-1">
+            <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">
+              {{ emp.name?.charAt(0) }}{{ emp.name?.split(' ')[1]?.charAt(0) || '' }}
+            </div>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-gray-800">{{ emp.name }}</p>
+              <p class="text-xs text-gray-500 truncate">{{ emp.email }} · {{ emp.role }}</p>
+            </div>
+          </div>
+        </ng-template>
+      </p-multiSelect>
+    </div>
+
+    <!-- Déjà partagé avec -->
+    <div *ngIf="sharedWithUsers.length > 0">
+      <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
+        Déjà partagé avec
+      </label>
+      <div class="space-y-2 max-h-40 overflow-y-auto">
+        <div *ngFor="let user of sharedWithUsers"
+             class="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xs font-bold">
+              {{ user.name?.charAt(0) }}
+            </div>
+            <div>
+              <p class="text-sm font-medium text-gray-700">{{ user.name }}</p>
+              <p class="text-xs text-gray-400">{{ user.email }}</p>
+            </div>
+          </div>
+          <button (click)="removeShare(user)"
+                  class="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  title="Retirer le partage">
+            <i class="pi pi-times text-xs"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <div class="flex justify-end gap-2.5">
+      <button (click)="showShareDialog = false"
+              class="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300
+                     rounded-xl hover:bg-gray-50 transition-colors">
+        Fermer
+      </button>
+      <button (click)="confirmShare()"
+              [disabled]="selectedShareUsers.length === 0"
+              class="px-5 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700
+                     rounded-xl transition-colors flex items-center gap-2"
+              [class.opacity-50]="selectedShareUsers.length === 0"
+              [class.cursor-not-allowed]="selectedShareUsers.length === 0">
+        <i class="pi pi-share-alt text-xs"></i>
+        Partager ({{ selectedShareUsers.length }})
+      </button>
+    </div>
+  </ng-template>
+</p-dialog>
+
+
+<!-- ====================================================
+     DIALOG RENOMMER
+     ==================================================== -->
+<p-dialog
+  [(visible)]="showRenameDialog"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '420px' }"
+  header="Renommer"
+  [closeOnEscape]="true">
+
+  <div class="py-2">
+    <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
+      Nouveau nom
+    </label>
+    <input type="text"
+           [(ngModel)]="renameValue"
+           (keyup.enter)="confirmRename()"
+           class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl
+                  focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all">
+  </div>
+
+  <ng-template pTemplate="footer">
+    <div class="flex justify-end gap-2.5">
+      <button (click)="showRenameDialog = false"
+              class="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300
+                     rounded-xl hover:bg-gray-50 transition-colors">
+        Annuler
+      </button>
+      <button (click)="confirmRename()"
+              [disabled]="!renameValue.trim()"
+              class="px-5 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700
+                     rounded-xl transition-colors"
+              [class.opacity-50]="!renameValue.trim()"
+              [class.cursor-not-allowed]="!renameValue.trim()">
+        Enregistrer
+      </button>
+    </div>
+  </ng-template>
+</p-dialog>
