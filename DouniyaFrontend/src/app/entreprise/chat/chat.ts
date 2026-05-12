@@ -47,8 +47,13 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   isConnected = false;
   private shouldScrollToBottom = false;
 
-  // Deep-link depuis marketplace
   private targetConversationId: number | null = null;
+
+  // ── Polling ───────────────────────────────────────────────────────────────
+  private pollingTimer: ReturnType<typeof setInterval> | null = null;
+  private readonly POLL_INTERVAL = 3000; // 3 secondes
+  private isPollingMessages = false;
+  private isPollingConversations = false;
 
   // ── Dialog nouvelle conversation ──────────────────────────────────────────
   showNewConversationDialog = false;
@@ -88,22 +93,22 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   translatedContents: Map<number, string> = new Map();
   translatingMessages: Set<number> = new Set();
   showOriginalFor: Set<number> = new Set();
-  skippedTranslation: Set<number> = new Set(); // Messages déjà dans la bonne langue
+  skippedTranslation: Set<number> = new Set();
 
-  // ── NOUVEAU : Menu contextuel message ─────────────────────────────────────
+  // ── Menu contextuel ───────────────────────────────────────────────────────
   contextMenuVisible = false;
   contextMenuX = 0;
   contextMenuY = 0;
   contextMenuMessage: Message | null = null;
 
-  // ── NOUVEAU : Édition de message ──────────────────────────────────────────
+  // ── Édition de message ────────────────────────────────────────────────────
   editingMessage: Message | null = null;
   editMessageContent = '';
 
-  // ── NOUVEAU : Panneau membres du groupe ───────────────────────────────────
+  // ── Panneau membres ───────────────────────────────────────────────────────
   showMembersPanel = false;
 
-  // ── NOUVEAU : Dialog gestion groupe ───────────────────────────────────────
+  // ── Dialog gestion groupe ─────────────────────────────────────────────────
   showEditGroupDialog = false;
   editGroupName = '';
   showAddMembersDialog = false;
@@ -153,6 +158,9 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     this.connectToWebSocket();
     this.setupWebSocketListeners();
     this.loadEmployes();
+
+    // Démarrer le polling automatique
+    this.startPolling();
   }
 
   ngAfterViewChecked(): void {
@@ -163,9 +171,196 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   ngOnDestroy(): void {
+    this.stopPolling();
     this.subscriptions.forEach(sub => sub.unsubscribe());
     this.chatService.disconnect();
     if (this.typingTimeout) clearTimeout(this.typingTimeout);
+  }
+
+  // ── POLLING AUTOMATIQUE ───────────────────────────────────────────────────
+
+  private startPolling(): void {
+    this.stopPolling();
+    this.pollingTimer = setInterval(() => {
+      this.pollMessages();
+      this.pollConversationList();
+    }, this.POLL_INTERVAL);
+  }
+
+  private stopPolling(): void {
+    if (this.pollingTimer) {
+      clearInterval(this.pollingTimer);
+      this.pollingTimer = null;
+    }
+  }
+
+  /**
+   * Récupère les messages récents de la conversation active
+   * et fusionne intelligemment (ajout, édition, suppression)
+   */
+  private pollMessages(): void {
+    if (!this.selectedConversation || this.isPollingMessages || this.isSendingMessage || this.isUploadingFile) return;
+
+    const conversationId = this.selectedConversation.id;
+    this.isPollingMessages = true;
+
+    this.chatService.getMessages(conversationId, 0, 50).subscribe({
+      next: (page) => {
+        this.isPollingMessages = false;
+        if (this.selectedConversation?.id !== conversationId) return;
+
+        const freshMessages: Message[] = page.content.map((msg: any) => ({
+          id: msg.id,
+          senderId: msg.senderId,
+          senderName: msg.senderName,
+          senderAvatar: msg.senderAvatar,
+          content: msg.content,
+          timestamp: new Date(msg.createdAt || Date.now()),
+          isRead: msg.isRead,
+          isEdited: msg.isEdited || false,
+          type: (msg.type || 'TEXT').toUpperCase(),
+          fileUrl: msg.fileUrl,
+          fileName: msg.fileName,
+          conversationId: conversationId,
+          parentMessageId: msg.parentMessageId,
+          parentMessageContent: msg.parentMessageContent
+        })).reverse();
+
+        this.mergeMessages(freshMessages);
+      },
+      error: () => {
+        this.isPollingMessages = false;
+      }
+    });
+  }
+
+  /**
+   * Fusionne les messages frais avec les messages locaux :
+   * - Ajoute les nouveaux
+   * - Met à jour le contenu des édités
+   * - Retire les supprimés
+   */
+  private mergeMessages(freshMessages: Message[]): void {
+    const existingIds = new Set(this.messages.map(m => m.id));
+    const freshIds = new Set(freshMessages.map(m => m.id));
+    let hasNewMessages = false;
+
+    // 1) Ajouter les nouveaux messages
+    for (const msg of freshMessages) {
+      if (!existingIds.has(msg.id)) {
+        this.messages.push(msg);
+        hasNewMessages = true;
+
+        // Traduire le nouveau message si traduction active
+        if (this.isTranslationActive && msg.type === 'TEXT') {
+          this.translateSingleMessage(msg);
+        }
+      }
+    }
+
+    // 2) Mettre à jour les messages édités
+    for (const msg of freshMessages) {
+      const existing = this.messages.find(m => m.id === msg.id);
+      if (existing && (existing.content !== msg.content || existing.isEdited !== msg.isEdited)) {
+        existing.content = msg.content;
+        existing.isEdited = msg.isEdited;
+
+        if (this.isTranslationActive && existing.type === 'TEXT') {
+          this.translatedContents.delete(existing.id);
+          this.skippedTranslation.delete(existing.id);
+          this.translateSingleMessage(existing);
+        }
+      }
+    }
+
+    // 3) Retirer les messages supprimés côté serveur
+    const beforeCount = this.messages.length;
+    this.messages = this.messages.filter(m => freshIds.has(m.id));
+    if (this.messages.length !== beforeCount) {
+      // Nettoyer les traductions des messages supprimés
+      for (const id of [...this.translatedContents.keys()]) {
+        if (!freshIds.has(id)) {
+          this.translatedContents.delete(id);
+          this.skippedTranslation.delete(id);
+        }
+      }
+    }
+
+    // 4) Scroll si nouveaux messages
+    if (hasNewMessages) {
+      this.shouldScrollToBottom = true;
+    }
+  }
+
+  /**
+   * Met à jour la sidebar : unreadCount, lastMessage, ordre
+   */
+  private pollConversationList(): void {
+    if (this.isPollingConversations) return;
+    this.isPollingConversations = true;
+
+    this.chatService.getConversations().subscribe({
+      next: (page) => {
+        this.isPollingConversations = false;
+
+        const freshConversations: Conversation[] = page.content.map((conv: any) => ({
+          id: conv.id,
+          name: conv.name,
+          avatar: conv.avatar || this.getInitials(conv.name),
+          lastMessage: conv.lastMessage?.content || '',
+          lastMessageTime: conv.lastMessage?.createdAt
+            ? new Date(conv.lastMessage.createdAt)
+            : new Date(conv.updatedAt || Date.now()),
+          unreadCount: conv.unreadCount || 0,
+          isOnline: conv.isOnline || false,
+          isGroup: conv.isGroup,
+          participants: conv.participants || []
+        }));
+
+        // Mettre à jour sans perdre la sélection
+        for (const fresh of freshConversations) {
+          const existing = this.conversations.find(c => c.id === fresh.id);
+          if (existing) {
+            // Ne pas écraser unreadCount si c'est la conversation sélectionnée
+            if (this.selectedConversation?.id !== fresh.id) {
+              existing.unreadCount = fresh.unreadCount;
+            }
+            existing.lastMessage = fresh.lastMessage;
+            existing.lastMessageTime = fresh.lastMessageTime;
+            existing.isOnline = fresh.isOnline;
+            existing.participants = fresh.participants;
+          } else {
+            // Nouvelle conversation apparue
+            this.conversations.push(fresh);
+          }
+        }
+
+        // Retirer les conversations supprimées
+        const freshIds = new Set(freshConversations.map(c => c.id));
+        this.conversations = this.conversations.filter(c => freshIds.has(c.id));
+
+        // Trier par lastMessageTime desc
+        this.conversations.sort((a, b) => {
+          const ta = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
+          const tb = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
+          return tb - ta;
+        });
+
+        this.filteredConversations = this.searchTerm.trim()
+          ? this.conversations.filter(c => c.name.toLowerCase().includes(this.searchTerm.toLowerCase()))
+          : [...this.conversations];
+
+        // Vérifier si la conversation sélectionnée a été supprimée
+        if (this.selectedConversation && !freshIds.has(this.selectedConversation.id)) {
+          this.selectedConversation = null;
+          this.messages = [];
+          this.showMembersPanel = false;
+        }
+      },
+      error: () => {
+        this.isPollingConversations = false;
+      }
+    });
   }
 
   // ── Fermer menus au clic extérieur ────────────────────────────────────────
@@ -282,6 +477,9 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     this.chatService.connect();
     const sub = this.chatService.isConnected$.subscribe(connected => {
       this.isConnected = connected;
+      if (connected && this.selectedConversation) {
+        this.chatService.subscribeToConversation(this.selectedConversation.id);
+      }
     });
     this.subscriptions.push(sub);
   }
@@ -302,7 +500,6 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     });
     this.subscriptions.push(statusSub);
 
-    // Écouter les éditions et suppressions de messages
     const editSub = this.chatService.onMessageEdited$.subscribe({
       next: (notification: ChatNotification) => this.handleMessageEdited(notification)
     });
@@ -331,7 +528,6 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     this.showEmojiPicker = false;
     this.showLanguageSelector = false;
 
-    // Collecter les IDs des participants existants
     this.existingParticipantIds = new Set(
       (conversation.participants || []).map(p => p.id)
     );
@@ -396,7 +592,7 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     this.subscriptions.push(sub);
   }
 
-  // ── NOUVEAU : Gestion du groupe ───────────────────────────────────────────
+  // ── Gestion du groupe ─────────────────────────────────────────────────────
 
   toggleMembersPanel(): void {
     this.showMembersPanel = !this.showMembersPanel;
@@ -551,7 +747,7 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     });
   }
 
-  // ── NOUVEAU : Conversation privée depuis un membre du groupe ──────────────
+  // ── Conversation privée depuis un membre ──────────────────────────────────
 
   startPrivateChat(participant: Participant): void {
     if (participant.id === this.currentUserId) return;
@@ -559,7 +755,6 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
       next: (response) => {
         this.showMembersPanel = false;
         this.loadConversations();
-        // Sélectionner la conversation privée après rechargement
         setTimeout(() => {
           const conv = this.conversations.find(c => c.id === (response.data as any)?.id);
           if (conv) {
@@ -583,7 +778,6 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     if (this.typingTimeout) clearTimeout(this.typingTimeout);
     this.chatService.sendStopTypingNotification(this.selectedConversation.id);
 
-    // Si on est en mode édition
     if (this.editingMessage) {
       this.saveEditedMessage();
       return;
@@ -617,7 +811,10 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
           type: 'TEXT',
           conversationId: this.selectedConversation!.id
         };
-        this.messages.push(message);
+        // Ajouter seulement si pas déjà présent (évite doublon avec polling)
+        if (!this.messages.find(m => m.id === message.id)) {
+          this.messages.push(message);
+        }
         if (this.isTranslationActive) {
           this.translateSingleMessage(message);
         }
@@ -669,7 +866,9 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
               fileName: msgData.fileName || fileData.filename,
               conversationId: conversationId
             };
-            this.messages.push(message);
+            if (!this.messages.find(m => m.id === message.id)) {
+              this.messages.push(message);
+            }
             this.updateConversationLastMessage(`📎 ${file.name}`);
             this.shouldScrollToBottom = true;
             this.removeSelectedFile();
@@ -695,7 +894,7 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     this.subscriptions.push(uploadSub);
   }
 
-  // ── NOUVEAU : Menu contextuel message ─────────────────────────────────────
+  // ── Menu contextuel message ───────────────────────────────────────────────
 
   onMessageContextMenu(event: MouseEvent, message: Message): void {
     event.preventDefault();
@@ -704,7 +903,6 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     this.contextMenuX = event.clientX;
     this.contextMenuY = event.clientY;
 
-    // Ajuster la position si trop proche du bord
     const menuWidth = 180;
     const menuHeight = 160;
     if (this.contextMenuX + menuWidth > window.innerWidth) {
@@ -751,7 +949,6 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
           msg.content = content;
           msg.isEdited = true;
         }
-        // Mettre à jour la traduction si active
         if (this.isTranslationActive && msg) {
           this.translatedContents.delete(messageId);
           this.skippedTranslation.delete(messageId);
@@ -823,7 +1020,7 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     }
   }
 
-  // ── Suite : update conversation, typing, etc. ─────────────────────────────
+  // ── Update conversation, typing ───────────────────────────────────────────
 
   private updateConversationLastMessage(content: string): void {
     if (this.selectedConversation) {
@@ -910,7 +1107,7 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     return iconMap[ext || ''] || 'pi-file';
   }
 
-  // ── Traduction (avec détection langue identique) ──────────────────────────
+  // ── Traduction ────────────────────────────────────────────────────────────
 
   toggleLanguageSelector(): void {
     this.showLanguageSelector = !this.showLanguageSelector;
@@ -955,12 +1152,10 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
         next: (translated) => {
           this.translatingMessages.delete(message.id);
 
-          // AMÉLIORATION #4 : Ne pas afficher "traduit" si le texte n'a pas changé
           const originalNormalized = message.content.trim().toLowerCase();
           const translatedNormalized = translated.trim().toLowerCase();
 
           if (originalNormalized === translatedNormalized) {
-            // Le texte est déjà dans la langue cible — on ne marque pas comme traduit
             this.skippedTranslation.add(message.id);
           } else {
             this.translatedContents.set(message.id, translated);
@@ -992,7 +1187,6 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   isTranslated(messageId: number): boolean {
-    // Ne pas afficher le badge "Traduit" si la traduction a été sautée
     return this.isTranslationActive
       && this.translatedContents.has(messageId)
       && !this.skippedTranslation.has(messageId);

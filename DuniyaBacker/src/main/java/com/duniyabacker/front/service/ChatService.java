@@ -740,6 +740,7 @@ public class ChatService {
                 .timestamp(LocalDateTime.now())
                 .build();
 
+        // 1) Queue personnelle de chaque participant (sauf l'expéditeur)
         conversation.getParticipants().forEach(participant -> {
             if (!participant.getId().equals(sender.getId())) {
                 messagingTemplate.convertAndSendToUser(
@@ -749,6 +750,12 @@ public class ChatService {
                 );
             }
         });
+
+        // 2) Topic de la conversation (permet aux abonnés du topic de recevoir aussi)
+        messagingTemplate.convertAndSend(
+                "/topic/conversation/" + conversation.getId(),
+                notification
+        );
     }
 
     // =========================================================================

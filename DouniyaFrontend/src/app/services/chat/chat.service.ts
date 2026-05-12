@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, NgZone } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, BehaviorSubject, Subject } from 'rxjs';
 import { environment } from '../../../environments/environment';
@@ -19,17 +19,20 @@ export class ChatService {
   public  onTypingNotification$     = this.typingNotificationSubject.asObservable();
   private userStatusChangeSubject   = new Subject<ChatNotification>();
   public  onUserStatusChange$       = this.userStatusChangeSubject.asObservable();
-  // Nouveaux sujets pour édition/suppression temps réel
   private messageEditedSubject      = new Subject<ChatNotification>();
   public  onMessageEdited$          = this.messageEditedSubject.asObservable();
   private messageDeletedSubject     = new Subject<ChatNotification>();
   public  onMessageDeleted$         = this.messageDeletedSubject.asObservable();
 
+  /** true uniquement si STOMP est réellement connecté (pas le fallback) */
+  private realWebSocket = false;
+  public get isRealWebSocket(): boolean { return this.realWebSocket; }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private stompClient: any = null;
   private subscribedConversations = new Set<number>();
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private ngZone: NgZone) {}
 
   // ============================================
   // CONVERSATIONS
@@ -60,13 +63,9 @@ export class ChatService {
   }
 
   // ============================================
-  // GESTION DE GROUPE (NOUVEAU)
+  // GESTION DE GROUPE
   // ============================================
 
-  /**
-   * Mettre à jour une conversation (nom, etc.)
-   * Backend requis : PUT /api/chat/conversations/{id}
-   */
   updateConversation(
     conversationId: number,
     data: { name?: string }
@@ -77,10 +76,6 @@ export class ChatService {
     );
   }
 
-  /**
-   * Ajouter des participants à une conversation de groupe
-   * Backend requis : POST /api/chat/conversations/{id}/participants
-   */
   addParticipants(
     conversationId: number,
     participantIds: number[]
@@ -91,10 +86,6 @@ export class ChatService {
     );
   }
 
-  /**
-   * Retirer un participant d'un groupe
-   * Backend requis : DELETE /api/chat/conversations/{id}/participants/{userId}
-   */
   removeParticipant(
     conversationId: number,
     userId: number
@@ -104,10 +95,6 @@ export class ChatService {
     );
   }
 
-  /**
-   * Quitter une conversation de groupe
-   * Backend requis : POST /api/chat/conversations/{id}/leave
-   */
   leaveConversation(conversationId: number): Observable<ApiResponse<void>> {
     return this.http.post<ApiResponse<void>>(
       `${this.apiUrl}/conversations/${conversationId}/leave`,
@@ -115,10 +102,6 @@ export class ChatService {
     );
   }
 
-  /**
-   * Supprimer une conversation (admin/créateur uniquement)
-   * Backend requis : DELETE /api/chat/conversations/{id}
-   */
   deleteConversation(conversationId: number): Observable<ApiResponse<void>> {
     return this.http.delete<ApiResponse<void>>(
       `${this.apiUrl}/conversations/${conversationId}`
@@ -126,7 +109,7 @@ export class ChatService {
   }
 
   // ============================================
-  // B2B — Contacter une entreprise depuis le Marketplace
+  // B2B
   // ============================================
 
   contacterEntreprise(entrepriseId: number): Observable<ApiResponse<Conversation>> {
@@ -179,10 +162,6 @@ export class ChatService {
     );
   }
 
-  /**
-   * Modifier un message existant
-   * Backend requis : PUT /api/chat/messages/{messageId}
-   */
   editMessage(messageId: number, content: string): Observable<ApiResponse<Message>> {
     return this.http.put<ApiResponse<Message>>(
       `${this.apiUrl}/messages/${messageId}`,
@@ -191,10 +170,6 @@ export class ChatService {
     );
   }
 
-  /**
-   * Supprimer un message
-   * Backend requis : DELETE /api/chat/messages/{messageId}
-   */
   deleteMessage(messageId: number): Observable<ApiResponse<void>> {
     return this.http.delete<ApiResponse<void>>(
       `${this.apiUrl}/messages/${messageId}`
@@ -245,23 +220,30 @@ export class ChatService {
       heartbeatOutgoing: 4000,
 
       onConnect: () => {
-        this.isConnectedSubject.next(true);
-        console.log('✅ WebSocket STOMP connecté');
+        this.subscribedConversations.clear();
+        this.realWebSocket = true;
+
+        this.ngZone.run(() => {
+          this.isConnectedSubject.next(true);
+        });
+        console.log('✅ WebSocket STOMP connecté (temps réel actif)');
 
         this.stompClient.subscribe('/user/queue/messages', (msg: { body: string }) => {
           try {
             const notif: ChatNotification = JSON.parse(msg.body);
-            switch (notif.type) {
-              case 'NEW_MESSAGE':
-                this.messageReceivedSubject.next(notif);
-                break;
-              case 'MESSAGE_EDITED':
-                this.messageEditedSubject.next(notif);
-                break;
-              case 'MESSAGE_DELETED':
-                this.messageDeletedSubject.next(notif);
-                break;
-            }
+            this.ngZone.run(() => {
+              switch (notif.type) {
+                case 'NEW_MESSAGE':
+                  this.messageReceivedSubject.next(notif);
+                  break;
+                case 'MESSAGE_EDITED':
+                  this.messageEditedSubject.next(notif);
+                  break;
+                case 'MESSAGE_DELETED':
+                  this.messageDeletedSubject.next(notif);
+                  break;
+              }
+            });
           } catch { /* ignore */ }
         });
 
@@ -269,32 +251,47 @@ export class ChatService {
           try {
             const notif: ChatNotification = JSON.parse(msg.body);
             if (notif.type === 'USER_ONLINE' || notif.type === 'USER_OFFLINE') {
-              this.userStatusChangeSubject.next(notif);
+              this.ngZone.run(() => {
+                this.userStatusChangeSubject.next(notif);
+              });
             }
           } catch { /* ignore */ }
         });
       },
 
-      onDisconnect: () => { this.isConnectedSubject.next(false); },
-      onStompError:  () => { this.isConnectedSubject.next(false); },
-      onWebSocketError: () => { this.fallbackConnect(); }
+      onDisconnect: () => {
+        this.realWebSocket = false;
+        this.ngZone.run(() => this.isConnectedSubject.next(false));
+      },
+      onStompError: () => {
+        this.realWebSocket = false;
+        this.ngZone.run(() => this.isConnectedSubject.next(false));
+      },
+      onWebSocketError: () => {
+        this.realWebSocket = false;
+        this.fallbackConnect();
+      }
     });
 
     this.stompClient.activate();
   }
 
   private fallbackConnect(): void {
+    this.realWebSocket = false;
     console.warn(
-      '⚠️ WebSocket temps réel désactivé.\n' +
-      '   Pour l\'activer :\n' +
+      '⚠️ WebSocket indisponible → polling activé automatiquement.\n' +
+      '   Pour le temps réel natif :\n' +
       '   npm install @stomp/stompjs sockjs-client\n' +
       '   npm install --save-dev @types/sockjs-client'
     );
-    setTimeout(() => this.isConnectedSubject.next(true), 400);
+    setTimeout(() => {
+      this.ngZone.run(() => this.isConnectedSubject.next(true));
+    }, 400);
   }
 
   disconnect(): void {
     if (this.stompClient?.active) this.stompClient.deactivate();
+    this.realWebSocket = false;
     this.isConnectedSubject.next(false);
     this.subscribedConversations.clear();
   }
@@ -307,21 +304,23 @@ export class ChatService {
       (msg: { body: string }) => {
         try {
           const notif: ChatNotification = JSON.parse(msg.body);
-          switch (notif.type) {
-            case 'NEW_MESSAGE':
-              this.messageReceivedSubject.next(notif);
-              break;
-            case 'USER_TYPING':
-            case 'USER_STOP_TYPING':
-              this.typingNotificationSubject.next(notif);
-              break;
-            case 'MESSAGE_EDITED':
-              this.messageEditedSubject.next(notif);
-              break;
-            case 'MESSAGE_DELETED':
-              this.messageDeletedSubject.next(notif);
-              break;
-          }
+          this.ngZone.run(() => {
+            switch (notif.type) {
+              case 'NEW_MESSAGE':
+                this.messageReceivedSubject.next(notif);
+                break;
+              case 'USER_TYPING':
+              case 'USER_STOP_TYPING':
+                this.typingNotificationSubject.next(notif);
+                break;
+              case 'MESSAGE_EDITED':
+                this.messageEditedSubject.next(notif);
+                break;
+              case 'MESSAGE_DELETED':
+                this.messageDeletedSubject.next(notif);
+                break;
+            }
+          });
         } catch { /* ignore */ }
       }
     );
