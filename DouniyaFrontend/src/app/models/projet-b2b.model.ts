@@ -1,85 +1,87 @@
-// Models pour les Projets B2B
-
-export interface ProjetB2B {
-  id: number;
-  nom: string;
-  description: string;
-  statut: StatutProjet;
-  priorite: PrioriteProjet;
-  categorie: string;
-  progression: number;
-  dateDebut: string;
-  dateFin: string;
-  budget: number;
-  icone: string;
-  createur: {
-    id: number;
-    username: string;
-  };
-  participants: Participant[];
-  partenaires: PartenaireProjet[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Participant {
-  id: number;
-  username: string;
-  email: string;
-  name: string;
-  avatar: string;
-  isOnline: boolean;
-  role: string;
-}
+// ============================================
+// MODÈLE : projet-b2b.model.ts
+// Chemin : src/app/models/projet-b2b.model.ts
+// ============================================
 
 export interface PartenaireProjet {
   id: number;
   nom: string;
   role: string;
   logo: string;
-  statut: StatutPartenaire;
+  statut?: string;
 }
 
-export enum StatutProjet {
-  EN_ATTENTE = 'EN_ATTENTE',
-  ACTIF = 'ACTIF',
-  EN_PAUSE = 'EN_PAUSE',
-  TERMINE = 'TERMINE',
-  ARCHIVE = 'ARCHIVE'
+export interface TacheProjet {
+  id: number;
+  titre: string;
+  description: string;
+  statut: 'EN_ATTENTE' | 'EN_COURS' | 'TERMINEE';
+  priorite: 'BASSE' | 'MOYENNE' | 'HAUTE';
+  assigneA: string;
+  dateEcheance: string;
+  projetId: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export enum PrioriteProjet {
-  BASSE = 'BASSE',
-  MOYENNE = 'MOYENNE',
-  HAUTE = 'HAUTE',
-  CRITIQUE = 'CRITIQUE'
+export interface DocumentProjet {
+  id: number;
+  nomFichier: string;
+  nomOriginal: string;
+  cheminFichier: string;
+  typeMime: string;
+  tailleFichier: number;
+  uploadePar: string;
+  projetId: number;
+  createdAt: string;
+  tailleFormatee: string;
+  icone: string;
 }
 
-export enum StatutPartenaire {
-  ACTIF = 'ACTIF',
-  INACTIF = 'INACTIF',
-  SUSPENDU = 'SUSPENDU'
+export interface ProjetB2B {
+  id: number;
+  nom: string;
+  description: string;
+  categorie: string;
+  priorite: string;
+  statut: string;
+  progression: number;
+  dateDebut: string;
+  dateFin: string;
+  budget: number;
+  icone: string;
+  partenaires: PartenaireProjet[];
+  taches?: TacheProjet[];
+  documents?: DocumentProjet[];
+  createurId: number;
+  createurUsername: string;
 }
-
-// DTOs pour les requêtes
 
 export interface CreateProjetB2BRequest {
   nom: string;
   description: string;
   categorie: string;
-  priorite: string; // 'BASSE' | 'MOYENNE' | 'HAUTE' | 'CRITIQUE'
-  dateDebut?: string;
-  dateFin?: string;
-  budget?: number;
-  icone?: string;
-  partenaires?: PartenaireDTO[];
-  participantIds?: number[];
+  priorite: string;
+  dateDebut: string;
+  dateFin: string;
+  budget: number;
+  icone: string;
+  partenaires: { nom: string; role: string; logo: string }[];
+  participantIds: number[];
 }
 
-export interface PartenaireDTO {
+export interface CreateTacheRequest {
+  titre: string;
+  description: string;
+  priorite: string;
+  assigneA: string;
+  dateEcheance: string;
+}
+
+export interface AddPartenaireRequest {
   nom: string;
   role: string;
-  logo?: string;
+  logo: string;
 }
 
 export interface ProjetB2BStats {
@@ -93,6 +95,5 @@ export interface ProjetB2BStats {
 export interface ApiResponse<T> {
   success: boolean;
   message: string;
-  data?: T;
-  timestamp: string;
+  data: T;
 }

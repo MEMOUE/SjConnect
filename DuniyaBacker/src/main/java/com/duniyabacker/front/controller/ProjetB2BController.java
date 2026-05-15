@@ -1,8 +1,12 @@
 package com.duniyabacker.front.controller;
 
+import com.duniyabacker.front.dto.request.AddPartenaireRequest;
 import com.duniyabacker.front.dto.request.CreateProjetB2BRequest;
+import com.duniyabacker.front.dto.request.CreateTacheProjetRequest;
 import com.duniyabacker.front.dto.response.ApiResponse;
+import com.duniyabacker.front.entity.b2b.DocumentProjet;
 import com.duniyabacker.front.entity.b2b.ProjetB2B;
+import com.duniyabacker.front.entity.b2b.TacheProjet;
 import com.duniyabacker.front.service.ProjetB2BService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -13,12 +17,19 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 
@@ -31,25 +42,11 @@ public class ProjetB2BController {
 
     private final ProjetB2BService projetService;
 
-    @Operation(
-            summary = "Créer un projet B2B",
-            description = "Créer un nouveau projet de collaboration B2B avec partenaires et participants"
-    )
-    @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "Projet créé avec succès",
-                    content = @Content(schema = @Schema(implementation = ProjetB2B.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "400",
-                    description = "Données invalides"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "401",
-                    description = "Non authentifié"
-            )
-    })
+    // ============================================
+    // GESTION DES PROJETS
+    // ============================================
+
+    @Operation(summary = "Créer un projet B2B")
     @PostMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<ProjetB2B>> createProjet(
@@ -59,21 +56,7 @@ public class ProjetB2BController {
         return ResponseEntity.ok(projetService.createProjet(userDetails.getUsername(), request));
     }
 
-    @Operation(
-            summary = "Liste de mes projets",
-            description = "Obtenir la liste de tous les projets où je suis créateur ou participant"
-    )
-    @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "Liste des projets",
-                    content = @Content(schema = @Schema(implementation = ProjetB2B.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "401",
-                    description = "Non authentifié"
-            )
-    })
+    @Operation(summary = "Liste de mes projets")
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<ProjetB2B>> getMesProjets(
@@ -82,208 +65,233 @@ public class ProjetB2BController {
         return ResponseEntity.ok(projetService.getMesProjets(userDetails.getUsername()));
     }
 
-    @Operation(
-            summary = "Détails d'un projet",
-            description = "Obtenir les informations détaillées d'un projet spécifique"
-    )
-    @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "Détails du projet",
-                    content = @Content(schema = @Schema(implementation = ProjetB2B.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "403",
-                    description = "Accès interdit"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "404",
-                    description = "Projet non trouvé"
-            )
-    })
+    @Operation(summary = "Détails d'un projet")
     @GetMapping("/{projetId}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ProjetB2B> getProjetById(
             @AuthenticationPrincipal UserDetails userDetails,
-            @Parameter(description = "ID du projet") @PathVariable Long projetId
+            @PathVariable Long projetId
     ) {
         return ResponseEntity.ok(projetService.getProjetById(userDetails.getUsername(), projetId));
     }
 
-    @Operation(
-            summary = "Modifier un projet",
-            description = "Mettre à jour les informations d'un projet (réservé au créateur)"
-    )
-    @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "Projet mis à jour avec succès"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "403",
-                    description = "Seul le créateur peut modifier le projet"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "404",
-                    description = "Projet non trouvé"
-            )
-    })
+    @Operation(summary = "Modifier un projet")
     @PutMapping("/{projetId}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<ProjetB2B>> updateProjet(
             @AuthenticationPrincipal UserDetails userDetails,
-            @Parameter(description = "ID du projet") @PathVariable Long projetId,
+            @PathVariable Long projetId,
             @Valid @RequestBody CreateProjetB2BRequest request
     ) {
         return ResponseEntity.ok(projetService.updateProjet(userDetails.getUsername(), projetId, request));
     }
 
-    @Operation(
-            summary = "Modifier le statut d'un projet",
-            description = "Changer le statut du projet (EN_ATTENTE, ACTIF, EN_PAUSE, TERMINE, ARCHIVE)"
-    )
-    @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "Statut mis à jour avec succès"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "400",
-                    description = "Statut invalide"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "404",
-                    description = "Projet non trouvé"
-            )
-    })
+    @Operation(summary = "Modifier le statut d'un projet")
     @PatchMapping("/{projetId}/statut")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<ProjetB2B>> updateStatut(
             @AuthenticationPrincipal UserDetails userDetails,
-            @Parameter(description = "ID du projet") @PathVariable Long projetId,
-            @Parameter(description = "Nouveau statut (EN_ATTENTE, ACTIF, EN_PAUSE, TERMINE, ARCHIVE)")
+            @PathVariable Long projetId,
             @RequestParam String statut
     ) {
         return ResponseEntity.ok(projetService.updateStatut(userDetails.getUsername(), projetId, statut));
     }
 
-    @Operation(
-            summary = "Modifier la progression",
-            description = "Mettre à jour le pourcentage de progression du projet (0-100)"
-    )
-    @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "Progression mise à jour avec succès"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "400",
-                    description = "Progression invalide (doit être entre 0 et 100)"
-            )
-    })
+    @Operation(summary = "Modifier la progression")
     @PatchMapping("/{projetId}/progression")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<ProjetB2B>> updateProgression(
             @AuthenticationPrincipal UserDetails userDetails,
-            @Parameter(description = "ID du projet") @PathVariable Long projetId,
-            @Parameter(description = "Pourcentage de progression (0-100)") @RequestParam Integer progression
+            @PathVariable Long projetId,
+            @RequestParam Integer progression
     ) {
         return ResponseEntity.ok(projetService.updateProgression(userDetails.getUsername(), projetId, progression));
     }
 
-    @Operation(
-            summary = "Ajouter un participant",
-            description = "Ajouter un utilisateur comme participant au projet (réservé au créateur)"
-    )
-    @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "Participant ajouté avec succès"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "403",
-                    description = "Seul le créateur peut ajouter des participants"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "404",
-                    description = "Participant ou projet non trouvé"
-            )
-    })
-    @PostMapping("/{projetId}/participants/{participantId}")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<ProjetB2B>> addParticipant(
-            @AuthenticationPrincipal UserDetails userDetails,
-            @Parameter(description = "ID du projet") @PathVariable Long projetId,
-            @Parameter(description = "ID de l'utilisateur à ajouter") @PathVariable Long participantId
-    ) {
-        return ResponseEntity.ok(projetService.addParticipant(userDetails.getUsername(), projetId, participantId));
-    }
-
-    @Operation(
-            summary = "Retirer un participant",
-            description = "Retirer un participant du projet (réservé au créateur)"
-    )
-    @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "Participant retiré avec succès"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "400",
-                    description = "Le créateur ne peut pas être retiré"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "403",
-                    description = "Seul le créateur peut retirer des participants"
-            )
-    })
-    @DeleteMapping("/{projetId}/participants/{participantId}")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<ProjetB2B>> removeParticipant(
-            @AuthenticationPrincipal UserDetails userDetails,
-            @Parameter(description = "ID du projet") @PathVariable Long projetId,
-            @Parameter(description = "ID du participant à retirer") @PathVariable Long participantId
-    ) {
-        return ResponseEntity.ok(projetService.removeParticipant(userDetails.getUsername(), projetId, participantId));
-    }
-
-    @Operation(
-            summary = "Supprimer un projet",
-            description = "Supprimer définitivement un projet (réservé au créateur)"
-    )
-    @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "Projet supprimé avec succès"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "403",
-                    description = "Seul le créateur peut supprimer le projet"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "404",
-                    description = "Projet non trouvé"
-            )
-    })
+    @Operation(summary = "Supprimer un projet")
     @DeleteMapping("/{projetId}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Void>> deleteProjet(
             @AuthenticationPrincipal UserDetails userDetails,
-            @Parameter(description = "ID du projet") @PathVariable Long projetId
+            @PathVariable Long projetId
     ) {
         return ResponseEntity.ok(projetService.deleteProjet(userDetails.getUsername(), projetId));
     }
 
-    @Operation(
-            summary = "Statistiques des projets",
-            description = "Obtenir des statistiques sur l'ensemble de mes projets"
-    )
-    @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "Statistiques récupérées avec succès"
-            )
-    })
+    // ============================================
+    // GESTION DES PARTICIPANTS
+    // ============================================
+
+    @Operation(summary = "Ajouter un participant")
+    @PostMapping("/{projetId}/participants/{participantId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<ProjetB2B>> addParticipant(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long projetId,
+            @PathVariable Long participantId
+    ) {
+        return ResponseEntity.ok(projetService.addParticipant(userDetails.getUsername(), projetId, participantId));
+    }
+
+    @Operation(summary = "Retirer un participant")
+    @DeleteMapping("/{projetId}/participants/{participantId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<ProjetB2B>> removeParticipant(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long projetId,
+            @PathVariable Long participantId
+    ) {
+        return ResponseEntity.ok(projetService.removeParticipant(userDetails.getUsername(), projetId, participantId));
+    }
+
+    // ============================================
+    // GESTION DES PARTENAIRES (NOUVEAU)
+    // ============================================
+
+    @Operation(summary = "Ajouter un partenaire au projet",
+            description = "Ajouter un partenaire externe après la création du projet")
+    @PostMapping("/{projetId}/partenaires")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<ProjetB2B>> addPartenaire(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long projetId,
+            @Valid @RequestBody AddPartenaireRequest request
+    ) {
+        return ResponseEntity.ok(projetService.addPartenaire(userDetails.getUsername(), projetId, request));
+    }
+
+    @Operation(summary = "Retirer un partenaire du projet")
+    @DeleteMapping("/{projetId}/partenaires/{partenaireId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<ProjetB2B>> removePartenaire(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long projetId,
+            @PathVariable Long partenaireId
+    ) {
+        return ResponseEntity.ok(projetService.removePartenaire(userDetails.getUsername(), projetId, partenaireId));
+    }
+
+    // ============================================
+    // GESTION DES TÂCHES (NOUVEAU)
+    // ============================================
+
+    @Operation(summary = "Créer une tâche dans un projet")
+    @PostMapping("/{projetId}/taches")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<TacheProjet>> createTache(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long projetId,
+            @Valid @RequestBody CreateTacheProjetRequest request
+    ) {
+        return ResponseEntity.ok(projetService.createTache(userDetails.getUsername(), projetId, request));
+    }
+
+    @Operation(summary = "Liste des tâches d'un projet")
+    @GetMapping("/{projetId}/taches")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<TacheProjet>> getTaches(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long projetId
+    ) {
+        return ResponseEntity.ok(projetService.getTaches(userDetails.getUsername(), projetId));
+    }
+
+    @Operation(summary = "Modifier le statut d'une tâche",
+            description = "Changer le statut (EN_ATTENTE, EN_COURS, TERMINEE)")
+    @PatchMapping("/{projetId}/taches/{tacheId}/statut")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<TacheProjet>> updateStatutTache(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long projetId,
+            @PathVariable Long tacheId,
+            @RequestParam String statut
+    ) {
+        return ResponseEntity.ok(projetService.updateStatutTache(userDetails.getUsername(), projetId, tacheId, statut));
+    }
+
+    @Operation(summary = "Supprimer une tâche")
+    @DeleteMapping("/{projetId}/taches/{tacheId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Void>> deleteTache(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long projetId,
+            @PathVariable Long tacheId
+    ) {
+        return ResponseEntity.ok(projetService.deleteTache(userDetails.getUsername(), projetId, tacheId));
+    }
+
+    // ============================================
+    // GESTION DES DOCUMENTS (NOUVEAU)
+    // ============================================
+
+    @Operation(summary = "Uploader un document dans un projet")
+    @PostMapping(value = "/{projetId}/documents", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<DocumentProjet>> uploadDocument(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long projetId,
+            @RequestParam("file") MultipartFile file
+    ) {
+        return ResponseEntity.ok(projetService.uploadDocument(userDetails.getUsername(), projetId, file));
+    }
+
+    @Operation(summary = "Liste des documents d'un projet")
+    @GetMapping("/{projetId}/documents")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<DocumentProjet>> getDocuments(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long projetId
+    ) {
+        return ResponseEntity.ok(projetService.getDocuments(userDetails.getUsername(), projetId));
+    }
+
+    @Operation(summary = "Télécharger un document")
+    @GetMapping("/{projetId}/documents/{documentId}/download")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Resource> downloadDocument(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long projetId,
+            @PathVariable Long documentId
+    ) {
+        DocumentProjet document = projetService.getDocument(userDetails.getUsername(), projetId, documentId);
+
+        try {
+            Path filePath = Paths.get(document.getCheminFichier());
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (!resource.exists()) {
+                throw new RuntimeException("Fichier introuvable sur le serveur");
+            }
+
+            String contentType = document.getTypeMime() != null ? document.getTypeMime() : "application/octet-stream";
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .header(HttpHeaders.CONTENT_DISPOSITION,
+                            "attachment; filename=\"" + document.getNomFichier() + "\"")
+                    .body(resource);
+
+        } catch (Exception e) {
+            throw new RuntimeException("Erreur lors du téléchargement", e);
+        }
+    }
+
+    @Operation(summary = "Supprimer un document")
+    @DeleteMapping("/{projetId}/documents/{documentId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Void>> deleteDocument(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long projetId,
+            @PathVariable Long documentId
+    ) {
+        return ResponseEntity.ok(projetService.deleteDocument(userDetails.getUsername(), projetId, documentId));
+    }
+
+    // ============================================
+    // STATISTIQUES ET RECHERCHE
+    // ============================================
+
+    @Operation(summary = "Statistiques des projets")
     @GetMapping("/stats")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Map<String, Object>> getStats(
@@ -292,46 +300,34 @@ public class ProjetB2BController {
         return ResponseEntity.ok(projetService.getStats(userDetails.getUsername()));
     }
 
-    @Operation(
-            summary = "Rechercher des projets",
-            description = "Rechercher des projets par nom ou description"
-    )
-    @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "Résultats de la recherche"
-            )
-    })
+    @Operation(summary = "Rechercher des projets")
     @GetMapping("/search")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<ProjetB2B>> searchProjets(
             @AuthenticationPrincipal UserDetails userDetails,
-            @Parameter(description = "Terme de recherche") @RequestParam String q
+            @RequestParam String q
     ) {
         return ResponseEntity.ok(projetService.searchProjets(userDetails.getUsername(), q));
     }
 
-    @Operation(
-            summary = "Filtrer par statut",
-            description = "Obtenir les projets filtrés par statut"
-    )
-    @ApiResponses(value = {
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "Projets filtrés"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "400",
-                    description = "Statut invalide"
-            )
-    })
+    @Operation(summary = "Filtrer par statut")
     @GetMapping("/filter")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<ProjetB2B>> filterByStatut(
             @AuthenticationPrincipal UserDetails userDetails,
-            @Parameter(description = "Statut (EN_ATTENTE, ACTIF, EN_PAUSE, TERMINE, ARCHIVE)")
             @RequestParam String statut
     ) {
         return ResponseEntity.ok(projetService.filterByStatut(userDetails.getUsername(), statut));
+    }
+    @Operation(summary = "Rechercher un utilisateur par email")
+    @GetMapping("/users/search-by-email")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> searchUserByEmail(@RequestParam String email) {
+        Map<String, Object> user = projetService.searchUserByEmail(email);
+        if (user == null) {
+            return ResponseEntity.ok(Map.of("found", false, "message", "Aucun utilisateur trouvé avec cet email"));
+        }
+        user.put("found", true);
+        return ResponseEntity.ok(user);
     }
 }

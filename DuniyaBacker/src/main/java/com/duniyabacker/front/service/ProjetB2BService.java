@@ -1,21 +1,36 @@
 package com.duniyabacker.front.service;
 
+import com.duniyabacker.front.dto.request.AddPartenaireRequest;
 import com.duniyabacker.front.dto.request.CreateProjetB2BRequest;
+import com.duniyabacker.front.dto.request.CreateTacheProjetRequest;
 import com.duniyabacker.front.dto.response.ApiResponse;
 import com.duniyabacker.front.entity.User;
+import com.duniyabacker.front.entity.b2b.DocumentProjet;
 import com.duniyabacker.front.entity.b2b.PartenaireProjet;
 import com.duniyabacker.front.entity.b2b.ProjetB2B;
+import com.duniyabacker.front.entity.b2b.TacheProjet;
 import com.duniyabacker.front.exception.CustomExceptions.*;
+import com.duniyabacker.front.repository.DocumentProjetRepository;
 import com.duniyabacker.front.repository.ProjetB2BRepository;
+import com.duniyabacker.front.repository.TacheProjetRepository;
 import com.duniyabacker.front.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +39,15 @@ public class ProjetB2BService {
 
     private final ProjetB2BRepository projetRepository;
     private final UserRepository userRepository;
+    private final TacheProjetRepository tacheRepository;
+    private final DocumentProjetRepository documentRepository;
+
+    @Value("${app.upload.dir:uploads/projets-b2b}")
+    private String uploadDir;
+
+    // ============================================
+    // GESTION DES PROJETS (existant)
+    // ============================================
 
     @Transactional
     public ApiResponse<ProjetB2B> createProjet(String username, CreateProjetB2BRequest request) {
@@ -71,16 +95,13 @@ public class ProjetB2BService {
         return ApiResponse.success("Projet créé avec succès", projet);
     }
 
-    // ── CORRECTION PRINCIPALE : @Transactional(readOnly = true) sur toutes les méthodes de lecture ──
-
     @Transactional(readOnly = true)
     public List<ProjetB2B> getMesProjets(String username) {
         User user = getUserByUsername(username);
         List<ProjetB2B> projets = projetRepository.findByUserIdAsCreatorOrParticipant(user.getId());
-        // Forcer l'initialisation des collections lazy DANS la session Hibernate ouverte
         projets.forEach(p -> {
-            p.getPartenaires().size();   // force l'initialisation dans la session Hibernate
-            p.initTransientFields();     // peuple createurId / createurUsername
+            p.getPartenaires().size();
+            p.initTransientFields();
         });
         return projets;
     }
@@ -89,7 +110,7 @@ public class ProjetB2BService {
     public ProjetB2B getProjetById(String username, Long projetId) {
         User user = getUserByUsername(username);
         ProjetB2B projet = getProjetWithAccessCheck(projetId, user.getId());
-        projet.getPartenaires().size(); // init lazy
+        projet.getPartenaires().size();
         return projet;
     }
 
@@ -110,6 +131,22 @@ public class ProjetB2BService {
         projet.setDateFin(request.getDateFin());
         projet.setBudget(request.getBudget());
         projet.setIcone(request.getIcone());
+
+        // Mise à jour des partenaires si fournis dans la requête
+        if (request.getPartenaires() != null) {
+            // Supprimer les anciens partenaires
+            projet.getPartenaires().clear();
+            // Ajouter les nouveaux
+            for (CreateProjetB2BRequest.PartenaireDTO dto : request.getPartenaires()) {
+                PartenaireProjet partenaire = PartenaireProjet.builder()
+                        .nom(dto.getNom())
+                        .role(dto.getRole())
+                        .logo(dto.getLogo())
+                        .statut(PartenaireProjet.StatutPartenaire.ACTIF)
+                        .build();
+                projet.addPartenaire(partenaire);
+            }
+        }
 
         projetRepository.save(projet);
         projet.getPartenaires().size();
@@ -157,6 +194,25 @@ public class ProjetB2BService {
     }
 
     @Transactional
+    public ApiResponse<Void> deleteProjet(String username, Long projetId) {
+        User user = getUserByUsername(username);
+        ProjetB2B projet = getProjetWithAccessCheck(projetId, user.getId());
+
+        if (!projet.getCreateur().getId().equals(user.getId())) {
+            throw new ForbiddenException("Seul le créateur peut supprimer le projet");
+        }
+
+        projetRepository.delete(projet);
+        log.info("Projet {} supprimé par {}", projetId, username);
+
+        return ApiResponse.success("Projet supprimé avec succès");
+    }
+
+    // ============================================
+    // GESTION DES PARTICIPANTS (existant)
+    // ============================================
+
+    @Transactional
     public ApiResponse<ProjetB2B> addParticipant(String username, Long projetId, Long participantId) {
         User user = getUserByUsername(username);
         ProjetB2B projet = getProjetWithAccessCheck(projetId, user.getId());
@@ -199,20 +255,295 @@ public class ProjetB2BService {
         return ApiResponse.success("Participant retiré", projet);
     }
 
+    // ============================================
+    // GESTION DES PARTENAIRES (NOUVEAU)
+    // ============================================
+
     @Transactional
-    public ApiResponse<Void> deleteProjet(String username, Long projetId) {
+    public ApiResponse<ProjetB2B> addPartenaire(String username, Long projetId, AddPartenaireRequest request) {
+        User user = getUserByUsername(username);
+        ProjetB2B projet = getProjetWithAccessCheck(projetId, user.getId());
+
+        String nom;
+        String logo;
+        String role = request.getRole() != null ? request.getRole() : "Partenaire";
+
+        // ── Mode 1 : par userId (sélection d'un employé interne) ──
+        if (request.getUserId() != null) {
+            User target = userRepository.findById(request.getUserId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé: " + request.getUserId()));
+            nom = target.getUsername();
+            logo = "👤";
+            projet.addParticipant(target);
+
+            // ── Mode 2 : par email (utilisateur externe sur la plateforme) ──
+        } else if (request.getEmail() != null && !request.getEmail().isBlank()) {
+            User target = userRepository.findByEmail(request.getEmail())
+                    .orElseThrow(() -> new ResourceNotFoundException("Aucun utilisateur trouvé avec l'email: " + request.getEmail()));
+            nom = target.getUsername();
+            logo = "🌐";
+            projet.addParticipant(target);
+
+            // ── Mode 3 : saisie manuelle ──
+        } else if (request.getNom() != null && !request.getNom().isBlank()) {
+            nom = request.getNom();
+            logo = request.getLogo() != null ? request.getLogo() : "🏢";
+        } else {
+            throw new BadRequestException("Veuillez fournir un userId, un email ou un nom");
+        }
+
+        PartenaireProjet partenaire = PartenaireProjet.builder()
+                .nom(nom)
+                .role(role)
+                .logo(logo)
+                .statut(PartenaireProjet.StatutPartenaire.ACTIF)
+                .build();
+
+        projet.addPartenaire(partenaire);
+        projetRepository.save(projet);
+        projet.getPartenaires().size();
+
+        log.info("Partenaire '{}' ajouté au projet {} (mode: {})", nom, projetId,
+                request.getUserId() != null ? "interne" : request.getEmail() != null ? "email" : "manuel");
+        return ApiResponse.success("Partenaire ajouté avec succès", projet);
+    }
+
+    /**
+     * Rechercher un utilisateur par email (pour l'ajout externe)
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> searchUserByEmail(String email) {
+        User user = userRepository.findByEmail(email).orElse(null);
+        if (user == null) return null;
+        Map<String, Object> result = new HashMap<>();
+        result.put("id", user.getId());
+        result.put("username", user.getUsername());
+        result.put("email", user.getEmail());
+        return result;
+    }
+
+    @Transactional
+    public ApiResponse<ProjetB2B> removePartenaire(String username, Long projetId, Long partenaireId) {
         User user = getUserByUsername(username);
         ProjetB2B projet = getProjetWithAccessCheck(projetId, user.getId());
 
         if (!projet.getCreateur().getId().equals(user.getId())) {
-            throw new ForbiddenException("Seul le créateur peut supprimer le projet");
+            throw new ForbiddenException("Seul le créateur peut retirer des partenaires");
         }
 
-        projetRepository.delete(projet);
-        log.info("Projet {} supprimé par {}", projetId, username);
+        PartenaireProjet partenaire = projet.getPartenaires().stream()
+                .filter(p -> p.getId().equals(partenaireId))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Partenaire non trouvé dans ce projet"));
 
-        return ApiResponse.success("Projet supprimé avec succès");
+        projet.removePartenaire(partenaire);
+        projetRepository.save(projet);
+
+        log.info("Partenaire {} retiré du projet {}", partenaireId, projetId);
+        return ApiResponse.success("Partenaire retiré", projet);
     }
+
+    // ============================================
+    // GESTION DES TÂCHES (NOUVEAU)
+    // ============================================
+
+    @Transactional
+    public ApiResponse<TacheProjet> createTache(String username, Long projetId, CreateTacheProjetRequest request) {
+        User user = getUserByUsername(username);
+        ProjetB2B projet = getProjetWithAccessCheck(projetId, user.getId());
+
+        TacheProjet.PrioriteTache priorite = TacheProjet.PrioriteTache.MOYENNE;
+        if (request.getPriorite() != null) {
+            try {
+                priorite = TacheProjet.PrioriteTache.valueOf(request.getPriorite().toUpperCase());
+            } catch (IllegalArgumentException ignored) {}
+        }
+
+        LocalDate dateEcheance = null;
+        if (request.getDateEcheance() != null && !request.getDateEcheance().isBlank()) {
+            dateEcheance = LocalDate.parse(request.getDateEcheance());
+        }
+
+        TacheProjet tache = TacheProjet.builder()
+                .titre(request.getTitre())
+                .description(request.getDescription())
+                .priorite(priorite)
+                .statut(TacheProjet.StatutTache.EN_ATTENTE)
+                .assigneA(request.getAssigneA())
+                .dateEcheance(dateEcheance)
+                .build();
+
+        projet.addTache(tache);
+        projetRepository.save(projet);
+
+        log.info("Tâche '{}' créée pour le projet {}", request.getTitre(), projetId);
+        return ApiResponse.success("Tâche créée avec succès", tache);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TacheProjet> getTaches(String username, Long projetId) {
+        User user = getUserByUsername(username);
+        getProjetWithAccessCheck(projetId, user.getId()); // vérifier l'accès
+        List<TacheProjet> taches = tacheRepository.findByProjet_IdOrderByCreatedAtDesc(projetId);
+        taches.forEach(TacheProjet::initTransientFields);
+        return taches;
+    }
+
+    @Transactional
+    public ApiResponse<TacheProjet> updateStatutTache(String username, Long projetId, Long tacheId, String statutStr) {
+        User user = getUserByUsername(username);
+        getProjetWithAccessCheck(projetId, user.getId());
+
+        TacheProjet tache = tacheRepository.findById(tacheId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tâche non trouvée"));
+
+        if (!tache.getProjet().getId().equals(projetId)) {
+            throw new BadRequestException("Cette tâche n'appartient pas à ce projet");
+        }
+
+        try {
+            TacheProjet.StatutTache statut = TacheProjet.StatutTache.valueOf(statutStr.toUpperCase());
+            tache.setStatut(statut);
+            tacheRepository.save(tache);
+            log.info("Statut de la tâche {} mis à jour: {}", tacheId, statut);
+            return ApiResponse.success("Statut de la tâche mis à jour", tache);
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("Statut de tâche invalide: " + statutStr);
+        }
+    }
+
+    @Transactional
+    public ApiResponse<Void> deleteTache(String username, Long projetId, Long tacheId) {
+        User user = getUserByUsername(username);
+        ProjetB2B projet = getProjetWithAccessCheck(projetId, user.getId());
+
+        TacheProjet tache = tacheRepository.findById(tacheId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tâche non trouvée"));
+
+        if (!tache.getProjet().getId().equals(projetId)) {
+            throw new BadRequestException("Cette tâche n'appartient pas à ce projet");
+        }
+
+        projet.removeTache(tache);
+        projetRepository.save(projet);
+
+        log.info("Tâche {} supprimée du projet {}", tacheId, projetId);
+        return ApiResponse.success("Tâche supprimée");
+    }
+
+    // ============================================
+    // GESTION DES DOCUMENTS (NOUVEAU)
+    // ============================================
+
+    @Transactional
+    public ApiResponse<DocumentProjet> uploadDocument(String username, Long projetId, MultipartFile file) {
+        User user = getUserByUsername(username);
+        ProjetB2B projet = getProjetWithAccessCheck(projetId, user.getId());
+
+        if (file.isEmpty()) {
+            throw new BadRequestException("Le fichier est vide");
+        }
+
+        // Vérifier la taille max (10 MB)
+        long maxSize = 10 * 1024 * 1024;
+        if (file.getSize() > maxSize) {
+            throw new BadRequestException("Le fichier dépasse la taille maximale de 10 MB");
+        }
+
+        try {
+            // Créer le répertoire d'upload si nécessaire
+            Path uploadPath = Paths.get(uploadDir, String.valueOf(projetId));
+            Files.createDirectories(uploadPath);
+
+            // Générer un nom de fichier unique
+            String originalName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "fichier";
+            String extension = "";
+            int dotIndex = originalName.lastIndexOf('.');
+            if (dotIndex > 0) {
+                extension = originalName.substring(dotIndex);
+            }
+            String storedName = UUID.randomUUID().toString() + extension;
+
+            // Sauvegarder le fichier sur le disque
+            Path filePath = uploadPath.resolve(storedName);
+            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+            // Enregistrer en base de données
+            DocumentProjet document = DocumentProjet.builder()
+                    .nomFichier(originalName)
+                    .nomOriginal(originalName)
+                    .cheminFichier(filePath.toString())
+                    .typeMime(file.getContentType())
+                    .tailleFichier(file.getSize())
+                    .uploadePar(username)
+                    .build();
+
+            projet.addDocument(document);
+            projetRepository.save(projet);
+
+            log.info("Document '{}' uploadé pour le projet {} par {}", originalName, projetId, username);
+            return ApiResponse.success("Document uploadé avec succès", document);
+
+        } catch (IOException e) {
+            log.error("Erreur upload fichier pour projet {}: {}", projetId, e.getMessage());
+            throw new RuntimeException("Erreur lors de l'upload du fichier", e);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public List<DocumentProjet> getDocuments(String username, Long projetId) {
+        User user = getUserByUsername(username);
+        getProjetWithAccessCheck(projetId, user.getId());
+        List<DocumentProjet> docs = documentRepository.findByProjet_IdOrderByCreatedAtDesc(projetId);
+        docs.forEach(DocumentProjet::initTransientFields);
+        return docs;
+    }
+
+    @Transactional(readOnly = true)
+    public DocumentProjet getDocument(String username, Long projetId, Long documentId) {
+        User user = getUserByUsername(username);
+        getProjetWithAccessCheck(projetId, user.getId());
+
+        DocumentProjet document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Document non trouvé"));
+
+        if (!document.getProjet().getId().equals(projetId)) {
+            throw new BadRequestException("Ce document n'appartient pas à ce projet");
+        }
+
+        return document;
+    }
+
+    @Transactional
+    public ApiResponse<Void> deleteDocument(String username, Long projetId, Long documentId) {
+        User user = getUserByUsername(username);
+        ProjetB2B projet = getProjetWithAccessCheck(projetId, user.getId());
+
+        DocumentProjet document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Document non trouvé"));
+
+        if (!document.getProjet().getId().equals(projetId)) {
+            throw new BadRequestException("Ce document n'appartient pas à ce projet");
+        }
+
+        // Supprimer le fichier physique
+        try {
+            Path filePath = Paths.get(document.getCheminFichier());
+            Files.deleteIfExists(filePath);
+        } catch (IOException e) {
+            log.warn("Impossible de supprimer le fichier physique: {}", document.getCheminFichier());
+        }
+
+        projet.removeDocument(document);
+        projetRepository.save(projet);
+
+        log.info("Document {} supprimé du projet {}", documentId, projetId);
+        return ApiResponse.success("Document supprimé");
+    }
+
+    // ============================================
+    // STATISTIQUES ET RECHERCHE (existant)
+    // ============================================
 
     @Transactional(readOnly = true)
     public Map<String, Object> getStats(String username) {
@@ -258,6 +589,10 @@ public class ProjetB2BService {
             throw new BadRequestException("Statut invalide: " + statutStr);
         }
     }
+
+    // ============================================
+    // UTILITAIRES (existant)
+    // ============================================
 
     private User getUserByUsername(String username) {
         return userRepository.findByUsername(username)

@@ -2,6 +2,7 @@ package com.duniyabacker.front.entity.b2b;
 
 import com.duniyabacker.front.entity.User;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -138,4 +139,51 @@ public class ProjetB2B {
     public enum PrioriteProjet {
         BASSE, MOYENNE, HAUTE, CRITIQUE
     }
+
+    // ========================================================================
+// AJOUTS À FAIRE DANS L'ENTITÉ ProjetB2B.java EXISTANTE
+// Ajouter ces champs dans la classe ProjetB2B, à côté de la relation
+// "partenaires" déjà existante.
+// ========================================================================
+
+    // ── Tâches du projet ──
+    @OneToMany(mappedBy = "projet", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
+    @Builder.Default
+    private List<TacheProjet> taches = new ArrayList<>();
+
+    // ── Documents du projet ──
+    @OneToMany(mappedBy = "projet", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
+    @Builder.Default
+    private List<DocumentProjet> documents = new ArrayList<>();
+
+    // ── Méthode helper pour ajouter une tâche ──
+    public void addTache(TacheProjet tache) {
+        taches.add(tache);
+        tache.setProjet(this);
+    }
+
+    public void removeTache(TacheProjet tache) {
+        taches.remove(tache);
+        tache.setProjet(null);
+    }
+
+    // ── Méthode helper pour ajouter un document ──
+    public void addDocument(DocumentProjet document) {
+        documents.add(document);
+        document.setProjet(this);
+    }
+
+    public void removeDocument(DocumentProjet document) {
+        documents.remove(document);
+        document.setProjet(null);
+    }
+
+// ========================================================================
+// IMPORTS À AJOUTER :
+// import com.duniyabacker.front.entity.b2b.TacheProjet;
+// import com.duniyabacker.front.entity.b2b.DocumentProjet;
+// import com.fasterxml.jackson.annotation.JsonManagedReference;
+// ========================================================================
 }
