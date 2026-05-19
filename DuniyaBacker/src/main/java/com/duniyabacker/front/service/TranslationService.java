@@ -52,31 +52,106 @@ public class TranslationService {
      * @return           Texte traduit, ou texte original en cas d'échec total
      */
     public String translate(String text, String targetLang) {
+
         if (text == null || text.isBlank() || "original".equals(targetLang)) {
             return text;
         }
 
-        // 1. LibreTranslate (si configuré)
+        // Nettoyage du texte
+        text = text.trim();
+
+        try {
+
+            // Détection de langue
+            String detectedLang = detectLanguage(text);
+
+            log.info("[Translation] Langue détectée : {}", detectedLang);
+
+            // IMPORTANT :
+            // Si le texte est déjà dans la langue cible
+            // on ne traduit pas
+            if (detectedLang != null &&
+                    detectedLang.equalsIgnoreCase(targetLang)) {
+
+                log.info("[Translation] Même langue, traduction ignorée");
+                return text;
+            }
+
+        } catch (Exception e) {
+            log.warn("[Translation] Impossible de détecter la langue : {}", e.getMessage());
+        }
+
+        // 1. LibreTranslate
         if (libreTranslateUrl != null && !libreTranslateUrl.isBlank()) {
             try {
+
                 String result = callLibreTranslate(text, targetLang);
-                if (result != null && !result.equals(text)) {
+
+                if (result != null && !result.isBlank()) {
                     return result;
                 }
-                log.warn("[Translation] LibreTranslate a retourné l'original, bascule MyMemory");
+
             } catch (Exception e) {
-                log.warn("[Translation] LibreTranslate indisponible ({}), bascule MyMemory",
-                        e.getMessage());
+                log.warn("[Translation] LibreTranslate KO : {}", e.getMessage());
             }
         }
 
         // 2. Fallback MyMemory
         try {
             return callMyMemory(text, targetLang);
+
         } catch (Exception e) {
-            log.error("[Translation] MyMemory aussi en échec : {}", e.getMessage());
-            return text; // retourner l'original si tout échoue
+
+            log.error("[Translation] MyMemory KO : {}", e.getMessage());
+
+            return text;
         }
+    }
+
+
+    private String detectLanguage(String text) {
+
+        // Si LibreTranslate disponible
+        if (libreTranslateUrl != null && !libreTranslateUrl.isBlank()) {
+
+            try {
+
+                String url = libreTranslateUrl + "/detect";
+
+                Map<String, String> body = new HashMap<>();
+                body.put("q", text);
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+
+                HttpEntity<Map<String, String>> entity =
+                        new HttpEntity<>(body, headers);
+
+                ResponseEntity<Object[]> response =
+                        restTemplate.postForEntity(url, entity, Object[].class);
+
+                if (response.getBody() != null &&
+                        response.getBody().length > 0) {
+
+                    Object first = response.getBody()[0];
+
+                    if (first instanceof Map<?, ?> map) {
+
+                        Object lang = map.get("language");
+
+                        if (lang != null) {
+                            return lang.toString();
+                        }
+                    }
+                }
+
+            } catch (Exception e) {
+                log.warn("[Translation] Detect LibreTranslate KO");
+            }
+        }
+
+        // Fallback simple
+        return "unknown";
     }
 
     // ── Backends privés ───────────────────────────────────────────────────────
