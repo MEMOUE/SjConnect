@@ -27,12 +27,36 @@ services:
     networks:
       - duniya-network
 
+
+
+# ==========================================
+  # LIBRETRANSLATE (Traduction Auto-hébergée)
+  # ==========================================
+  translate:
+    image: libretranslate/libretranslate:latest
+    container_name: duniya-translate
+    restart: unless-stopped
+    environment:
+      # Langues ajoutées : ar (arabe), it (italien), es (espagnol), de (allemand), tr (turc)
+      - LT_LOAD_ONLY=en,fr,ar,it,es,de,tr
+      - LT_UPDATE_MODELS=true
+    networks:
+      - duniya-network
+    # Optionnel : Si vous voulez accéder à l'interface web de LibreTranslate
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.translate.rule=Host(`translate.duniyaconnect.com`)"
+      - "traefik.http.routers.translate.entrypoints=websecure"
+      - "traefik.http.routers.translate.tls.certresolver=le"
+      - "traefik.http.services.translate.loadbalancer.server.port=5000"
+
+
   # ==========================================
   # BACKEND SPRING BOOT
   # ==========================================
   backend:
     build:
-      context: ./duniyaBackend
+      context: ./DuniyaBacker
       dockerfile: Dockerfile
     container_name: duniya-backend
     restart: unless-stopped
@@ -95,7 +119,7 @@ services:
   # ==========================================
   frontend:
     build:
-      context: ./duniyaFrontend
+      context: ./DouniyaFrontend
       dockerfile: Dockerfile
     container_name: duniya-frontend
     restart: unless-stopped
