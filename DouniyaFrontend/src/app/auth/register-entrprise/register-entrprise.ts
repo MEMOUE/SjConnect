@@ -1,3 +1,5 @@
+// DouniyaFrontend/src/app/auth/register-entrprise/register-entrprise.ts
+
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, AbstractControl } from '@angular/forms';
@@ -11,6 +13,7 @@ import { Toast } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { AuthService } from '../../services/auth/auth.service';
 import { RegisterEntrepriseRequest } from '../../models/auth.model';
+import { SECTEURS_ACTIVITE_OPTIONS } from '../../shared/constants/secteurs-activite';
 
 @Component({
   selector: 'app-register-entrprise',
@@ -33,6 +36,7 @@ export class RegisterEntrprise {
   registerForm: FormGroup;
   isLoading = false;
 
+  // Type d'entreprise : dimension distincte du secteur (forme juridique / taille)
   typesEntreprise = [
     { label: 'PME', value: 'pme' },
     { label: 'Institution', value: 'institution' },
@@ -42,17 +46,8 @@ export class RegisterEntrprise {
     { label: 'Autre', value: 'autre' }
   ];
 
-  secteursActivite = [
-    { label: 'Banque', value: 'banque' },
-    { label: 'Assurance', value: 'assurance' },
-    { label: 'SGI/SGO', value: 'sgi_sgo' },
-    { label: 'Industriel', value: 'industriel' },
-    { label: 'Transport', value: 'transport' },
-    { label: 'Agricole', value: 'agricole' },
-    { label: 'Santé', value: 'sante' },
-    { label: 'Education', value: 'education' },
-    { label: 'Autre', value: 'autre' }
-  ];
+  // Secteur d'activité : source de vérité unique partagée avec le marketplace
+  secteursActivite = SECTEURS_ACTIVITE_OPTIONS;
 
   constructor(
     private fb: FormBuilder,

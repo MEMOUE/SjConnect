@@ -1,3 +1,5 @@
+// DouniyaFrontend/src/app/entreprise/market-pace/market-pace.ts
+
 import { Component, OnInit, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -6,6 +8,7 @@ import { Publication, PublicationService, CreatePublicationRequest } from '../..
 import { ChatService } from '../../services/chat/chat.service';
 import { AuthService } from '../../services/auth/auth.service';
 import { environment } from '../../../environments/environment';
+import { SECTEURS_ACTIVITE } from '../../shared/constants/secteurs-activite';
 
 export interface TypeEntreprise {
   code: string;
@@ -40,16 +43,16 @@ export class MarketPace implements OnInit {
   readonly MAX_CHARS = 2000;
 
   showTypeDropdown = false;
-  typesEntreprises: TypeEntreprise[] = [
-    { code: 'BANQUES',              libelle: 'Banques',                icone: '🏦', couleur: '#1e40af', checked: false },
-    { code: 'ASSURANCES',          libelle: 'Assurances',              icone: '🛡️', couleur: '#059669', checked: false },
-    { code: 'SGI',                  libelle: 'SGI',                    icone: '💼', couleur: '#7c3aed', checked: false },
-    { code: 'SGO',                  libelle: 'SGO',                    icone: '📊', couleur: '#dc2626', checked: false },
-    { code: 'FONDS_INVESTISSEMENT', libelle: "Fonds d'investissement", icone: '💰', couleur: '#b45309', checked: false },
-    { code: 'MICROFINANCE',        libelle: 'Microfinance',            icone: '🏘️', couleur: '#0891b2', checked: false },
-    { code: 'SOCIETES_BOURSE',     libelle: 'Sociétés de bourse',      icone: '📈', couleur: '#be185d', checked: false },
-    { code: 'COURTIERS',           libelle: 'Courtiers',               icone: '🤝', couleur: '#4d7c0f', checked: false },
-  ];
+
+  /**
+   * Dérivé de la source de vérité unique SECTEURS_ACTIVITE.
+   * Les `code` sont strictement identiques à ceux choisis à l'inscription
+   * entreprise → le ciblage des publications fonctionne réellement.
+   */
+  typesEntreprises: TypeEntreprise[] = SECTEURS_ACTIVITE.map(s => ({
+    ...s,
+    checked: false,
+  }));
 
   // ── Pièce jointe ──────────────────────────────────────────────────────────
   mediaFichier: File | null = null;
@@ -169,7 +172,7 @@ export class MarketPace implements OnInit {
     const sel = this.getTypesSelectionnes();
     if (sel.length === 0) return 'Tous (public)';
     if (sel.length <= 2) return sel.map(t => t.libelle).join(', ');
-    return `${sel.length} types sélectionnés`;
+    return `${sel.length} secteurs sélectionnés`;
   }
 
   toutDeselectionner(): void { this.typesEntreprises.forEach(t => t.checked = false); }
@@ -334,7 +337,7 @@ export class MarketPace implements OnInit {
     if (pub.visibleParTous || !pub.typesEntreprisesVisibles?.length) return '🌍 Public';
     if (pub.typesEntreprisesVisibles.length === 1)
       return `🎯 ${this.getLibelleType(pub.typesEntreprisesVisibles[0])}`;
-    return `🎯 ${pub.typesEntreprisesVisibles.length} types`;
+    return `🎯 ${pub.typesEntreprisesVisibles.length} secteurs`;
   }
 
   getLibelleType(code: string): string {
