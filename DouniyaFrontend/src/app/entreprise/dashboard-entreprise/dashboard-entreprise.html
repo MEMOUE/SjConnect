@@ -262,7 +262,7 @@
                   </div>
                   <div class="flex items-center justify-between text-sm text-gray-500">
                     <span class="flex items-center">
-                      <i class="pi pi-users mr-1"></i>{{projet.partenaires.length || 0}} partenaires
+                      <i class="pi pi-users mr-1"></i>{{projet.partenaires?.length || 0}} partenaires
                     </span>
                     <span *ngIf="projet.dateFin" class="flex items-center">
                       <i class="pi pi-calendar mr-1"></i>

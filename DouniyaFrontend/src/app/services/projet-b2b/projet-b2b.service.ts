@@ -9,6 +9,9 @@ import {
   AddPartenaireRequest,
   TacheProjet,
   DocumentProjet,
+  MessageProjet,
+  PersonnelItem,
+  UserSearchResult,
   ProjetB2BStats,
   ApiResponse
 } from '../../models/projet-b2b.model';
@@ -80,7 +83,7 @@ export class ProjetB2BService {
   }
 
   // ============================================
-  // PARTENAIRES (NOUVEAU)
+  // PARTENAIRES
   // ============================================
 
   addPartenaire(projetId: number, request: AddPartenaireRequest): Observable<ApiResponse<ProjetB2B>> {
@@ -95,8 +98,33 @@ export class ProjetB2BService {
     );
   }
 
+  /** Personnel de la structure de l'utilisateur courant. */
+  getPersonnel(): Observable<PersonnelItem[]> {
+    return this.http.get<PersonnelItem[]>(`${this.apiUrl}/personnel`);
+  }
+
+  /** Recherche d'un utilisateur externe par email. */
+  searchUserByEmail(email: string): Observable<UserSearchResult> {
+    const params = new HttpParams().set('email', email);
+    return this.http.get<UserSearchResult>(`${this.apiUrl}/users/search-by-email`, { params });
+  }
+
   // ============================================
-  // TÂCHES (NOUVEAU)
+  // MESSAGES (NOUVEAU)
+  // ============================================
+
+  getMessages(projetId: number): Observable<MessageProjet[]> {
+    return this.http.get<MessageProjet[]>(`${this.apiUrl}/${projetId}/messages`);
+  }
+
+  sendMessage(projetId: number, contenu: string): Observable<ApiResponse<MessageProjet>> {
+    return this.http.post<ApiResponse<MessageProjet>>(
+      `${this.apiUrl}/${projetId}/messages`, { contenu }
+    );
+  }
+
+  // ============================================
+  // TÂCHES
   // ============================================
 
   createTache(projetId: number, request: CreateTacheRequest): Observable<ApiResponse<TacheProjet>> {
@@ -123,7 +151,7 @@ export class ProjetB2BService {
   }
 
   // ============================================
-  // DOCUMENTS (NOUVEAU)
+  // DOCUMENTS
   // ============================================
 
   uploadDocument(projetId: number, file: File): Observable<ApiResponse<DocumentProjet>> {

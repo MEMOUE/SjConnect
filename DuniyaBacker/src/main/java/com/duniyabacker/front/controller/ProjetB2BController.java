@@ -3,16 +3,14 @@ package com.duniyabacker.front.controller;
 import com.duniyabacker.front.dto.request.AddPartenaireRequest;
 import com.duniyabacker.front.dto.request.CreateProjetB2BRequest;
 import com.duniyabacker.front.dto.request.CreateTacheProjetRequest;
+import com.duniyabacker.front.dto.request.SendMessageProjetRequest;
 import com.duniyabacker.front.dto.response.ApiResponse;
 import com.duniyabacker.front.entity.b2b.DocumentProjet;
+import com.duniyabacker.front.entity.b2b.MessageProjet;
 import com.duniyabacker.front.entity.b2b.ProjetB2B;
 import com.duniyabacker.front.entity.b2b.TacheProjet;
 import com.duniyabacker.front.service.ProjetB2BService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -145,11 +143,11 @@ public class ProjetB2BController {
     }
 
     // ============================================
-    // GESTION DES PARTENAIRES (NOUVEAU)
+    // GESTION DES PARTENAIRES
     // ============================================
 
     @Operation(summary = "Ajouter un partenaire au projet",
-            description = "Ajouter un partenaire externe après la création du projet")
+            description = "3 modes : userId (employé interne), email (utilisateur externe avec compte), ou nom (manuel)")
     @PostMapping("/{projetId}/partenaires")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<ProjetB2B>> addPartenaire(
@@ -171,8 +169,56 @@ public class ProjetB2BController {
         return ResponseEntity.ok(projetService.removePartenaire(userDetails.getUsername(), projetId, partenaireId));
     }
 
+    @Operation(summary = "Liste du personnel de la structure",
+            description = "Employés de l'entreprise de l'utilisateur courant (pour les ajouter comme partenaires/participants)")
+    @GetMapping("/personnel")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<Map<String, Object>>> getPersonnel(
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        return ResponseEntity.ok(projetService.getPersonnel(userDetails.getUsername()));
+    }
+
+    @Operation(summary = "Rechercher un utilisateur par email")
+    @GetMapping("/users/search-by-email")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> searchUserByEmail(@RequestParam String email) {
+        Map<String, Object> user = projetService.searchUserByEmail(email);
+        if (user == null) {
+            return ResponseEntity.ok(Map.of("found", false, "message", "Aucun utilisateur trouvé avec cet email"));
+        }
+        user.put("found", true);
+        return ResponseEntity.ok(user);
+    }
+
     // ============================================
-    // GESTION DES TÂCHES (NOUVEAU)
+    // GESTION DES MESSAGES (NOUVEAU)
+    // ============================================
+
+    @Operation(summary = "Liste des messages d'un projet")
+    @GetMapping("/{projetId}/messages")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<MessageProjet>> getMessages(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long projetId
+    ) {
+        return ResponseEntity.ok(projetService.getMessages(userDetails.getUsername(), projetId));
+    }
+
+    @Operation(summary = "Envoyer un message dans un projet")
+    @PostMapping("/{projetId}/messages")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<MessageProjet>> sendMessage(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long projetId,
+            @Valid @RequestBody SendMessageProjetRequest request
+    ) {
+        return ResponseEntity.ok(
+                projetService.sendMessage(userDetails.getUsername(), projetId, request.getContenu()));
+    }
+
+    // ============================================
+    // GESTION DES TÂCHES
     // ============================================
 
     @Operation(summary = "Créer une tâche dans un projet")
@@ -221,7 +267,7 @@ public class ProjetB2BController {
     }
 
     // ============================================
-    // GESTION DES DOCUMENTS (NOUVEAU)
+    // GESTION DES DOCUMENTS
     // ============================================
 
     @Operation(summary = "Uploader un document dans un projet")
@@ -318,16 +364,5 @@ public class ProjetB2BController {
             @RequestParam String statut
     ) {
         return ResponseEntity.ok(projetService.filterByStatut(userDetails.getUsername(), statut));
-    }
-    @Operation(summary = "Rechercher un utilisateur par email")
-    @GetMapping("/users/search-by-email")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> searchUserByEmail(@RequestParam String email) {
-        Map<String, Object> user = projetService.searchUserByEmail(email);
-        if (user == null) {
-            return ResponseEntity.ok(Map.of("found", false, "message", "Aucun utilisateur trouvé avec cet email"));
-        }
-        user.put("found", true);
-        return ResponseEntity.ok(user);
     }
 }

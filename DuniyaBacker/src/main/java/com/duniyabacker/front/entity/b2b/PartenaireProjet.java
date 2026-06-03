@@ -24,6 +24,18 @@ public class PartenaireProjet {
 
     private String logo = "🏢";
 
+    /**
+     * Lien optionnel vers l'utilisateur de la plateforme.
+     * - Renseigné quand le partenaire est un employé interne (mode userId)
+     *   ou un utilisateur externe ajouté par email (mode email).
+     * - null pour les partenaires saisis manuellement.
+     *
+     * Permet de retirer l'accès (participant) au moment de la suppression
+     * du partenaire.
+     */
+    @Column(name = "utilisateur_id")
+    private Long utilisateurId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private StatutPartenaire statut = StatutPartenaire.ACTIF;

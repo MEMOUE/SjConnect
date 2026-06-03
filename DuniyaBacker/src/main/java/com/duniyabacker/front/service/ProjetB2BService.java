@@ -5,12 +5,16 @@ import com.duniyabacker.front.dto.request.CreateProjetB2BRequest;
 import com.duniyabacker.front.dto.request.CreateTacheProjetRequest;
 import com.duniyabacker.front.dto.response.ApiResponse;
 import com.duniyabacker.front.entity.User;
+import com.duniyabacker.front.entity.auth.Employe;
+import com.duniyabacker.front.entity.auth.Entreprise;
 import com.duniyabacker.front.entity.b2b.DocumentProjet;
+import com.duniyabacker.front.entity.b2b.MessageProjet;
 import com.duniyabacker.front.entity.b2b.PartenaireProjet;
 import com.duniyabacker.front.entity.b2b.ProjetB2B;
 import com.duniyabacker.front.entity.b2b.TacheProjet;
 import com.duniyabacker.front.exception.CustomExceptions.*;
 import com.duniyabacker.front.repository.DocumentProjetRepository;
+import com.duniyabacker.front.repository.MessageProjetRepository;
 import com.duniyabacker.front.repository.ProjetB2BRepository;
 import com.duniyabacker.front.repository.TacheProjetRepository;
 import com.duniyabacker.front.repository.UserRepository;
@@ -27,6 +31,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,12 +46,13 @@ public class ProjetB2BService {
     private final UserRepository userRepository;
     private final TacheProjetRepository tacheRepository;
     private final DocumentProjetRepository documentRepository;
+    private final MessageProjetRepository messageRepository;
 
     @Value("${app.upload.dir:uploads/projets-b2b}")
     private String uploadDir;
 
     // ============================================
-    // GESTION DES PROJETS (existant)
+    // GESTION DES PROJETS
     // ============================================
 
     @Transactional
@@ -111,6 +117,7 @@ public class ProjetB2BService {
         User user = getUserByUsername(username);
         ProjetB2B projet = getProjetWithAccessCheck(projetId, user.getId());
         projet.getPartenaires().size();
+        projet.initTransientFields();
         return projet;
     }
 
@@ -132,11 +139,11 @@ public class ProjetB2BService {
         projet.setBudget(request.getBudget());
         projet.setIcone(request.getIcone());
 
-        // Mise à jour des partenaires si fournis dans la requête
+        // Mise à jour des partenaires si fournis dans la requête.
+        // ATTENTION : on ne touche qu'aux partenaires saisis manuellement
+        // (utilisateurId == null) pour ne pas casser les liens de partage.
         if (request.getPartenaires() != null) {
-            // Supprimer les anciens partenaires
-            projet.getPartenaires().clear();
-            // Ajouter les nouveaux
+            projet.getPartenaires().removeIf(p -> p.getUtilisateurId() == null);
             for (CreateProjetB2BRequest.PartenaireDTO dto : request.getPartenaires()) {
                 PartenaireProjet partenaire = PartenaireProjet.builder()
                         .nom(dto.getNom())
@@ -209,7 +216,7 @@ public class ProjetB2BService {
     }
 
     // ============================================
-    // GESTION DES PARTICIPANTS (existant)
+    // GESTION DES PARTICIPANTS
     // ============================================
 
     @Transactional
@@ -256,7 +263,7 @@ public class ProjetB2BService {
     }
 
     // ============================================
-    // GESTION DES PARTENAIRES (NOUVEAU)
+    // GESTION DES PARTENAIRES
     // ============================================
 
     @Transactional
@@ -266,23 +273,27 @@ public class ProjetB2BService {
 
         String nom;
         String logo;
-        String role = request.getRole() != null ? request.getRole() : "Partenaire";
+        Long utilisateurId = null;
+        String role = request.getRole() != null && !request.getRole().isBlank()
+                ? request.getRole() : "Partenaire";
 
-        // ── Mode 1 : par userId (sélection d'un employé interne) ──
+        // ── Mode 1 : par userId (employé interne) ──
         if (request.getUserId() != null) {
             User target = userRepository.findById(request.getUserId())
                     .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé: " + request.getUserId()));
-            nom = target.getUsername();
+            nom = resolveDisplayName(target);
             logo = "👤";
-            projet.addParticipant(target);
+            utilisateurId = target.getId();
+            projet.addParticipant(target); // ← partage le projet
 
-            // ── Mode 2 : par email (utilisateur externe sur la plateforme) ──
+            // ── Mode 2 : par email (utilisateur externe avec compte) ──
         } else if (request.getEmail() != null && !request.getEmail().isBlank()) {
             User target = userRepository.findByEmail(request.getEmail())
                     .orElseThrow(() -> new ResourceNotFoundException("Aucun utilisateur trouvé avec l'email: " + request.getEmail()));
-            nom = target.getUsername();
+            nom = resolveDisplayName(target);
             logo = "🌐";
-            projet.addParticipant(target);
+            utilisateurId = target.getId();
+            projet.addParticipant(target); // ← partage le projet
 
             // ── Mode 3 : saisie manuelle ──
         } else if (request.getNom() != null && !request.getNom().isBlank()) {
@@ -296,6 +307,7 @@ public class ProjetB2BService {
                 .nom(nom)
                 .role(role)
                 .logo(logo)
+                .utilisateurId(utilisateurId)
                 .statut(PartenaireProjet.StatutPartenaire.ACTIF)
                 .build();
 
@@ -306,20 +318,6 @@ public class ProjetB2BService {
         log.info("Partenaire '{}' ajouté au projet {} (mode: {})", nom, projetId,
                 request.getUserId() != null ? "interne" : request.getEmail() != null ? "email" : "manuel");
         return ApiResponse.success("Partenaire ajouté avec succès", projet);
-    }
-
-    /**
-     * Rechercher un utilisateur par email (pour l'ajout externe)
-     */
-    @Transactional(readOnly = true)
-    public Map<String, Object> searchUserByEmail(String email) {
-        User user = userRepository.findByEmail(email).orElse(null);
-        if (user == null) return null;
-        Map<String, Object> result = new HashMap<>();
-        result.put("id", user.getId());
-        result.put("username", user.getUsername());
-        result.put("email", user.getEmail());
-        return result;
     }
 
     @Transactional
@@ -336,6 +334,13 @@ public class ProjetB2BService {
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Partenaire non trouvé dans ce projet"));
 
+        // Si le partenaire est un utilisateur de la plateforme, on lui retire aussi
+        // l'accès au projet (sauf si c'est le créateur).
+        Long uid = partenaire.getUtilisateurId();
+        if (uid != null && !uid.equals(projet.getCreateur().getId())) {
+            userRepository.findById(uid).ifPresent(projet::removeParticipant);
+        }
+
         projet.removePartenaire(partenaire);
         projetRepository.save(projet);
 
@@ -343,8 +348,92 @@ public class ProjetB2BService {
         return ApiResponse.success("Partenaire retiré", projet);
     }
 
+    /**
+     * Rechercher un utilisateur par email (pour l'ajout externe).
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> searchUserByEmail(String email) {
+        User u = userRepository.findByEmail(email).orElse(null);
+        if (u == null) return null;
+        Map<String, Object> result = new HashMap<>();
+        result.put("id", u.getId());
+        result.put("username", u.getUsername());
+        result.put("nom", resolveDisplayName(u));
+        result.put("email", u.getEmail());
+        return result;
+    }
+
+    /**
+     * Liste du personnel de la structure de l'utilisateur courant.
+     * - ENTREPRISE → ses employés
+     * - EMPLOYE    → les employés de son entreprise
+     * - sinon      → liste vide
+     */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getPersonnel(String username) {
+        User user = getUserByUsername(username);
+
+        Entreprise entreprise = null;
+        if (user instanceof Entreprise e) {
+            entreprise = e;
+        } else if (user instanceof Employe emp) {
+            entreprise = emp.getEntreprise();
+        }
+
+        if (entreprise == null) {
+            return new ArrayList<>();
+        }
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Employe emp : entreprise.getEmployes()) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", emp.getId());
+            m.put("nom", emp.getPrenom() + " " + emp.getNom());
+            m.put("email", emp.getEmail());
+            m.put("poste", emp.getPoste());
+            m.put("actif", emp.isInvitationAccepted());
+            result.add(m);
+        }
+        return result;
+    }
+
     // ============================================
-    // GESTION DES TÂCHES (NOUVEAU)
+    // GESTION DES MESSAGES (NOUVEAU)
+    // ============================================
+
+    @Transactional(readOnly = true)
+    public List<MessageProjet> getMessages(String username, Long projetId) {
+        User user = getUserByUsername(username);
+        getProjetWithAccessCheck(projetId, user.getId());
+        List<MessageProjet> messages = messageRepository.findByProjet_IdOrderByCreatedAtAsc(projetId);
+        messages.forEach(MessageProjet::initTransientFields);
+        return messages;
+    }
+
+    @Transactional
+    public ApiResponse<MessageProjet> sendMessage(String username, Long projetId, String contenu) {
+        if (contenu == null || contenu.isBlank()) {
+            throw new BadRequestException("Le contenu du message est requis");
+        }
+
+        User user = getUserByUsername(username);
+        ProjetB2B projet = getProjetWithAccessCheck(projetId, user.getId());
+
+        MessageProjet message = MessageProjet.builder()
+                .contenu(contenu.trim())
+                .expediteur(user)
+                .build();
+
+        projet.addMessage(message);
+        projetRepository.save(projet); // cascade ALL → persiste le message
+
+        message.initTransientFields();
+        log.info("Message envoyé dans le projet {} par {}", projetId, username);
+        return ApiResponse.success("Message envoyé", message);
+    }
+
+    // ============================================
+    // GESTION DES TÂCHES
     // ============================================
 
     @Transactional
@@ -383,7 +472,7 @@ public class ProjetB2BService {
     @Transactional(readOnly = true)
     public List<TacheProjet> getTaches(String username, Long projetId) {
         User user = getUserByUsername(username);
-        getProjetWithAccessCheck(projetId, user.getId()); // vérifier l'accès
+        getProjetWithAccessCheck(projetId, user.getId());
         List<TacheProjet> taches = tacheRepository.findByProjet_IdOrderByCreatedAtDesc(projetId);
         taches.forEach(TacheProjet::initTransientFields);
         return taches;
@@ -432,7 +521,7 @@ public class ProjetB2BService {
     }
 
     // ============================================
-    // GESTION DES DOCUMENTS (NOUVEAU)
+    // GESTION DES DOCUMENTS
     // ============================================
 
     @Transactional
@@ -444,18 +533,15 @@ public class ProjetB2BService {
             throw new BadRequestException("Le fichier est vide");
         }
 
-        // Vérifier la taille max (10 MB)
         long maxSize = 10 * 1024 * 1024;
         if (file.getSize() > maxSize) {
             throw new BadRequestException("Le fichier dépasse la taille maximale de 10 MB");
         }
 
         try {
-            // Créer le répertoire d'upload si nécessaire
             Path uploadPath = Paths.get(uploadDir, String.valueOf(projetId));
             Files.createDirectories(uploadPath);
 
-            // Générer un nom de fichier unique
             String originalName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "fichier";
             String extension = "";
             int dotIndex = originalName.lastIndexOf('.');
@@ -464,11 +550,9 @@ public class ProjetB2BService {
             }
             String storedName = UUID.randomUUID().toString() + extension;
 
-            // Sauvegarder le fichier sur le disque
             Path filePath = uploadPath.resolve(storedName);
             Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 
-            // Enregistrer en base de données
             DocumentProjet document = DocumentProjet.builder()
                     .nomFichier(originalName)
                     .nomOriginal(originalName)
@@ -526,7 +610,6 @@ public class ProjetB2BService {
             throw new BadRequestException("Ce document n'appartient pas à ce projet");
         }
 
-        // Supprimer le fichier physique
         try {
             Path filePath = Paths.get(document.getCheminFichier());
             Files.deleteIfExists(filePath);
@@ -542,7 +625,7 @@ public class ProjetB2BService {
     }
 
     // ============================================
-    // STATISTIQUES ET RECHERCHE (existant)
+    // STATISTIQUES ET RECHERCHE
     // ============================================
 
     @Transactional(readOnly = true)
@@ -573,7 +656,7 @@ public class ProjetB2BService {
     public List<ProjetB2B> searchProjets(String username, String searchTerm) {
         User user = getUserByUsername(username);
         List<ProjetB2B> projets = projetRepository.searchProjets(user.getId(), searchTerm);
-        projets.forEach(p -> p.getPartenaires().size());
+        projets.forEach(p -> { p.getPartenaires().size(); p.initTransientFields(); });
         return projets;
     }
 
@@ -583,7 +666,7 @@ public class ProjetB2BService {
         try {
             ProjetB2B.StatutProjet statut = ProjetB2B.StatutProjet.valueOf(statutStr.toUpperCase());
             List<ProjetB2B> projets = projetRepository.findByUserIdAndStatut(user.getId(), statut);
-            projets.forEach(p -> p.getPartenaires().size());
+            projets.forEach(p -> { p.getPartenaires().size(); p.initTransientFields(); });
             return projets;
         } catch (IllegalArgumentException e) {
             throw new BadRequestException("Statut invalide: " + statutStr);
@@ -591,7 +674,7 @@ public class ProjetB2BService {
     }
 
     // ============================================
-    // UTILITAIRES (existant)
+    // UTILITAIRES
     // ============================================
 
     private User getUserByUsername(String username) {
@@ -606,5 +689,28 @@ public class ProjetB2BService {
             throw new ForbiddenException("Vous n'avez pas accès à ce projet");
         }
         return projet;
+    }
+
+    /** Nom affichable selon le type de compte. */
+    private String resolveDisplayName(User u) {
+        return switch (u.getRole().name()) {
+            case "ENTREPRISE" -> {
+                try { yield ((com.duniyabacker.front.entity.auth.Entreprise) u).getNomEntreprise(); }
+                catch (ClassCastException e) { yield u.getUsername(); }
+            }
+            case "PARTICULIER" -> {
+                try {
+                    var p = (com.duniyabacker.front.entity.auth.Particulier) u;
+                    yield p.getPrenom() + " " + p.getNom();
+                } catch (ClassCastException e) { yield u.getUsername(); }
+            }
+            case "EMPLOYE" -> {
+                try {
+                    var e = (Employe) u;
+                    yield e.getPrenom() + " " + e.getNom();
+                } catch (ClassCastException e2) { yield u.getUsername(); }
+            }
+            default -> u.getUsername();
+        };
     }
 }

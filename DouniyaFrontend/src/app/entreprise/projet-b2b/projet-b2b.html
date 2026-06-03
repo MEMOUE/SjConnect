@@ -234,7 +234,7 @@
             </h3>
             <button (click)="openAddPartnerModal()"
                     class="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors">
-              <i class="pi pi-plus text-xs"></i> Ajouter
+              <i class="pi pi-user-plus text-xs"></i> Ajouter / Partager
             </button>
           </div>
           <div class="flex flex-wrap gap-3">
@@ -242,7 +242,11 @@
                  class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 group">
               <span class="text-xl">{{ p.logo }}</span>
               <div>
-                <p class="text-sm font-semibold text-slate-700">{{ p.name }}</p>
+                <p class="text-sm font-semibold text-slate-700 flex items-center gap-1">
+                  {{ p.name }}
+                  <i *ngIf="p.utilisateurId" class="pi pi-check-circle text-green-500 text-xs"
+                     title="A accès au projet"></i>
+                </p>
                 <p class="text-xs text-slate-500">{{ p.role }}</p>
               </div>
               <button (click)="removePartnerFromProject(p)"
@@ -253,7 +257,7 @@
             </div>
             <div *ngIf="selectedProject.partners.length === 0"
                  class="text-sm text-slate-400 flex items-center gap-2 py-2">
-              <i class="pi pi-info-circle"></i> Aucun partenaire — cliquez sur "Ajouter" pour en ajouter
+              <i class="pi pi-info-circle"></i> Aucun partenaire — cliquez sur "Ajouter / Partager"
             </div>
           </div>
         </div>
@@ -348,7 +352,6 @@
                     <span class="flex items-center gap-1"><i class="pi pi-user"></i> {{ task.assignedTo }}</span>
                     <span *ngIf="task.dueDate" class="flex items-center gap-1"><i class="pi pi-calendar"></i> {{ task.dueDate }}</span>
                   </div>
-                  <!-- Boutons changement de statut -->
                   <div class="flex gap-1">
                     <button *ngFor="let ts of taskStatusOptions"
                             (click)="changeTaskStatus(task, ts.value)"
@@ -363,31 +366,70 @@
 
             <!-- ═══ Tab Messages ═══ -->
             <div *ngIf="activeTab === 'messages'">
+
+              <!-- Barre de traduction -->
+              <div class="flex items-center justify-between mb-4">
+                <span class="text-sm font-medium text-slate-600">Discussion du projet</span>
+                <div class="flex items-center gap-2">
+                  <i class="pi pi-language text-slate-400 text-xs"></i>
+                  <label class="text-xs text-slate-500">Traduire&nbsp;:</label>
+                  <select [(ngModel)]="msgLang" (ngModelChange)="onMsgLangChange()"
+                          class="px-2 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-slate-600">
+                    <option *ngFor="let l of languages" [value]="l.code">{{ l.flag }} {{ l.label }}</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Saisie -->
               <div class="mb-4 flex gap-2">
                 <input type="text" [(ngModel)]="newMessage" (keydown.enter)="sendMessage()"
-                       placeholder="Écrire un message…"
-                       class="flex-1 px-4 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                <button (click)="sendMessage()" [disabled]="!newMessage.trim()"
+                       placeholder="Écrire un message…" [disabled]="sendingMessage"
+                       class="flex-1 px-4 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-60">
+                <button (click)="sendMessage()" [disabled]="!newMessage.trim() || sendingMessage"
                         class="flex items-center gap-1.5 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-300 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors">
-                  <i class="pi pi-send text-xs"></i> Envoyer
+                  <i [class]="sendingMessage ? 'pi pi-spin pi-spinner' : 'pi pi-send'" class="text-xs"></i>
+                  Envoyer
                 </button>
               </div>
+
+              <!-- Liste -->
               <div *ngIf="getProjectMessages(selectedProject.id).length === 0"
                    class="text-center py-8 text-slate-400">
                 <i class="pi pi-comments text-3xl mb-2 block"></i>
                 <p class="text-sm">Aucun message</p>
+                <p class="text-xs mt-1">Démarrez la discussion ci-dessus</p>
               </div>
-              <div *ngFor="let msg of getProjectMessages(selectedProject.id)"
-                   class="flex items-start gap-3 mb-3">
-                <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <i class="pi pi-user text-purple-600 text-xs"></i>
-                </div>
-                <div class="flex-1 bg-slate-50 rounded-lg px-4 py-3">
-                  <div class="flex items-center justify-between mb-1">
-                    <span class="text-xs font-semibold text-slate-700">{{ msg.sender }}</span>
-                    <span class="text-xs text-slate-400">{{ msg.timestamp }}</span>
+
+              <div class="space-y-3">
+                <div *ngFor="let msg of getProjectMessages(selectedProject.id)"
+                     class="flex items-start gap-3">
+                  <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <i class="pi pi-user text-purple-600 text-xs"></i>
                   </div>
-                  <p class="text-sm text-slate-600">{{ msg.content }}</p>
+                  <div class="flex-1 bg-slate-50 rounded-lg px-4 py-3">
+                    <div class="flex items-center justify-between mb-1">
+                      <span class="text-xs font-semibold text-slate-700">{{ msg.sender }}</span>
+                      <span class="text-xs text-slate-400">{{ msg.timestamp }}</span>
+                    </div>
+                    <p class="text-sm text-slate-600 whitespace-pre-wrap">{{ displayContent(msg) }}</p>
+
+                    <!-- Indicateur de traduction -->
+                    <div *ngIf="isTranslated(msg)" class="mt-1.5 flex items-center gap-2">
+                      <span class="text-[11px] text-purple-500 flex items-center gap-1">
+                        <i class="pi pi-language text-[10px]"></i> Traduit
+                      </span>
+                      <button (click)="toggleOriginal(msg)"
+                              class="text-[11px] text-slate-400 hover:text-slate-600 underline">
+                        Voir l'original
+                      </button>
+                    </div>
+                    <div *ngIf="msgLang !== 'original' && msg.translated && msg.showOriginal" class="mt-1.5">
+                      <button (click)="toggleOriginal(msg)"
+                              class="text-[11px] text-slate-400 hover:text-slate-600 underline">
+                        Voir la traduction
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -497,11 +539,14 @@
                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
       </div>
 
-      <!-- Partenaires dans le formulaire de création -->
+      <!-- Partenaires manuels dans le formulaire de création -->
       <div>
         <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
-          <i class="pi pi-building mr-1 text-slate-400"></i>Partenaires
+          <i class="pi pi-building mr-1 text-slate-400"></i>Partenaires (manuels)
         </label>
+        <p class="text-[11px] text-slate-400 mb-2">
+          Pour partager avec un membre du personnel ou un compte existant, utilisez "Ajouter / Partager" après la création.
+        </p>
         <div class="space-y-2">
           <div *ngFor="let p of projectForm.partenaires; let i = index"
                class="flex gap-2 items-center bg-slate-50 rounded-lg p-2 border border-slate-100">
@@ -539,18 +584,18 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════ -->
-<!-- MODAL : Ajout de partenaire (après création)                      -->
+<!-- MODAL : Ajout de partenaire / Partage (3 modes)                   -->
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <div *ngIf="showPartnerModal"
      class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
 
     <div class="flex items-center justify-between p-5 border-b border-slate-100">
       <div class="flex items-center gap-3">
         <div class="w-9 h-9 bg-green-100 rounded-lg flex items-center justify-center">
-          <i class="pi pi-building text-green-600 text-sm"></i>
+          <i class="pi pi-user-plus text-green-600 text-sm"></i>
         </div>
-        <h2 class="text-lg font-bold text-slate-800">Ajouter un partenaire</h2>
+        <h2 class="text-lg font-bold text-slate-800">Ajouter un partenaire / Partager</h2>
       </div>
       <button (click)="closePartnerModal()"
               class="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
@@ -558,35 +603,180 @@
       </button>
     </div>
 
-    <form (ngSubmit)="addPartnerToProject()" class="p-5 space-y-4">
-      <div>
-        <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Nom *</label>
-        <input type="text" [(ngModel)]="partnerForm.nom" name="partnerNom" required
-               placeholder="Ex : TechCorp"
+    <!-- Onglets de mode -->
+    <div class="px-5 pt-4">
+      <div class="flex bg-slate-100 rounded-lg p-1 text-sm">
+        <button type="button" (click)="setPartnerMode('personnel')"
+                [class.bg-white]="partnerMode === 'personnel'"
+                [class.shadow-sm]="partnerMode === 'personnel'"
+                [class.text-slate-800]="partnerMode === 'personnel'"
+                [class.text-slate-500]="partnerMode !== 'personnel'"
+                class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md font-medium transition-colors">
+          <i class="pi pi-users text-xs"></i> Personnel
+        </button>
+        <button type="button" (click)="setPartnerMode('email')"
+                [class.bg-white]="partnerMode === 'email'"
+                [class.shadow-sm]="partnerMode === 'email'"
+                [class.text-slate-800]="partnerMode === 'email'"
+                [class.text-slate-500]="partnerMode !== 'email'"
+                class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md font-medium transition-colors">
+          <i class="pi pi-envelope text-xs"></i> Externe (email)
+        </button>
+        <button type="button" (click)="setPartnerMode('manuel')"
+                [class.bg-white]="partnerMode === 'manuel'"
+                [class.shadow-sm]="partnerMode === 'manuel'"
+                [class.text-slate-800]="partnerMode === 'manuel'"
+                [class.text-slate-500]="partnerMode !== 'manuel'"
+                class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md font-medium transition-colors">
+          <i class="pi pi-pencil text-xs"></i> Manuel
+        </button>
+      </div>
+    </div>
+
+    <div class="p-5 overflow-y-auto flex-1">
+
+      <!-- Rôle (commun personnel + email) -->
+      <div *ngIf="partnerMode !== 'manuel'" class="mb-4">
+        <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+          Rôle dans le projet
+        </label>
+        <input type="text" [(ngModel)]="partnerRole" name="partnerRole"
+               placeholder="Ex : Développement, Financement… (optionnel)"
                class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
       </div>
-      <div>
-        <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Rôle *</label>
-        <input type="text" [(ngModel)]="partnerForm.role" name="partnerRole" required
-               placeholder="Ex : Développement, Financement…"
-               class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+
+      <!-- ── Mode Personnel ── -->
+      <div *ngIf="partnerMode === 'personnel'">
+        <div class="relative mb-3">
+          <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+          <input type="text" [(ngModel)]="personnelSearch" name="personnelSearch"
+                 placeholder="Rechercher un membre…"
+                 class="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-slate-50">
+        </div>
+
+        <div *ngIf="personnelLoading" class="flex items-center justify-center py-8">
+          <i class="pi pi-spin pi-spinner text-green-500 text-xl"></i>
+        </div>
+
+        <div *ngIf="!personnelLoading && getFilteredPersonnel().length === 0"
+             class="text-center py-8 text-slate-400">
+          <i class="pi pi-users text-3xl mb-2 block"></i>
+          <p class="text-sm">Aucun membre du personnel trouvé</p>
+          <p class="text-xs mt-1">Ajoutez des employés depuis "Gestion des employés"</p>
+        </div>
+
+        <div *ngIf="!personnelLoading" class="space-y-2 max-h-72 overflow-y-auto">
+          <div *ngFor="let emp of getFilteredPersonnel()"
+               class="flex items-center gap-3 p-2.5 rounded-lg border border-slate-100 hover:bg-slate-50">
+            <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <i class="pi pi-user text-blue-600 text-xs"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-semibold text-slate-700 truncate">{{ emp.nom }}</p>
+              <p class="text-xs text-slate-400 truncate">{{ emp.poste }} · {{ emp.email }}</p>
+            </div>
+            <span *ngIf="isAlreadyPartner(emp.id)"
+                  class="text-xs text-green-600 flex items-center gap-1">
+              <i class="pi pi-check text-xs"></i> Ajouté
+            </span>
+            <button *ngIf="!isAlreadyPartner(emp.id)"
+                    (click)="addInternalPartner(emp)" [disabled]="addingPartner"
+                    class="text-xs bg-green-50 hover:bg-green-100 text-green-700 font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1">
+              <i class="pi pi-plus text-xs"></i> Ajouter
+            </button>
+          </div>
+        </div>
       </div>
-      <div>
-        <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Logo (emoji)</label>
-        <input type="text" [(ngModel)]="partnerForm.logo" name="partnerLogo" maxlength="2"
-               class="w-20 px-3 py-2.5 text-center text-xl border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+
+      <!-- ── Mode Externe (email) ── -->
+      <div *ngIf="partnerMode === 'email'">
+        <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+          Email de l'utilisateur
+        </label>
+        <div class="flex gap-2">
+          <input type="email" [(ngModel)]="emailQuery" name="emailQuery"
+                 (keydown.enter)="searchExternalByEmail()"
+                 placeholder="exemple@entreprise.com"
+                 class="flex-1 px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+          <button type="button" (click)="searchExternalByEmail()"
+                  [disabled]="!emailQuery.trim() || emailSearching"
+                  class="flex items-center gap-1 bg-slate-700 hover:bg-slate-800 disabled:bg-slate-300 text-white text-sm font-medium px-4 rounded-lg transition-colors">
+            <i [class]="emailSearching ? 'pi pi-spin pi-spinner' : 'pi pi-search'" class="text-xs"></i>
+            Chercher
+          </button>
+        </div>
+
+        <!-- Résultat de recherche -->
+        <div *ngIf="emailResult" class="mt-4">
+          <div *ngIf="emailResult.found"
+               class="flex items-center gap-3 p-3 rounded-lg border border-green-200 bg-green-50">
+            <div class="w-9 h-9 bg-green-100 rounded-full flex items-center justify-center">
+              <i class="pi pi-check-circle text-green-600"></i>
+            </div>
+            <div class="flex-1">
+              <p class="text-sm font-semibold text-slate-700">{{ emailResult.nom || emailResult.email }}</p>
+              <p class="text-xs text-slate-500">{{ emailResult.email }}</p>
+            </div>
+            <button (click)="addExternalPartner()" [disabled]="addingPartner"
+                    class="text-xs bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-medium px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1">
+              <i [class]="addingPartner ? 'pi pi-spin pi-spinner' : 'pi pi-plus'" class="text-xs"></i>
+              Ajouter
+            </button>
+          </div>
+          <div *ngIf="!emailResult.found"
+               class="flex items-center gap-2 p-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-sm">
+            <i class="pi pi-exclamation-triangle"></i>
+            {{ emailResult.message || 'Aucun utilisateur trouvé avec cet email' }}
+          </div>
+        </div>
+
+        <p class="text-[11px] text-slate-400 mt-3 flex items-center gap-1">
+          <i class="pi pi-info-circle"></i>
+          L'utilisateur doit déjà disposer d'un compte sur la plateforme.
+        </p>
       </div>
-      <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
-        <button type="button" (click)="closePartnerModal()"
-                class="px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
-          Annuler
-        </button>
-        <button type="submit" [disabled]="!partnerForm.nom || !partnerForm.role"
-                class="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-slate-300 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors">
-          <i class="pi pi-check text-xs"></i> Ajouter
-        </button>
+
+      <!-- ── Mode Manuel ── -->
+      <div *ngIf="partnerMode === 'manuel'">
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Nom *</label>
+            <input type="text" [(ngModel)]="partnerForm.nom" name="manualNom"
+                   placeholder="Ex : TechCorp"
+                   class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Rôle *</label>
+            <input type="text" [(ngModel)]="partnerForm.role" name="manualRole"
+                   placeholder="Ex : Développement, Financement…"
+                   class="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Logo (emoji)</label>
+            <input type="text" [(ngModel)]="partnerForm.logo" name="manualLogo" maxlength="2"
+                   class="w-20 px-3 py-2.5 text-center text-xl border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+          </div>
+          <p class="text-[11px] text-slate-400 flex items-center gap-1">
+            <i class="pi pi-info-circle"></i>
+            Partenaire hors plateforme : aucun accès au projet ne lui est accordé.
+          </p>
+          <button type="button" (click)="addManualPartner()"
+                  [disabled]="!partnerForm.nom.trim() || !partnerForm.role.trim() || addingPartner"
+                  class="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-slate-300 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors">
+            <i [class]="addingPartner ? 'pi pi-spin pi-spinner' : 'pi pi-check'" class="text-xs"></i>
+            Ajouter le partenaire
+          </button>
+        </div>
       </div>
-    </form>
+
+    </div>
+
+    <div class="flex justify-end gap-2 p-4 border-t border-slate-100">
+      <button type="button" (click)="closePartnerModal()"
+              class="px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+        Fermer
+      </button>
+    </div>
   </div>
 </div>
 

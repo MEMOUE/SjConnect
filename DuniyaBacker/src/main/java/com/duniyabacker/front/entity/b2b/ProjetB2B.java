@@ -57,17 +57,15 @@ public class ProjetB2B {
     // Créateur : on expose seulement l'id et le username pour éviter la sérialisation profonde
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "createur_id", nullable = false)
-    @JsonIgnore   // ← évite la sérialisation du User complet (mot de passe, tokens…)
+    @JsonIgnore
     private User createur;
 
-    // Champ calculé exposé au frontend
     @Transient
     private Long createurId;
 
     @Transient
     private String createurUsername;
 
-    // Participants : non exposés dans la liste (évite la sérialisation N+1 et les données sensibles)
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "projet_participants",
@@ -75,13 +73,31 @@ public class ProjetB2B {
             inverseJoinColumns = @JoinColumn(name = "user_id")
     )
     @Builder.Default
-    @JsonIgnore   // ← participants jamais sérialisés directement
+    @JsonIgnore
     private Set<User> participants = new HashSet<>();
 
     // Partenaires : toujours inclus dans la réponse
     @OneToMany(mappedBy = "projet", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<PartenaireProjet> partenaires = new ArrayList<>();
+
+    // ── Tâches du projet ──
+    @OneToMany(mappedBy = "projet", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
+    @Builder.Default
+    private List<TacheProjet> taches = new ArrayList<>();
+
+    // ── Documents du projet ──
+    @OneToMany(mappedBy = "projet", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
+    @Builder.Default
+    private List<DocumentProjet> documents = new ArrayList<>();
+
+    // ── Messages du projet (récupérés via endpoint dédié, jamais sérialisés ici) ──
+    @OneToMany(mappedBy = "projet", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    @Builder.Default
+    private List<MessageProjet> messages = new ArrayList<>();
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -100,11 +116,10 @@ public class ProjetB2B {
         updatedAt = LocalDateTime.now();
     }
 
-    // Méthodes utilitaires
+    // ── Méthodes utilitaires ──
     public void addParticipant(User user) {
         participants.add(user);
-        // Synchroniser les champs @Transient
-        if (this.createur != null && user.getId().equals(this.createur.getId())) {
+        if (this.createur != null && user.getId() != null && user.getId().equals(this.createur.getId())) {
             this.createurId       = user.getId();
             this.createurUsername = user.getUsername();
         }
@@ -124,6 +139,32 @@ public class ProjetB2B {
         partenaire.setProjet(null);
     }
 
+    public void addTache(TacheProjet tache) {
+        taches.add(tache);
+        tache.setProjet(this);
+    }
+
+    public void removeTache(TacheProjet tache) {
+        taches.remove(tache);
+        tache.setProjet(null);
+    }
+
+    public void addDocument(DocumentProjet document) {
+        documents.add(document);
+        document.setProjet(this);
+    }
+
+    public void removeDocument(DocumentProjet document) {
+        documents.remove(document);
+        document.setProjet(null);
+    }
+
+    public void addMessage(MessageProjet message) {
+        messages.add(message);
+        message.setProjet(this);
+        this.updatedAt = LocalDateTime.now();
+    }
+
     // Appelé par le service pour peupler les champs @Transient avant sérialisation
     public void initTransientFields() {
         if (this.createur != null) {
@@ -139,51 +180,4 @@ public class ProjetB2B {
     public enum PrioriteProjet {
         BASSE, MOYENNE, HAUTE, CRITIQUE
     }
-
-    // ========================================================================
-// AJOUTS À FAIRE DANS L'ENTITÉ ProjetB2B.java EXISTANTE
-// Ajouter ces champs dans la classe ProjetB2B, à côté de la relation
-// "partenaires" déjà existante.
-// ========================================================================
-
-    // ── Tâches du projet ──
-    @OneToMany(mappedBy = "projet", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonManagedReference
-    @Builder.Default
-    private List<TacheProjet> taches = new ArrayList<>();
-
-    // ── Documents du projet ──
-    @OneToMany(mappedBy = "projet", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonManagedReference
-    @Builder.Default
-    private List<DocumentProjet> documents = new ArrayList<>();
-
-    // ── Méthode helper pour ajouter une tâche ──
-    public void addTache(TacheProjet tache) {
-        taches.add(tache);
-        tache.setProjet(this);
-    }
-
-    public void removeTache(TacheProjet tache) {
-        taches.remove(tache);
-        tache.setProjet(null);
-    }
-
-    // ── Méthode helper pour ajouter un document ──
-    public void addDocument(DocumentProjet document) {
-        documents.add(document);
-        document.setProjet(this);
-    }
-
-    public void removeDocument(DocumentProjet document) {
-        documents.remove(document);
-        document.setProjet(null);
-    }
-
-// ========================================================================
-// IMPORTS À AJOUTER :
-// import com.duniyabacker.front.entity.b2b.TacheProjet;
-// import com.duniyabacker.front.entity.b2b.DocumentProjet;
-// import com.fasterxml.jackson.annotation.JsonManagedReference;
-// ========================================================================
 }
