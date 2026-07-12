@@ -1,0 +1,30 @@
+/* Désactive la sélection de texte sur toute la page (anti-copie) */
+:host {
+  display: block;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none; /* Désactive le menu long-press sur iOS */
+}
+
+/* Empêche la mise en surbrillance résiduelle */
+:host ::selection {
+  background: transparent;
+}
+:host ::-moz-selection {
+  background: transparent;
+}
+
+/* Bloque le glisser-déposer et le menu contextuel des images/éléments */
+:host img,
+:host * {
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+/* Filigrane discret pour dissuader les captures d'écran */
+.watermark-layer {
+  pointer-events: none;
+  user-select: none;
+}

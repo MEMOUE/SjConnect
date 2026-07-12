@@ -6,7 +6,8 @@
   <!-- ====================================================
        SIDEBAR : LISTE DES aCONVERSATIONS
        ==================================================== -->
-  <div class="w-80 bg-white flex flex-col shadow-sm border-r border-slate-200 flex-shrink-0">
+  <div class="w-full md:w-80 bg-white flex-col shadow-sm border-r border-slate-200 flex-shrink-0"
+       [ngClass]="selectedConversation ? 'hidden md:flex' : 'flex'">
 
     <!-- Header Sidebar -->
     <div class="px-4 pt-5 pb-3 border-b border-slate-100 flex-shrink-0">
@@ -131,8 +132,15 @@
   <div *ngIf="selectedConversation" class="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
 
     <!-- Header du chat (FIXE) -->
-    <div class="bg-white border-b border-slate-200 px-5 py-3 flex items-center justify-between flex-shrink-0 shadow-sm">
-      <div class="flex items-center gap-3 min-w-0">
+    <div class="bg-white border-b border-slate-200 px-3 sm:px-5 py-3 flex items-center justify-between flex-shrink-0 shadow-sm">
+      <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+        <!-- Bouton retour (mobile uniquement) -->
+        <button (click)="backToList()"
+                title="Retour"
+                class="md:hidden w-9 h-9 -ml-1 flex items-center justify-center text-slate-500
+                       hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors flex-shrink-0">
+          <i class="pi pi-arrow-left text-base"></i>
+        </button>
         <div class="relative flex-shrink-0">
           <div class="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold"
                [ngClass]="getAvatarClass(selectedConversation.name)">
@@ -220,12 +228,12 @@
           </div>
         </div>
 
-        <button class="w-9 h-9 flex items-center justify-center text-slate-500 hover:text-blue-600
+        <button class="hidden sm:flex w-9 h-9 items-center justify-center text-slate-500 hover:text-blue-600
                        hover:bg-blue-50 rounded-xl transition-colors"
                 title="Appel audio">
           <i class="pi pi-phone text-base"></i>
         </button>
-        <button class="w-9 h-9 flex items-center justify-center text-slate-500 hover:text-blue-600
+        <button class="hidden sm:flex w-9 h-9 items-center justify-center text-slate-500 hover:text-blue-600
                        hover:bg-blue-50 rounded-xl transition-colors"
                 title="Appel vidéo">
           <i class="pi pi-video text-base"></i>
@@ -279,11 +287,11 @@
     </div>
 
     <!-- Conteneur central : messages + panneau membres -->
-    <div class="flex-1 flex min-h-0 overflow-hidden">
+    <div class="flex-1 flex min-h-0 overflow-hidden relative">
 
       <!-- Zone des messages -->
       <div #messageContainer
-           class="flex-1 overflow-y-auto px-5 py-4 space-y-3 chat-messages-bg"
+           class="flex-1 overflow-y-auto px-3 sm:px-5 py-4 space-y-3 chat-messages-bg"
            (click)="showEmojiPicker = false; showLanguageSelector = false; contextMenuVisible = false">
 
         <!-- Messages -->
@@ -291,7 +299,7 @@
 
           <!-- ── Message de l'autre ── -->
           <div *ngIf="message.senderId !== currentUserId"
-               class="flex items-end gap-2 max-w-[72%]"
+               class="flex items-end gap-2 max-w-[85%] sm:max-w-[72%]"
                (contextmenu)="onMessageContextMenu($event, message)">
             <div class="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
                  [ngClass]="getAvatarClass(message.senderName)">
@@ -369,7 +377,7 @@
 
           <!-- ── Message de l'utilisateur courant ── -->
           <div *ngIf="message.senderId === currentUserId"
-               class="flex items-end gap-2 max-w-[72%] ml-auto flex-row-reverse"
+               class="flex items-end gap-2 max-w-[85%] sm:max-w-[72%] ml-auto flex-row-reverse"
                (contextmenu)="onMessageContextMenu($event, message)">
             <div class="flex flex-col gap-0.5 items-end">
               <!-- Bulle message -->
@@ -445,7 +453,7 @@
 
         <!-- Indicateur de frappe -->
         <div *ngIf="getTypingIndicator(selectedConversation.id)"
-             class="flex items-end gap-2 max-w-[72%]">
+             class="flex items-end gap-2 max-w-[85%] sm:max-w-[72%]">
           <div class="w-7 h-7 rounded-full bg-slate-300 flex-shrink-0"></div>
           <div class="bg-white rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm border border-slate-100">
             <div class="flex gap-1 items-center">
@@ -470,7 +478,8 @@
            PANNEAU MEMBRES DU GROUPE (NOUVEAU)
            ==================================================== -->
       <div *ngIf="showMembersPanel"
-           class="w-72 bg-white border-l border-slate-200 flex flex-col flex-shrink-0 animate-slide-left">
+           class="absolute md:relative inset-0 md:inset-auto z-30 w-full md:w-72 bg-white border-l
+                  border-slate-200 flex flex-col flex-shrink-0 animate-slide-left">
 
         <!-- Header panneau -->
         <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
@@ -694,7 +703,7 @@
        ÉTAT VIDE
        ==================================================== -->
   <div *ngIf="!selectedConversation"
-       class="flex-1 flex items-center justify-center bg-slate-50">
+       class="flex-1 hidden md:flex items-center justify-center bg-slate-50">
     <div class="text-center max-w-xs">
       <div class="w-20 h-20 rounded-3xl bg-white shadow-md flex items-center justify-center mx-auto mb-6">
         <i class="pi pi-comments text-4xl text-slate-300"></i>
@@ -752,7 +761,7 @@
 <p-dialog
   [(visible)]="showNewConversationDialog"
   [modal]="true"
-  [style]="{ width: '560px', maxHeight: '90vh' }"
+  [style]="{ width: '560px', maxWidth: '95vw', maxHeight: '90vh' }"
   header="Nouvelle conversation"
   [draggable]="false"
   [resizable]="false"
@@ -891,7 +900,7 @@
 <p-dialog
   [(visible)]="showEditGroupDialog"
   [modal]="true"
-  [style]="{ width: '420px' }"
+  [style]="{ width: '420px', maxWidth: '95vw' }"
   header="Modifier le groupe"
   [draggable]="false"
   [resizable]="false"
@@ -936,7 +945,7 @@
 <p-dialog
   [(visible)]="showAddMembersDialog"
   [modal]="true"
-  [style]="{ width: '520px', maxHeight: '85vh' }"
+  [style]="{ width: '520px', maxWidth: '95vw', maxHeight: '85vh' }"
   header="Ajouter des membres"
   [draggable]="false"
   [resizable]="false"

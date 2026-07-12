@@ -594,6 +594,16 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
 
   // ── Gestion du groupe ─────────────────────────────────────────────────────
 
+  /** Retour à la liste des conversations (vue mobile). */
+  backToList(): void {
+    this.selectedConversation = null;
+    this.showMembersPanel = false;
+    this.showEmojiPicker = false;
+    this.showLanguageSelector = false;
+    this.contextMenuVisible = false;
+    this.editingMessage = null;
+  }
+
   toggleMembersPanel(): void {
     this.showMembersPanel = !this.showMembersPanel;
   }

@@ -17,6 +17,7 @@ import { ProjetB2b } from './entreprise/projet-b2b/projet-b2b';
 import { AuthGuard, EntrepriseGuard } from './guard/auth-guard';
 import {Chat} from './entreprise/chat/chat';
 import { VerifyEmail } from './auth/verify-email/verify-email';
+import { PolitiqueConfidentialite } from './politique-confidentialite/politique-confidentialite';
 
 export const routes: Routes = [
   // Routes publiques
@@ -28,6 +29,7 @@ export const routes: Routes = [
   { path: 'inscription-individu', component: RegisterIndividu },
   { path: 'connexion', component: Login },
   { path: 'accept-invitation', component: AcceptInvitation },
+  { path: 'politique-confidentialite', component: PolitiqueConfidentialite },
 
   // Routes entreprise (protégées)
   {
