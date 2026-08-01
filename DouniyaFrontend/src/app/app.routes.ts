@@ -14,7 +14,7 @@ import { AnaleticKpi } from './entreprise/analetic-kpi/analetic-kpi';
 import { Parametres } from './entreprise/parametres/parametres';
 import { Reseau } from './entreprise/reseau/reseau';
 import { ProjetB2b } from './entreprise/projet-b2b/projet-b2b';
-import { AuthGuard, EntrepriseGuard, ParticulierGuard } from './guard/auth-guard';
+import { EntrepriseGuard, EntrepriseEmployeGuard, ParticulierGuard } from './guard/auth-guard';
 import {Chat} from './entreprise/chat/chat';
 import { VerifyEmail } from './auth/verify-email/verify-email';
 import { PolitiqueConfidentialite } from './politique-confidentialite/politique-confidentialite';
@@ -47,7 +47,7 @@ export const routes: Routes = [
   {
     path: 'dashboard-entreprise',
     component: DashboardEntreprise,
-    canActivate: [AuthGuard]
+    canActivate: [EntrepriseEmployeGuard]
   },
   {
     path: 'entreprise/equipe',
@@ -57,43 +57,43 @@ export const routes: Routes = [
   {
     path: 'entreprise/chat',
     component: Chat,
-    canActivate: [AuthGuard],
+    canActivate: [EntrepriseEmployeGuard],
     data: { hideFooter: true }
   },
   {
     path: 'entreprise/espace-b2b',
     component: EspaceB2B,
-    canActivate: [AuthGuard]
+    canActivate: [EntrepriseEmployeGuard]
   },
   {
     path: 'entreprise/marketplace',
     component: MarketPace,
-    canActivate: [AuthGuard]
+    canActivate: [EntrepriseEmployeGuard]
   },
   {
     path: 'entreprise/visio',
     component: VisioConference,
-    canActivate: [AuthGuard]
+    canActivate: [EntrepriseEmployeGuard]
   },
   {
     path: 'entreprise/analytics',
     component: AnaleticKpi,
-    canActivate: [AuthGuard]
+    canActivate: [EntrepriseEmployeGuard]
   },
   {
     path: 'entreprise/parametres',
     component: Parametres,
-    canActivate: [AuthGuard]
+    canActivate: [EntrepriseEmployeGuard]
   },
   {
     path: 'entreprise/reseau',
     component: Reseau,
-    canActivate: [AuthGuard]
+    canActivate: [EntrepriseEmployeGuard]
   },
   {
     path: 'entreprise/projet',
     component: ProjetB2b,
-    canActivate: [AuthGuard]
+    canActivate: [EntrepriseEmployeGuard]
   },
   {
     path: 'accept-invitation',

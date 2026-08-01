@@ -69,6 +69,29 @@ export class EntrepriseGuard implements CanActivate {
   }
 }
 
+/**
+ * Autorise les comptes ENTREPRISE et EMPLOYE (espace entreprise partagé).
+ * Bloque les comptes PARTICULIER, qui ont leur propre espace sous /particulier/**.
+ */
+@Injectable({
+  providedIn: 'root'
+})
+export class EntrepriseEmployeGuard implements CanActivate {
+  constructor(
+    private authService: AuthService,
+    private router: Router
+  ) {}
+
+  canActivate(): boolean {
+    if (this.authService.isAuthenticated() && (this.authService.isEntreprise() || this.authService.isEmploye())) {
+      return true;
+    }
+
+    this.router.navigate(['connexion']);
+    return false;
+  }
+}
+
 @Injectable({
   providedIn: 'root'
 })
