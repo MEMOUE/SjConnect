@@ -17,10 +17,13 @@ export class ParticulierNav {
   currentUser: UserResponse | null = null;
 
   readonly navItems = [
-    { route: '/particulier/dashboard',   icon: 'pi-home',         label: 'Tableau de bord' },
-    { route: '/particulier/marketplace', icon: 'pi-shopping-bag', label: 'Marketplace' },
-    { route: '/particulier/chat',        icon: 'pi-comments',     label: 'Messagerie' },
-    { route: '/particulier/parametres',  icon: 'pi-cog',          label: 'Paramètres' },
+    { route: '/particulier/dashboard',      icon: 'pi-home',         label: 'Tableau de bord' },
+    { route: '/particulier/marketplace',    icon: 'pi-shopping-bag', label: 'Marketplace' },
+    { route: '/particulier/chat',           icon: 'pi-comments',     label: 'Messagerie' },
+    { route: '/particulier/visio',          icon: 'pi-video',        label: 'Visioconférence' },
+    { route: '/particulier/espace-partage', icon: 'pi-building',     label: 'Espace partagé' },
+    { route: '/particulier/projet',         icon: 'pi-briefcase',    label: 'Projets' },
+    { route: '/particulier/parametres',     icon: 'pi-cog',          label: 'Paramètres' },
   ];
 
   constructor(private authService: AuthService) {

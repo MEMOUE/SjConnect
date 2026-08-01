@@ -1,13 +1,18 @@
 package com.duniyabacker.front.service;
 
 import com.duniyabacker.front.dto.request.ChangePasswordRequest;
+import com.duniyabacker.front.dto.request.ConvertToEntrepriseRequest;
 import com.duniyabacker.front.dto.request.UpdateParticulierProfilRequest;
 import com.duniyabacker.front.dto.response.ApiResponse;
 import com.duniyabacker.front.dto.response.UserResponse;
+import com.duniyabacker.front.entity.Role;
+import com.duniyabacker.front.entity.User;
 import com.duniyabacker.front.entity.auth.Particulier;
 import com.duniyabacker.front.exception.CustomExceptions.*;
 import com.duniyabacker.front.repository.ParticulierRepository;
 import com.duniyabacker.front.repository.UserRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -22,6 +27,9 @@ public class ParticulierService {
     private final ParticulierRepository particulierRepository;
     private final UserRepository        userRepository;
     private final PasswordEncoder       passwordEncoder;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     /**
      * Mettre à jour le profil du particulier
@@ -82,6 +90,57 @@ public class ParticulierService {
         log.info("Mot de passe modifié pour : {}", username);
 
         return ApiResponse.success("Mot de passe modifié avec succès");
+    }
+
+    /**
+     * Convertit un compte PARTICULIER en compte ENTREPRISE.
+     * L'inheritance JOINED de User conserve le même id (donc les publications,
+     * conversations, meetings, etc. déjà liés à ce compte restent valides) :
+     * on retire la ligne "particuliers", on insère la ligne "entreprises"
+     * correspondante, puis on bascule le rôle sur la table "users".
+     */
+    @Transactional
+    public ApiResponse<Void> convertToEntreprise(String username, ConvertToEntrepriseRequest request) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
+
+        if (user.getRole() != Role.PARTICULIER) {
+            throw new BadRequestException("Seul un compte particulier peut être converti en compte entreprise");
+        }
+
+        Long id = user.getId();
+
+        entityManager.createNativeQuery("DELETE FROM particuliers WHERE id = :id")
+                .setParameter("id", id)
+                .executeUpdate();
+
+        entityManager.createNativeQuery("""
+                INSERT INTO entreprises
+                    (id, nom_entreprise, type_entreprise, secteur_activite, adresse_physique,
+                     numero_registre_commerce, description, site_web)
+                VALUES
+                    (:id, :nomEntreprise, :typeEntreprise, :secteurActivite, :adressePhysique,
+                     :numeroRegistreCommerce, :description, :siteWeb)
+                """)
+                .setParameter("id", id)
+                .setParameter("nomEntreprise", request.getNomEntreprise())
+                .setParameter("typeEntreprise", request.getTypeEntreprise())
+                .setParameter("secteurActivite", request.getSecteurActivite())
+                .setParameter("adressePhysique", request.getAdressePhysique())
+                .setParameter("numeroRegistreCommerce", request.getNumeroRegistreCommerce())
+                .setParameter("description", request.getDescription())
+                .setParameter("siteWeb", request.getSiteWeb())
+                .executeUpdate();
+
+        entityManager.createNativeQuery("UPDATE users SET role = 'ENTREPRISE' WHERE id = :id")
+                .setParameter("id", id)
+                .executeUpdate();
+
+        entityManager.clear();
+
+        log.info("Compte {} converti de PARTICULIER vers ENTREPRISE", username);
+
+        return ApiResponse.success("Compte converti en compte entreprise avec succès. Merci de vous reconnecter.");
     }
 
     // ── Mapping ──────────────────────────────────────────────────────

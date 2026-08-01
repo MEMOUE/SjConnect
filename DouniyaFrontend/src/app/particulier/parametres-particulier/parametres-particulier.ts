@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AuthService } from '../../services/auth/auth.service';
 import { ParticulierService } from '../../services/particulier/particulier.service';
@@ -8,7 +9,7 @@ import { UserResponse } from '../../models/auth.model';
 import { SECTEURS_ACTIVITE } from '../../shared/constants/secteurs-activite';
 import { ParticulierNav } from '../particulier-nav/particulier-nav';
 
-type Section = 'profil' | 'securite';
+type Section = 'profil' | 'securite' | 'compte';
 
 @Component({
   selector: 'app-parametres-particulier',
@@ -40,15 +41,33 @@ export class ParametresParticulier implements OnInit, OnDestroy {
   readonly secteurs = SECTEURS_ACTIVITE;
 
   readonly navItems: { id: Section; icon: string; label: string }[] = [
-    { id: 'profil',   icon: 'pi pi-user', label: 'Profil' },
-    { id: 'securite', icon: 'pi pi-lock', label: 'Sécurité' },
+    { id: 'profil',   icon: 'pi pi-user',     label: 'Profil' },
+    { id: 'securite', icon: 'pi pi-lock',     label: 'Sécurité' },
+    { id: 'compte',   icon: 'pi pi-building', label: 'Type de compte' },
+  ];
+
+  /* ─── Conversion vers compte entreprise ──────────────────── */
+  isConverting = false;
+  convertForm = {
+    nomEntreprise: '', typeEntreprise: '', secteurActivite: '',
+    adressePhysique: '', numeroRegistreCommerce: '', description: '', siteWeb: ''
+  };
+
+  readonly typesEntreprise = [
+    { value: 'pme',               label: 'PME' },
+    { value: 'institution',       label: 'Institution' },
+    { value: 'ong',                label: 'ONG' },
+    { value: 'grande_entreprise', label: 'Grande entreprise' },
+    { value: 'startup',           label: 'Startup' },
+    { value: 'autre',             label: 'Autre' }
   ];
 
   private sub!: Subscription;
 
   constructor(
     private authService: AuthService,
-    private particulierService: ParticulierService
+    private particulierService: ParticulierService,
+    private router: Router
   ) {}
 
   ngOnInit(): void {
@@ -114,6 +133,35 @@ export class ParametresParticulier implements OnInit, OnDestroy {
   }
 
   logout(): void { this.authService.logout().subscribe(); }
+
+  convertToEntreprise(): void {
+    if (!this.convertForm.nomEntreprise?.trim())    return this.flash('error', "Le nom de l'entreprise est requis.");
+    if (!this.convertForm.typeEntreprise)           return this.flash('error', "Le type d'entreprise est requis.");
+    if (!this.convertForm.secteurActivite)          return this.flash('error', "Le secteur d'activité est requis.");
+    if (!this.convertForm.adressePhysique?.trim())  return this.flash('error', "L'adresse physique est requise.");
+
+    if (!confirm(
+      'Cette action transforme définitivement votre compte particulier en compte entreprise. ' +
+      'Vous devrez vous reconnecter ensuite. Continuer ?'
+    )) return;
+
+    this.isConverting = true;
+    this.particulierService.convertToEntreprise(this.convertForm).subscribe({
+      next: () => {
+        this.flash('ok', 'Compte converti avec succès ! Reconnexion en cours...');
+        setTimeout(() => {
+          this.authService.logout().subscribe({
+            next: () => this.router.navigate(['/connexion']),
+            error: () => this.router.navigate(['/connexion'])
+          });
+        }, 1800);
+      },
+      error: err => {
+        this.isConverting = false;
+        this.flash('error', err.error?.message ?? 'Impossible de convertir le compte.');
+      }
+    });
+  }
 
   initiales(): string {
     const n = `${this.profile.prenom} ${this.profile.nom}`.trim();

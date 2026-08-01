@@ -1,6 +1,7 @@
 package com.duniyabacker.front.controller;
 
 import com.duniyabacker.front.dto.request.ChangePasswordRequest;
+import com.duniyabacker.front.dto.request.ConvertToEntrepriseRequest;
 import com.duniyabacker.front.dto.request.UpdateParticulierProfilRequest;
 import com.duniyabacker.front.dto.response.ApiResponse;
 import com.duniyabacker.front.dto.response.UserResponse;
@@ -54,6 +55,23 @@ public class ParticulierController {
             @Valid @RequestBody ChangePasswordRequest request) {
         return ResponseEntity.ok(
                 particulierService.changePassword(userDetails.getUsername(), request)
+        );
+    }
+
+    /**
+     * Convertir le compte particulier en compte entreprise
+     */
+    @Operation(
+            summary = "Convertir en compte entreprise",
+            description = "Transforme le compte particulier connecté en compte entreprise. Une reconnexion est nécessaire ensuite."
+    )
+    @PostMapping("/convert-to-entreprise")
+    @PreAuthorize("hasRole('PARTICULIER')")
+    public ResponseEntity<ApiResponse<Void>> convertToEntreprise(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Valid @RequestBody ConvertToEntrepriseRequest request) {
+        return ResponseEntity.ok(
+                particulierService.convertToEntreprise(userDetails.getUsername(), request)
         );
     }
 }

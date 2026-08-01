@@ -30,9 +30,12 @@ export class DashboardParticulier implements OnInit, OnDestroy {
   nombreMessagesNonLus = 0;
 
   readonly quickActions = [
-    { label: 'Marketplace', icon: 'pi-shopping-bag', route: '/particulier/marketplace', color: 'orange', description: 'Consulter les offres ouvertes aux particuliers' },
-    { label: 'Messagerie',  icon: 'pi-comments',      route: '/particulier/chat',        color: 'blue',   description: 'Échanger avec les entreprises' },
-    { label: 'Paramètres',  icon: 'pi-cog',           route: '/particulier/parametres',  color: 'gray',   description: 'Gérer votre profil et votre compte' },
+    { label: 'Marketplace',     icon: 'pi-shopping-bag', route: '/particulier/marketplace',    color: 'orange', description: 'Consulter les offres ouvertes aux particuliers' },
+    { label: 'Messagerie',      icon: 'pi-comments',     route: '/particulier/chat',           color: 'blue',   description: 'Échanger avec les entreprises' },
+    { label: 'Visioconférence', icon: 'pi-video',        route: '/particulier/visio',          color: 'green',  description: 'Rejoindre ou planifier une réunion' },
+    { label: 'Espace partagé',  icon: 'pi-building',     route: '/particulier/espace-partage', color: 'purple', description: 'Documents et ressources partagés' },
+    { label: 'Projets',         icon: 'pi-briefcase',    route: '/particulier/projet',         color: 'pink',   description: 'Suivre vos projets collaboratifs' },
+    { label: 'Paramètres',      icon: 'pi-cog',          route: '/particulier/parametres',     color: 'gray',   description: 'Gérer votre profil et votre compte' },
   ];
 
   constructor(

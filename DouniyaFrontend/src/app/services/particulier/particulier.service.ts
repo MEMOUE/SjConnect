@@ -5,6 +5,7 @@ import { environment } from '../../../environments/environment';
 import {
   ApiResponse,
   ChangePasswordRequest,
+  ConvertToEntrepriseRequest,
   UpdateParticulierProfilRequest,
   UserResponse
 } from '../../models/auth.model';
@@ -22,5 +23,9 @@ export class ParticulierService {
 
   changePassword(request: ChangePasswordRequest): Observable<ApiResponse<void>> {
     return this.http.post<ApiResponse<void>>(`${this.apiUrl}/change-password`, request);
+  }
+
+  convertToEntreprise(request: ConvertToEntrepriseRequest): Observable<ApiResponse<void>> {
+    return this.http.post<ApiResponse<void>>(`${this.apiUrl}/convert-to-entreprise`, request);
   }
 }

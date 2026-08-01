@@ -118,6 +118,21 @@ export const routes: Routes = [
     data: { hideFooter: true }
   },
   {
+    path: 'particulier/visio',
+    component: VisioConference,
+    canActivate: [ParticulierGuard]
+  },
+  {
+    path: 'particulier/espace-partage',
+    component: EspaceB2B,
+    canActivate: [ParticulierGuard]
+  },
+  {
+    path: 'particulier/projet',
+    component: ProjetB2b,
+    canActivate: [ParticulierGuard]
+  },
+  {
     path: 'particulier/parametres',
     component: ParametresParticulier,
     canActivate: [ParticulierGuard]

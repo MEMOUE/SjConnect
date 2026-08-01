@@ -98,6 +98,16 @@ export interface UpdateParticulierProfilRequest {
   newsletter: boolean;
 }
 
+export interface ConvertToEntrepriseRequest {
+  nomEntreprise: string;
+  typeEntreprise: string;
+  secteurActivite: string;
+  adressePhysique: string;
+  numeroRegistreCommerce?: string;
+  description?: string;
+  siteWeb?: string;
+}
+
 // ============================================
 // INTERFACES POUR LES RÉPONSES (Response DTOs)
 // ============================================
