@@ -201,6 +201,26 @@
           </div>
         </div>
 
+        <!-- Autoriser les particuliers -->
+        <label (click)="autoriseParticuliers = !autoriseParticuliers"
+               class="flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all select-none"
+               [ngClass]="autoriseParticuliers
+                 ? 'border-blue-600 bg-blue-50'
+                 : 'border-gray-200 bg-gray-50 hover:border-blue-300'">
+          <div class="w-5 h-5 mt-0.5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all"
+               [ngClass]="autoriseParticuliers ? 'bg-blue-700 border-blue-700' : 'border-gray-300 bg-white'">
+            <i *ngIf="autoriseParticuliers" class="pi pi-check text-white" style="font-size: 9px"></i>
+          </div>
+          <div>
+            <p class="text-sm font-semibold text-gray-700">
+              <i class="pi pi-user mr-1 text-blue-700"></i>Autoriser les comptes particuliers
+            </p>
+            <p class="text-xs text-gray-400 mt-0.5">
+              Si coché, cette publication sera aussi visible dans le marketplace des particuliers.
+            </p>
+          </div>
+        </label>
+
         <!-- Pièce jointe -->
         <div>
           <label class="block text-sm font-semibold text-gray-700 mb-1.5">
@@ -320,6 +340,11 @@
                 <i [ngClass]="pub.visibleParTous || !pub.typesEntreprisesVisibles.length
                   ? 'pi pi-globe' : 'pi pi-lock'"></i>
                 {{ getBadgeVisibilite(pub) }}
+              </span>
+              <span *ngIf="pub.autoriseParticuliers"
+                    class="text-xs px-2 py-0.5 rounded-full font-semibold flex items-center gap-1 border
+                           bg-purple-50 text-purple-700 border-purple-200">
+                <i class="pi pi-user"></i> Ouvert aux particuliers
               </span>
             </div>
           </div>

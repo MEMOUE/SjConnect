@@ -33,6 +33,9 @@ public class UserResponse {
     private String prenom;
     private String nom;
     private String genre;
+    private String posteActuel;
+    private String bio;
+    private Boolean newsletter;
 
     // Pour employé
     private String poste;

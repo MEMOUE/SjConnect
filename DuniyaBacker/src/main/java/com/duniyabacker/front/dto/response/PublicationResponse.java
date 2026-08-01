@@ -46,6 +46,9 @@ public class PublicationResponse {
     // Métriques
     private Integer nombreVues;
 
+    /** Visible dans le marketplace des comptes PARTICULIER. */
+    private boolean autoriseParticuliers;
+
     // Dates
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

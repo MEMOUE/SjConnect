@@ -81,6 +81,9 @@ public class SecurityConfig {
                         // ── Endpoints employé (/api/employe) ─────────────────────────────────
                         .requestMatchers("/api/employe/**").hasAnyRole("ENTREPRISE", "EMPLOYE")
 
+                        // ── Endpoints particulier (/api/particulier) ─────────────────────────
+                        .requestMatchers("/api/particulier/**").hasRole("PARTICULIER")
+
                         // ── Tout le reste ─────────────────────────────────────────────────────
                         .anyRequest().authenticated()
                 )

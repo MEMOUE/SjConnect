@@ -68,7 +68,7 @@ export class Login {
             if (response.user.role === 'ENTREPRISE') {
               this.router.navigate(['/dashboard-entreprise']);
             } else if (response.user.role === 'PARTICULIER') {
-              this.router.navigate(['/']);
+              this.router.navigate(['/particulier/dashboard']);
             } else if (response.user.role === 'EMPLOYE') {
               this.router.navigate(['/entreprise/equipe']);
             }

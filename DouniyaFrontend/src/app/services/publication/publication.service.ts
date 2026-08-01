@@ -21,6 +21,8 @@ export interface Publication {
   auteurEntrepriseId?: number;
   typesEntreprisesVisibles: string[];
   visibleParTous?: boolean;
+  /** Visible dans le marketplace des comptes particulier (coché à la publication). */
+  autoriseParticuliers?: boolean;
   nombreVues?: number;
   createdAt?: string;
   updatedAt?: string;
@@ -34,6 +36,7 @@ export interface CreatePublicationRequest {
   mediaType?: string;
   mediaNom?: string;
   mediaTaille?: number;
+  autoriseParticuliers?: boolean;
 }
 
 export interface ApiResponse<T> {

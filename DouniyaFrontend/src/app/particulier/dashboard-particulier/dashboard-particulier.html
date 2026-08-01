@@ -1,0 +1,148 @@
+<div class="min-h-screen bg-gray-50">
+
+  <app-particulier-nav [unreadCount]="nombreMessagesNonLus"></app-particulier-nav>
+
+  <main class="max-w-6xl mx-auto px-4 py-6">
+
+    <!-- Bannière de bienvenue -->
+    <div class="bg-gradient-to-r from-blue-900 to-blue-700 rounded-xl p-6 text-white shadow-lg mb-6">
+      <h1 class="text-2xl font-bold">Bonjour {{ userDisplayName || 'et bienvenue' }} 👋</h1>
+      <p class="text-blue-100 mt-1 text-sm">
+        Consultez les offres ouvertes aux particuliers et échangez directement avec les entreprises.
+      </p>
+    </div>
+
+    <!-- Loader -->
+    <div *ngIf="isLoading" class="flex items-center justify-center py-20">
+      <div class="flex flex-col items-center gap-3">
+        <div class="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <p class="text-sm text-gray-500">Chargement...</p>
+      </div>
+    </div>
+
+    <ng-container *ngIf="!isLoading">
+
+      <!-- Stats -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div class="bg-white rounded-xl p-5 shadow-sm">
+          <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center mb-3">
+            <i class="pi pi-shopping-bag text-orange-600 text-lg"></i>
+          </div>
+          <h3 class="text-2xl font-bold text-gray-900">{{ nombreOffres }}</h3>
+          <p class="text-sm text-gray-600 font-medium">Offres disponibles</p>
+        </div>
+        <div class="bg-white rounded-xl p-5 shadow-sm">
+          <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mb-3">
+            <i class="pi pi-comments text-blue-600 text-lg"></i>
+          </div>
+          <h3 class="text-2xl font-bold text-gray-900">{{ nombreConversations }}</h3>
+          <p class="text-sm text-gray-600 font-medium">Conversations</p>
+        </div>
+        <div class="bg-white rounded-xl p-5 shadow-sm">
+          <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center mb-3">
+            <i class="pi pi-envelope text-red-600 text-lg"></i>
+          </div>
+          <h3 class="text-2xl font-bold text-gray-900">{{ nombreMessagesNonLus }}</h3>
+          <p class="text-sm text-gray-600 font-medium">Messages non lus</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <div class="lg:col-span-2 space-y-6">
+
+          <!-- Actions rapides -->
+          <div class="bg-white rounded-xl p-6 shadow-sm">
+            <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+              <i class="pi pi-bolt text-blue-600 mr-2"></i>Actions rapides
+            </h2>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <a *ngFor="let action of quickActions" [routerLink]="action.route"
+                 [class]="'flex flex-col items-center justify-center p-4 border-2 border-' + action.color
+                   + '-200 hover:border-' + action.color + '-400 hover:bg-' + action.color
+                   + '-50 rounded-lg transition-all hover:shadow-md cursor-pointer'">
+                <div [class]="'w-12 h-12 bg-' + action.color + '-100 rounded-full flex items-center justify-center mb-3'">
+                  <i [class]="'pi ' + action.icon + ' text-' + action.color + '-600 text-xl'"></i>
+                </div>
+                <span class="text-sm font-medium text-gray-900 text-center mb-1">{{ action.label }}</span>
+                <span class="text-xs text-gray-500 text-center">{{ action.description }}</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- Offres récentes -->
+          <div class="bg-white rounded-xl p-6 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-lg font-bold text-gray-900 flex items-center">
+                <i class="pi pi-shopping-bag text-orange-600 mr-2"></i>Offres récentes
+              </h2>
+              <a routerLink="/particulier/marketplace" class="text-sm text-blue-600 hover:underline font-medium">
+                Voir tout
+              </a>
+            </div>
+
+            <div *ngIf="offresRecentes.length === 0" class="text-center py-8">
+              <div class="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                <i class="pi pi-inbox text-orange-300 text-2xl"></i>
+              </div>
+              <p class="text-gray-500 text-sm">Aucune offre disponible pour le moment</p>
+            </div>
+
+            <div class="space-y-3" *ngIf="offresRecentes.length > 0">
+              <div *ngFor="let pub of offresRecentes"
+                   class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                <div class="flex items-center justify-between mb-1">
+                  <h3 class="font-semibold text-gray-900 text-sm">{{ pub.auteurNom || 'Entreprise' }}</h3>
+                  <span class="text-xs text-gray-400">{{ getTimeAgo(pub.createdAt) }}</span>
+                </div>
+                <p class="text-sm text-gray-600 line-clamp-2">{{ pub.titre || pub.contenu }}</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Colonne droite -->
+        <div class="space-y-6">
+          <div *ngIf="nombreMessagesNonLus > 0"
+               class="bg-pink-50 border-2 border-pink-200 rounded-xl p-6 shadow-sm">
+            <h2 class="text-lg font-bold text-pink-800 mb-3 flex items-center">
+              <i class="pi pi-comments text-pink-600 mr-2"></i>Messages non lus
+            </h2>
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-3xl font-bold text-pink-700">{{ nombreMessagesNonLus }}</p>
+                <p class="text-xs text-pink-600">dans {{ nombreConversations }} conversation(s)</p>
+              </div>
+              <a routerLink="/particulier/chat"
+                 class="text-sm px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors">
+                Voir
+              </a>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl p-6 shadow-sm border-2 border-blue-100">
+            <h3 class="font-bold text-gray-900 mb-3 flex items-center">
+              <i class="pi pi-info-circle text-blue-600 mr-2"></i>Comment ça marche ?
+            </h3>
+            <ul class="text-sm text-gray-600 space-y-2">
+              <li class="flex items-start gap-2">
+                <i class="pi pi-check text-green-600 mt-0.5"></i>
+                Les entreprises choisissent d'ouvrir leurs offres aux particuliers.
+              </li>
+              <li class="flex items-start gap-2">
+                <i class="pi pi-check text-green-600 mt-0.5"></i>
+                Consultez ces offres dans le Marketplace.
+              </li>
+              <li class="flex items-start gap-2">
+                <i class="pi pi-check text-green-600 mt-0.5"></i>
+                Contactez directement l'entreprise via la messagerie.
+              </li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+    </ng-container>
+  </main>
+</div>

@@ -31,4 +31,7 @@ public class CreatePublicationRequest {
     private String mediaType;
     private String mediaNom;
     private Long   mediaTaille;
+
+    /** Si vrai, rend la publication visible dans le marketplace des comptes PARTICULIER. */
+    private boolean autoriseParticuliers = false;
 }

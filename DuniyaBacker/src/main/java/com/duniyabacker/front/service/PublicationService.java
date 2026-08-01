@@ -6,6 +6,7 @@ import com.duniyabacker.front.dto.response.PublicationResponse;
 import com.duniyabacker.front.entity.User;
 import com.duniyabacker.front.entity.auth.Employe;
 import com.duniyabacker.front.entity.auth.Entreprise;
+import com.duniyabacker.front.entity.auth.Particulier;
 import com.duniyabacker.front.entity.publication.Publication;
 import com.duniyabacker.front.exception.CustomExceptions.*;
 import com.duniyabacker.front.repository.PublicationRepository;
@@ -43,6 +44,7 @@ public class PublicationService {
                 .mediaType(request.getMediaType())
                 .mediaNom(request.getMediaNom())
                 .mediaTaille(request.getMediaTaille())
+                .autoriseParticuliers(request.isAutoriseParticuliers())
                 .auteur(auteur)
                 .build();
 
@@ -62,8 +64,11 @@ public class PublicationService {
         if (user instanceof Entreprise entreprise) {
             pubs = publicationRepository.findVisiblePourType(
                     normaliserType(entreprise.getTypeEntreprise()));
+        } else if (user instanceof Particulier) {
+            // Particuliers : uniquement les publications ouvertes explicitement par l'entreprise
+            pubs = publicationRepository.findVisiblePourParticulier();
         } else {
-            // Particuliers et employés voient tout
+            // Employés voient tout
             pubs = publicationRepository.findAllPubliees();
         }
 
@@ -160,6 +165,7 @@ public class PublicationService {
                 .visibleParTous(p.getTypesEntreprisesVisibles() == null
                         || p.getTypesEntreprisesVisibles().isEmpty())
                 .nombreVues(p.getNombreVues())
+                .autoriseParticuliers(p.isAutoriseParticuliers())
                 .createdAt(p.getCreatedAt())
                 .updatedAt(p.getUpdatedAt())
                 .build();

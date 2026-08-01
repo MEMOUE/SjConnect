@@ -68,6 +68,14 @@ public class Publication {
     @Builder.Default
     private Integer nombreVues = 0;
 
+    /**
+     * Si vrai, cette publication est visible par les comptes PARTICULIER
+     * dans leur marketplace. Coché explicitement par l'entreprise à la publication.
+     */
+    @Column(name = "autorise_particuliers")
+    @Builder.Default
+    private boolean autoriseParticuliers = false;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default

@@ -1,0 +1,37 @@
+<header class="bg-white border-b border-gray-200 shadow-sm">
+  <div class="max-w-6xl mx-auto px-4 flex items-center justify-between h-16">
+
+    <div class="flex items-center gap-2">
+      <div class="w-9 h-9 bg-blue-900 rounded-lg flex items-center justify-center">
+        <span class="text-white font-bold text-sm">DC</span>
+      </div>
+      <span class="font-bold text-gray-900 hidden sm:inline">Espace particulier</span>
+    </div>
+
+    <nav class="flex items-center gap-1">
+      <a *ngFor="let item of navItems" [routerLink]="item.route"
+         routerLinkActive="bg-blue-50 text-blue-700"
+         class="relative flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold text-gray-600
+                hover:bg-gray-100 transition">
+        <i class="pi" [ngClass]="item.icon"></i>
+        <span class="hidden md:inline">{{ item.label }}</span>
+        <span *ngIf="item.route === '/particulier/chat' && unreadCount > 0"
+              class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px]
+                     font-bold rounded-full flex items-center justify-center">
+          {{ unreadCount }}
+        </span>
+      </a>
+    </nav>
+
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-full bg-blue-900 text-white flex items-center justify-center font-bold text-xs">
+        {{ initiales }}
+      </div>
+      <span class="text-sm font-semibold text-gray-700 hidden lg:inline">{{ displayName }}</span>
+      <button (click)="logout()" title="Déconnexion"
+              class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition">
+        <i class="pi pi-sign-out"></i>
+      </button>
+    </div>
+  </div>
+</header>

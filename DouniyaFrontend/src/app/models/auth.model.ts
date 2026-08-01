@@ -87,6 +87,17 @@ export interface ChangePasswordRequest {
   confirmPassword: string;
 }
 
+export interface UpdateParticulierProfilRequest {
+  prenom: string;
+  nom: string;
+  secteurActivite: string;
+  email: string;
+  telephone?: string;
+  posteActuel?: string;
+  bio?: string;
+  newsletter: boolean;
+}
+
 // ============================================
 // INTERFACES POUR LES RÉPONSES (Response DTOs)
 // ============================================
@@ -119,6 +130,9 @@ export interface UserResponse {
   prenom?: string;
   nom?: string;
   genre?: string;
+  posteActuel?: string;
+  bio?: string;
+  newsletter?: boolean;
 
   // Champs spécifiques employé
   poste?: string;

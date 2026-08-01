@@ -1,0 +1,109 @@
+<div class="min-h-screen bg-gray-50">
+
+  <app-particulier-nav></app-particulier-nav>
+
+  <!-- Toast -->
+  <div *ngIf="toast" class="fixed top-20 right-4 z-50 max-w-sm">
+    <div class="flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg text-sm font-semibold"
+         [ngClass]="{
+           'bg-green-600 text-white': toast.type === 'success',
+           'bg-red-600 text-white': toast.type === 'error',
+           'bg-blue-600 text-white': toast.type === 'info'
+         }">
+      <i class="pi"
+         [ngClass]="{
+           'pi-check-circle': toast.type === 'success',
+           'pi-times-circle': toast.type === 'error',
+           'pi-info-circle': toast.type === 'info'
+         }"></i>
+      {{ toast.message }}
+    </div>
+  </div>
+
+  <main class="max-w-4xl mx-auto px-4 py-6">
+
+    <div class="mb-6">
+      <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+        <i class="pi pi-shopping-bag text-orange-600"></i>Marketplace
+      </h1>
+      <p class="text-gray-500 text-sm mt-1">Offres et annonces ouvertes aux particuliers</p>
+    </div>
+
+    <!-- Recherche -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 mb-4 flex items-center gap-2">
+      <i class="pi pi-search text-gray-400 ml-2"></i>
+      <input [(ngModel)]="searchQuery" (keyup.enter)="onSearch()"
+             type="text" placeholder="Rechercher une offre..."
+             class="flex-1 border-none outline-none text-sm">
+      <button *ngIf="searchQuery" (click)="clearSearch()" class="text-gray-400 hover:text-gray-600 p-1">
+        <i class="pi pi-times"></i>
+      </button>
+      <button (click)="onSearch()" [disabled]="searching"
+              class="bg-blue-900 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-blue-800 transition">
+        <i *ngIf="searching" class="pi pi-spin pi-spinner"></i>
+        <span *ngIf="!searching">Rechercher</span>
+      </button>
+    </div>
+
+    <!-- Loading -->
+    <div *ngIf="loadingFeed"
+         class="flex flex-col items-center gap-3 py-16 bg-white rounded-xl border border-gray-200">
+      <i class="pi pi-spin pi-spinner text-blue-700 text-3xl"></i>
+      <p class="text-gray-500 text-sm">Chargement des offres...</p>
+    </div>
+
+    <!-- Vide -->
+    <div *ngIf="!loadingFeed && publications.length === 0"
+         class="flex flex-col items-center gap-3 py-16 bg-white rounded-xl border border-gray-200 text-center px-6">
+      <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+        <i class="pi pi-inbox text-3xl text-gray-400"></i>
+      </div>
+      <p class="font-bold text-gray-700">Aucune offre disponible</p>
+      <p class="text-gray-400 text-sm">Revenez plus tard : les entreprises publient régulièrement de nouvelles offres.</p>
+    </div>
+
+    <!-- Cards -->
+    <div class="flex flex-col gap-4">
+      <div *ngFor="let pub of publications"
+           class="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-5 flex flex-col gap-3">
+
+        <div class="flex items-start gap-3">
+          <div class="w-11 h-11 rounded-full bg-blue-900 text-white flex items-center justify-center
+                      font-bold text-sm flex-shrink-0">
+            {{ getInitiales(pub) }}
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="font-bold text-gray-900 text-sm">{{ pub.auteurNom || 'Entreprise' }}</p>
+            <span class="text-xs text-gray-400 flex items-center gap-1">
+              <i class="pi pi-clock"></i>{{ getTimeAgo(pub.createdAt) }}
+            </span>
+          </div>
+        </div>
+
+        <h3 *ngIf="pub.titre" class="font-bold text-gray-900">{{ pub.titre }}</h3>
+        <p class="text-sm text-gray-700 whitespace-pre-line">{{ pub.contenu }}</p>
+
+        <div *ngIf="pub.mediaUrl" class="mt-1">
+          <img *ngIf="isImage(pub)" [src]="getMediaUrl(pub)" (click)="openMedia(pub)"
+               class="w-full max-h-72 object-cover rounded-lg cursor-pointer border border-gray-100">
+          <button *ngIf="!isImage(pub)" (click)="openMedia(pub)"
+                  class="flex items-center gap-2 text-sm text-blue-700 border border-blue-200 bg-blue-50
+                         rounded-lg px-3 py-2 hover:bg-blue-100 transition">
+            <i class="pi pi-file"></i> Voir la pièce jointe
+          </button>
+        </div>
+
+        <div class="flex justify-end pt-1">
+          <button *ngIf="canContact(pub)" (click)="contacterEntreprise(pub)"
+                  [disabled]="isContactingPublication(pub)"
+                  class="flex items-center gap-2 bg-blue-900 text-white text-sm font-semibold
+                         px-4 py-2 rounded-lg hover:bg-blue-800 transition disabled:opacity-50">
+            <i *ngIf="isContactingPublication(pub)" class="pi pi-spin pi-spinner"></i>
+            <i *ngIf="!isContactingPublication(pub)" class="pi pi-comments"></i>
+            Contacter / Postuler
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>

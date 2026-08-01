@@ -30,6 +30,10 @@ public interface PublicationRepository extends JpaRepository<Publication, Long> 
     @Query("SELECT p FROM Publication p WHERE p.statut = 'PUBLIE' ORDER BY p.createdAt DESC")
     List<Publication> findAllPubliees();
 
+    /** Publications ouvertes aux comptes PARTICULIER (cochées par l'entreprise à la publication). */
+    @Query("SELECT p FROM Publication p WHERE p.statut = 'PUBLIE' AND p.autoriseParticuliers = true ORDER BY p.createdAt DESC")
+    List<Publication> findVisiblePourParticulier();
+
     /** Publications d'un auteur. */
     @Query("SELECT p FROM Publication p WHERE p.auteur.id = :auteurId AND p.statut = 'PUBLIE' ORDER BY p.createdAt DESC")
     List<Publication> findByAuteurId(@Param("auteurId") Long auteurId);

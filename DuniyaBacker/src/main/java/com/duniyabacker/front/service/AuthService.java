@@ -257,7 +257,10 @@ public class AuthService {
             builder.prenom(particulier.getPrenom())
                     .nom(particulier.getNom())
                     .genre(particulier.getGenre())
-                    .secteurActivite(particulier.getSecteurActivite());
+                    .secteurActivite(particulier.getSecteurActivite())
+                    .posteActuel(particulier.getPosteActuel())
+                    .bio(particulier.getBio())
+                    .newsletter(particulier.isNewsletter());
         } else if (user instanceof Employe employe) {
             builder.prenom(employe.getPrenom())
                     .nom(employe.getNom())

@@ -14,10 +14,13 @@ import { AnaleticKpi } from './entreprise/analetic-kpi/analetic-kpi';
 import { Parametres } from './entreprise/parametres/parametres';
 import { Reseau } from './entreprise/reseau/reseau';
 import { ProjetB2b } from './entreprise/projet-b2b/projet-b2b';
-import { AuthGuard, EntrepriseGuard } from './guard/auth-guard';
+import { AuthGuard, EntrepriseGuard, ParticulierGuard } from './guard/auth-guard';
 import {Chat} from './entreprise/chat/chat';
 import { VerifyEmail } from './auth/verify-email/verify-email';
 import { PolitiqueConfidentialite } from './politique-confidentialite/politique-confidentialite';
+import { DashboardParticulier } from './particulier/dashboard-particulier/dashboard-particulier';
+import { MarketplaceParticulier } from './particulier/marketplace-particulier/marketplace-particulier';
+import { ParametresParticulier } from './particulier/parametres-particulier/parametres-particulier';
 
 export const routes: Routes = [
   // Routes publiques
@@ -95,6 +98,29 @@ export const routes: Routes = [
   {
     path: 'accept-invitation',
     component: AcceptInvitation,
+  },
+
+  // Routes particulier (protégées)
+  {
+    path: 'particulier/dashboard',
+    component: DashboardParticulier,
+    canActivate: [ParticulierGuard]
+  },
+  {
+    path: 'particulier/marketplace',
+    component: MarketplaceParticulier,
+    canActivate: [ParticulierGuard]
+  },
+  {
+    path: 'particulier/chat',
+    component: Chat,
+    canActivate: [ParticulierGuard],
+    data: { hideFooter: true }
+  },
+  {
+    path: 'particulier/parametres',
+    component: ParametresParticulier,
+    canActivate: [ParticulierGuard]
   },
 
   // Route par défaut

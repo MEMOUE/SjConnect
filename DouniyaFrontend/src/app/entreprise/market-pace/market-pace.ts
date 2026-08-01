@@ -43,6 +43,7 @@ export class MarketPace implements OnInit {
   readonly MAX_CHARS = 2000;
 
   showTypeDropdown = false;
+  autoriseParticuliers = false;
 
   /**
    * Dérivé de la source de vérité unique SECTEURS_ACTIVITE.
@@ -230,6 +231,7 @@ export class MarketPace implements OnInit {
       mediaUrl:  this.mediaUrl,
       mediaType: this.mediaType,
       mediaNom:  this.mediaNom,
+      autoriseParticuliers: this.autoriseParticuliers,
     };
 
     this.publicationService.createPublication(request).subscribe({
@@ -318,6 +320,7 @@ export class MarketPace implements OnInit {
     this.typesEntreprises.forEach(t => t.checked = false);
     this.removeMedia();
     this.showTypeDropdown = false;
+    this.autoriseParticuliers = false;
   }
 
   // ── Helpers affichage ─────────────────────────────────────────────────────
