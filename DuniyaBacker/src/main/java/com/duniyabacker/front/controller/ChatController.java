@@ -288,6 +288,24 @@ public class ChatController {
     }
 
     // =========================================================================
+    // Recherche d'utilisateur par email
+    // =========================================================================
+
+    @Operation(
+            summary = "Rechercher un utilisateur par email",
+            description = "Recherche un utilisateur existant sur la plateforme par son adresse " +
+                    "email, pour démarrer une nouvelle conversation."
+    )
+    @GetMapping("/users/search-by-email")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> searchUserByEmail(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Parameter(description = "Email de l'utilisateur recherché") @RequestParam String email
+    ) {
+        return ResponseEntity.ok(
+                chatService.searchUserByEmail(userDetails.getUsername(), email));
+    }
+
+    // =========================================================================
     // Message privé
     // =========================================================================
 

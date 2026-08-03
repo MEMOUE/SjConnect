@@ -546,6 +546,29 @@ public class ChatService {
     }
 
     // =========================================================================
+    // Rechercher un utilisateur par email — pour démarrer une nouvelle conversation
+    // =========================================================================
+    @Transactional(readOnly = true)
+    public ApiResponse<Map<String, Object>> searchUserByEmail(String currentUsername, String email) {
+        User currentUser = userRepository.findByUsername(currentUsername)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
+
+        User target = userRepository.findByEmail(email).orElse(null);
+        if (target == null) {
+            return ApiResponse.error("Aucun utilisateur trouvé avec cet email");
+        }
+        if (target.getId().equals(currentUser.getId())) {
+            return ApiResponse.error("Vous ne pouvez pas vous rechercher vous-même");
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("id", target.getId());
+        result.put("nom", getUserDisplayName(target));
+        result.put("email", target.getEmail());
+        return ApiResponse.success("Utilisateur trouvé", result);
+    }
+
+    // =========================================================================
     // Message privé — depuis le panneau Participants d'un groupe
     // =========================================================================
     @Transactional

@@ -64,6 +64,13 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   isLoadingEmployes = false;
   isCreatingConversation = false;
 
+  // ── Recherche d'utilisateur par email ─────────────────────────────────────
+  emailSearchQuery = '';
+  isSearchingUserByEmail = false;
+  emailSearchResult: { id: number; nom: string; email: string } | null = null;
+  emailSearchError = '';
+  isStartingConversationFromEmail = false;
+
   // ── Fichiers & emojis ─────────────────────────────────────────────────────
   selectedFile: File | null = null;
   isUploadingFile = false;
@@ -549,9 +556,68 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     this.isGroupConversation = false;
     this.groupName = '';
     this.selectedParticipants = [];
+    this.resetEmailSearch();
     if (this.availableEmployes.length === 0) {
       this.loadEmployes();
     }
+  }
+
+  // ── Recherche d'utilisateur par email ─────────────────────────────────────
+
+  resetEmailSearch(): void {
+    this.emailSearchQuery = '';
+    this.isSearchingUserByEmail = false;
+    this.emailSearchResult = null;
+    this.emailSearchError = '';
+  }
+
+  searchUserByEmail(): void {
+    const email = this.emailSearchQuery.trim();
+    if (!email || this.isSearchingUserByEmail) return;
+
+    this.isSearchingUserByEmail = true;
+    this.emailSearchResult = null;
+    this.emailSearchError = '';
+
+    const sub = this.chatService.searchUserByEmail(email).subscribe({
+      next: (response) => {
+        this.isSearchingUserByEmail = false;
+        if (response.success && response.data) {
+          this.emailSearchResult = response.data;
+        } else {
+          this.emailSearchError = response.message || 'Aucun utilisateur trouvé avec cet email';
+        }
+      },
+      error: (error) => {
+        this.isSearchingUserByEmail = false;
+        this.emailSearchError = error.error?.message || 'Aucun utilisateur trouvé avec cet email';
+      }
+    });
+    this.subscriptions.push(sub);
+  }
+
+  startConversationFromEmailResult(): void {
+    if (!this.emailSearchResult || this.isStartingConversationFromEmail) return;
+    this.isStartingConversationFromEmail = true;
+
+    const sub = this.chatService.startPrivateConversation(this.emailSearchResult.id).subscribe({
+      next: (response) => {
+        this.isStartingConversationFromEmail = false;
+        this.showNewConversationDialog = false;
+        this.resetEmailSearch();
+        this.loadConversations();
+        setTimeout(() => {
+          const conv = this.conversations.find(c => c.id === (response.data as any)?.id);
+          if (conv) this.selectConversation(conv);
+        }, 500);
+        this.showToast('success', 'Succès', 'Conversation démarrée');
+      },
+      error: (error) => {
+        this.isStartingConversationFromEmail = false;
+        this.showToast('error', 'Erreur', error.error?.message || 'Impossible de démarrer la conversation');
+      }
+    });
+    this.subscriptions.push(sub);
   }
 
   createConversation(): void {

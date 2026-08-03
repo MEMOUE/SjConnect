@@ -36,7 +36,7 @@ public class SharedSpaceService {
     @Transactional
     public SharedResourceResponse createFolder(String username, String name, String desc, Long parentId) {
         User user = getUser(username);
-        Entreprise entreprise = getEntreprise(user);
+        Entreprise entreprise = getEntrepriseOrNull(user);
 
         SharedResource folder = SharedResource.builder()
                 .name(name)
@@ -54,7 +54,7 @@ public class SharedSpaceService {
     public SharedResourceResponse uploadFile(String username, MultipartFile file,
                                              String desc, Long parentId) throws IOException {
         User user = getUser(username);
-        Entreprise entreprise = getEntreprise(user);
+        Entreprise entreprise = getEntrepriseOrNull(user);
 
         String filename = saveFile(file);
 
@@ -75,6 +75,10 @@ public class SharedSpaceService {
 
     public List<SharedResourceResponse> getRootResources(String username) {
         User user = getUser(username);
+        if (user instanceof Particulier) {
+            return repo.findByOwnerAndEntrepriseIsNullAndParentIsNull(user)
+                    .stream().map(this::mapToResponse).collect(Collectors.toList());
+        }
         return repo.findByEntrepriseAndParentIsNull(getEntreprise(user))
                 .stream().map(this::mapToResponse).collect(Collectors.toList());
     }
@@ -88,12 +92,20 @@ public class SharedSpaceService {
 
     public List<SharedResourceResponse> search(String username, String query) {
         User user = getUser(username);
+        if (user instanceof Particulier) {
+            return repo.findByOwnerAndEntrepriseIsNullAndNameContainingIgnoreCase(user, query)
+                    .stream().map(this::mapToResponse).collect(Collectors.toList());
+        }
         return repo.findByEntrepriseAndNameContainingIgnoreCase(getEntreprise(user), query)
                 .stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 
     public List<SharedResourceResponse> getMyResources(String username) {
         User user = getUser(username);
+        if (user instanceof Particulier) {
+            return repo.findAccessibleForParticulier(user.getId())
+                    .stream().map(this::mapToResponse).collect(Collectors.toList());
+        }
         return repo.findAccessible(getEntreprise(user), user.getId())
                 .stream().map(this::mapToResponse).collect(Collectors.toList());
     }
@@ -181,6 +193,10 @@ public class SharedSpaceService {
 
     public List<Map<String, Object>> getEmployeesForShare(String username) {
         User user = getUser(username);
+        if (user instanceof Particulier) {
+            // Pas de structure d'entreprise : rien à proposer pour l'instant.
+            return new ArrayList<>();
+        }
         Entreprise entreprise = getEntreprise(user);
 
         List<Map<String, Object>> result = new ArrayList<>();
@@ -219,6 +235,13 @@ public class SharedSpaceService {
 
     public Stats getStats(String username) {
         User user = getUser(username);
+        if (user instanceof Particulier) {
+            return new Stats(
+                    repo.countByOwnerAndEntrepriseIsNullAndType(user, SharedResource.ResourceType.FOLDER),
+                    repo.countByOwnerAndEntrepriseIsNullAndType(user, SharedResource.ResourceType.FILE),
+                    repo.getTotalStorageForOwner(user)
+            );
+        }
         Entreprise ent = getEntreprise(user);
         return new Stats(
                 repo.countByEntrepriseAndType(ent, SharedResource.ResourceType.FOLDER),
@@ -261,6 +284,12 @@ public class SharedSpaceService {
         if (user instanceof Entreprise e) return e;
         if (user instanceof Employe e) return e.getEntreprise();
         throw new RuntimeException("Seuls les entreprises et employés ont accès à l'espace partagé");
+    }
+
+    /** Comme getEntreprise(), mais renvoie null pour un Particulier au lieu de lever une exception. */
+    private Entreprise getEntrepriseOrNull(User user) {
+        if (user instanceof Particulier) return null;
+        return getEntreprise(user);
     }
 
     private String getUserDisplayName(User user) {

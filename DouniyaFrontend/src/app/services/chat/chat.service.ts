@@ -126,6 +126,14 @@ export class ChatService {
     );
   }
 
+  searchUserByEmail(email: string): Observable<ApiResponse<{ id: number; nom: string; email: string }>> {
+    const params = new HttpParams().set('email', email);
+    return this.http.get<ApiResponse<{ id: number; nom: string; email: string }>>(
+      `${this.apiUrl}/users/search-by-email`,
+      { params }
+    );
+  }
+
   // ============================================
   // MESSAGES
   // ============================================

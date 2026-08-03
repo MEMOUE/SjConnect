@@ -101,8 +101,7 @@ services:
       JAVA_OPTS: ${JAVA_OPTS}
       DOMAIN_FRONTEND: ${DOMAIN_FRONTEND}
     volumes:
-      - ./uploads/actualites:/app/uploads/actualites
-      - ./uploads/directeurs:/app/uploads/directeurs
+      - ./uploads:/app/uploads
       - ./logs:/app/logs
     networks:
       - duniya-network
