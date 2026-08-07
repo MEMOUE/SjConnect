@@ -229,6 +229,7 @@ export class VisioConference implements OnInit, OnDestroy, AfterViewInit {
         disableDeepLinking: true,
         enableWelcomePage: false,
         prejoinPageEnabled: false,
+        prejoinConfig: { enabled: false },
         toolbarButtons: [
           'microphone', 'camera', 'desktop', 'participants-pane',
           'chat', 'recording', 'tileview', 'select-background', 'hangup'
