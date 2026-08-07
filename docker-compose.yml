@@ -180,10 +180,78 @@ services:
       retries: 5
       start_period: 30s
 
+  # ==========================================
+  # JITSI MEET (Visioconférence auto-hébergée)
+  # ==========================================
+  prosody:
+    image: jitsi/prosody:stable
+    container_name: duniya-jitsi-prosody
+    restart: unless-stopped
+    expose:
+      - "5222"
+      - "5347"
+      - "5280"
+    volumes:
+      - jitsi-prosody-config:/config
+    env_file:
+      - jitsi.env
+    networks:
+      - jitsi-net
+
+  jicofo:
+    image: jitsi/jicofo:stable
+    container_name: duniya-jitsi-jicofo
+    restart: unless-stopped
+    depends_on:
+      - prosody
+    env_file:
+      - jitsi.env
+    networks:
+      - jitsi-net
+
+  jvb:
+    image: jitsi/jvb:stable
+    container_name: duniya-jitsi-jvb
+    restart: unless-stopped
+    depends_on:
+      - prosody
+    ports:
+      - "10000:10000/udp"
+    env_file:
+      - jitsi.env
+    networks:
+      - jitsi-net
+
+  jitsi-web:
+    image: jitsi/web:stable
+    container_name: duniya-jitsi-web
+    restart: unless-stopped
+    depends_on:
+      - prosody
+      - jicofo
+      - jvb
+    volumes:
+      - jitsi-web-config:/config
+    env_file:
+      - jitsi.env
+    networks:
+      - jitsi-net
+      - duniya-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jitsiweb.rule=Host(`meet.duniyaconnect.com`)"
+      - "traefik.http.routers.jitsiweb.entrypoints=websecure"
+      - "traefik.http.routers.jitsiweb.tls.certresolver=le"
+      - "traefik.http.services.jitsiweb.loadbalancer.server.port=80"
+
 volumes:
   mysql-data:
   letsencrypt:
+  jitsi-web-config:
+  jitsi-prosody-config:
 
 networks:
   duniya-network:
+    driver: bridge
+  jitsi-net:
     driver: bridge

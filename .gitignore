@@ -1,0 +1,13 @@
+# Secrets et configuration sensible
+.env
+.env.*
+jitsi.env
+!*.env.example
+
+# Uploads et logs runtime
+/uploads/
+/logs/
+
+# Volumes/config Jitsi générés localement
+/jitsi-web-config/
+/jitsi-prosody-config/

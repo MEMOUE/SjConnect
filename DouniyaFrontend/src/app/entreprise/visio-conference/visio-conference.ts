@@ -6,6 +6,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MeetingService, Meeting, CreateMeetingRequest } from '../../services/meeting/meeting.service';
 import { AuthService } from '../../services/auth/auth.service';
+import { environment } from '../../../environments/environment';
 declare var JitsiMeetExternalAPI: any;
 
 @Component({
@@ -243,7 +244,7 @@ export class VisioConference implements OnInit, OnDestroy, AfterViewInit {
     };
 
     try {
-      this.jitsiApi = new JitsiMeetExternalAPI('meet.jit.si', options);
+      this.jitsiApi = new JitsiMeetExternalAPI(environment.jitsiDomain, options);
 
       this.jitsiApi.addEventListener('videoConferenceJoined', () => {
         this.jitsiPret = true;
@@ -301,7 +302,7 @@ export class VisioConference implements OnInit, OnDestroy, AfterViewInit {
 
   // ── Lien partage ───────────────────────────────────────────────────────
   getLienPartage(meeting: Meeting): string {
-    return `https://meet.jit.si/DouniyaConnect-${meeting.roomName}`;
+    return `https://${environment.jitsiDomain}/DouniyaConnect-${meeting.roomName}`;
   }
 
   copierLien(meeting: Meeting): void {
@@ -321,15 +322,15 @@ export class VisioConference implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private extraireRoomName(lien: string): string {
-    if (lien.includes('meet.jit.si/'))
-      return lien.split('meet.jit.si/')[1]?.replace('DouniyaConnect-', '') ?? '';
+    if (lien.includes(`${environment.jitsiDomain}/`))
+      return lien.split(`${environment.jitsiDomain}/`)[1]?.replace('DouniyaConnect-', '') ?? '';
     return lien;
   }
 
   private chargerJitsiScript(): void {
     if (typeof JitsiMeetExternalAPI !== 'undefined') { this.jitsiLoaded = true; return; }
     const script = document.createElement('script');
-    script.src    = 'https://meet.jit.si/external_api.js';
+    script.src    = `https://${environment.jitsiDomain}/external_api.js`;
     script.onload = () => this.jitsiLoaded = true;
     script.onerror = () => this.showToast('error', 'Impossible de charger Jitsi Meet');
     document.head.appendChild(script);
