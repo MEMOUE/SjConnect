@@ -45,6 +45,7 @@ export class VisioConference implements OnInit, OnDestroy, AfterViewInit {
   private jitsiApi: any = null;
   private jitsiLoaded = false;
   private jitsiScriptAttentAttempts = 0;
+  private jitsiScriptLoadAttempts = 0;
   private jitsiJoinTimeoutId: any = null;
   jitsiPret = false;
   jitsiErreur: string | null = null;
@@ -179,6 +180,10 @@ export class VisioConference implements OnInit, OnDestroy, AfterViewInit {
     if (!this.meetingActif) return;
     this.jitsiErreur = null;
     this.jitsiScriptAttentAttempts = 0;
+    if (!this.jitsiLoaded) {
+      this.jitsiScriptLoadAttempts = 0;
+      this.chargerJitsiScript();
+    }
     this.lancerAppel(this.meetingActif);
   }
 
@@ -332,8 +337,16 @@ export class VisioConference implements OnInit, OnDestroy, AfterViewInit {
     if (typeof JitsiMeetExternalAPI !== 'undefined') { this.jitsiLoaded = true; return; }
     const script = document.createElement('script');
     script.src    = `https://${environment.jitsiDomain}/external_api.js`;
-    script.onload = () => this.jitsiLoaded = true;
-    script.onerror = () => this.showToast('error', 'Impossible de charger Jitsi Meet');
+    script.onload = () => { this.jitsiLoaded = true; };
+    script.onerror = () => {
+      script.remove();
+      this.jitsiScriptLoadAttempts++;
+      if (this.jitsiScriptLoadAttempts <= 5) {
+        setTimeout(() => this.chargerJitsiScript(), 2000);
+      } else {
+        this.showToast('error', 'Impossible de charger Jitsi Meet');
+      }
+    };
     document.head.appendChild(script);
   }
 
