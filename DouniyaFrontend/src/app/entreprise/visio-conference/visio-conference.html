@@ -52,8 +52,26 @@
 
     <!-- Container Jitsi -->
     <div class="flex-1 relative bg-gray-900 overflow-hidden">
+      <!-- Erreur de connexion -->
+      <div *ngIf="!jitsiPret && jitsiErreur"
+           class="absolute inset-0 flex flex-col items-center justify-center gap-4 z-10 bg-gray-900 px-6">
+        <div class="w-20 h-20 bg-red-900/60 rounded-full flex items-center justify-center shadow-lg">
+          <i class="pi pi-exclamation-triangle text-red-400 text-3xl"></i>
+        </div>
+        <p class="text-white font-semibold text-lg text-center">{{ jitsiErreur }}</p>
+        <p class="text-gray-400 text-sm font-mono">DouniyaConnect-{{ meetingActif?.roomName }}</p>
+        <button (click)="reessayerConnexion()"
+                class="mt-2 px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-semibold rounded-lg text-sm transition-all">
+          Réessayer
+        </button>
+        <button (click)="terminerAppel()"
+                class="text-gray-400 hover:text-white text-sm underline">
+          Quitter
+        </button>
+      </div>
+
       <!-- Spinner de connexion -->
-      <div *ngIf="!jitsiPret"
+      <div *ngIf="!jitsiPret && !jitsiErreur"
            class="absolute inset-0 flex flex-col items-center justify-center gap-4 z-10 bg-gray-900">
         <div class="w-20 h-20 bg-blue-900/60 rounded-full flex items-center justify-center shadow-lg">
           <i class="pi pi-spin pi-spinner text-yellow-400 text-3xl"></i>

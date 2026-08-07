@@ -43,7 +43,10 @@ export class VisioConference implements OnInit, OnDestroy, AfterViewInit {
   // ── Jitsi ──────────────────────────────────────────────────────────────
   private jitsiApi: any = null;
   private jitsiLoaded = false;
+  private jitsiScriptAttentAttempts = 0;
+  private jitsiJoinTimeoutId: any = null;
   jitsiPret = false;
+  jitsiErreur: string | null = null;
 
   // ── Utilisateur courant ────────────────────────────────────────────────
   nomUtilisateur = 'Utilisateur';
@@ -166,7 +169,16 @@ export class VisioConference implements OnInit, OnDestroy, AfterViewInit {
     this.meetingActif = meeting;
     this.vue = 'appel';
     this.jitsiPret = false;
+    this.jitsiErreur = null;
+    this.jitsiScriptAttentAttempts = 0;
     setTimeout(() => this.initialiserJitsi(meeting.roomName), 300);
+  }
+
+  reessayerConnexion(): void {
+    if (!this.meetingActif) return;
+    this.jitsiErreur = null;
+    this.jitsiScriptAttentAttempts = 0;
+    this.lancerAppel(this.meetingActif);
   }
 
   rejoindreParLien(): void {
@@ -182,10 +194,23 @@ export class VisioConference implements OnInit, OnDestroy, AfterViewInit {
 
   private initialiserJitsi(roomName: string): void {
     if (!this.jitsiLoaded || !this.jitsiContainer?.nativeElement) {
+      this.jitsiScriptAttentAttempts++;
+      if (this.jitsiScriptAttentAttempts > 30) {
+        this.jitsiErreur = 'Impossible de charger le module de visioconférence. Vérifiez votre connexion internet et réessayez.';
+        return;
+      }
       setTimeout(() => this.initialiserJitsi(roomName), 500);
       return;
     }
     this.detruireJitsi();
+    this.jitsiErreur = null;
+
+    if (this.jitsiJoinTimeoutId) clearTimeout(this.jitsiJoinTimeoutId);
+    this.jitsiJoinTimeoutId = setTimeout(() => {
+      if (!this.jitsiPret) {
+        this.jitsiErreur = 'La connexion à la salle prend trop de temps. Vérifiez votre réseau ou réessayez.';
+      }
+    }, 20000);
 
     const options = {
       roomName: `DouniyaConnect-${roomName}`,
@@ -222,7 +247,9 @@ export class VisioConference implements OnInit, OnDestroy, AfterViewInit {
 
       this.jitsiApi.addEventListener('videoConferenceJoined', () => {
         this.jitsiPret = true;
+        this.jitsiErreur = null;
         this.participantsCount = 1;
+        if (this.jitsiJoinTimeoutId) { clearTimeout(this.jitsiJoinTimeoutId); this.jitsiJoinTimeoutId = null; }
       });
       this.jitsiApi.addEventListener('participantJoined',    () => this.participantsCount++);
       this.jitsiApi.addEventListener('participantLeft',      () => {
@@ -232,12 +259,23 @@ export class VisioConference implements OnInit, OnDestroy, AfterViewInit {
       this.jitsiApi.addEventListener('videoMuteStatusChanged',  (e: any) => this.cameraActive  = !e.muted);
       this.jitsiApi.addEventListener('screenSharingStatusChanged', (e: any) => this.partageEcran = e.on);
       this.jitsiApi.addEventListener('readyToClose', () => this.terminerAppel());
+      this.jitsiApi.addEventListener('connectionFailed', () => {
+        this.jitsiErreur = 'La connexion à la salle a échoué. Réessayez.';
+      });
+      this.jitsiApi.addEventListener('errorOccurred', (e: any) => {
+        this.jitsiErreur = 'Une erreur est survenue lors de la connexion à la salle.';
+      });
+      this.jitsiApi.addEventListener('videoConferenceLeft', () => {
+        if (!this.jitsiPret) this.jitsiErreur = 'La connexion à la salle a été interrompue.';
+      });
     } catch {
+      this.jitsiErreur = 'Erreur lors du lancement de la réunion';
       this.showToast('error', 'Erreur lors du lancement de la réunion');
     }
   }
 
   private detruireJitsi(): void {
+    if (this.jitsiJoinTimeoutId) { clearTimeout(this.jitsiJoinTimeoutId); this.jitsiJoinTimeoutId = null; }
     if (this.jitsiApi) {
       try { this.jitsiApi.dispose(); } catch { /* ignore */ }
       this.jitsiApi = null;
