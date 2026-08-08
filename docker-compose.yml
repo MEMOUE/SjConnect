@@ -243,6 +243,7 @@ services:
       - duniya-network
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=duniya-network"
       - "traefik.http.routers.jitsiweb.rule=Host(`meet.duniyaconnect.com`)"
       - "traefik.http.routers.jitsiweb.entrypoints=websecure"
       - "traefik.http.routers.jitsiweb.tls.certresolver=le"
