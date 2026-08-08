@@ -236,7 +236,6 @@ services:
       - jitsi-web-config:/config
       - ./jitsi-web-branding/favicon.ico:/usr/share/jitsi-meet/favicon.ico:ro
       - ./jitsi-web-branding/title.html:/usr/share/jitsi-meet/title.html:ro
-      - ./jitsi-web-branding/watermark.svg:/usr/share/jitsi-meet/images/watermark.svg:ro
     env_file:
       - jitsi.env
     networks:
