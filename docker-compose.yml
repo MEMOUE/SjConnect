@@ -196,7 +196,9 @@ services:
     env_file:
       - jitsi.env
     networks:
-      - jitsi-net
+      jitsi-net:
+        aliases:
+          - xmpp.meet.jitsi
 
   jicofo:
     image: jitsi/jicofo:stable
