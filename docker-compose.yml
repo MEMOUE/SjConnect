@@ -234,6 +234,8 @@ services:
       - jvb
     volumes:
       - jitsi-web-config:/config
+      - ./jitsi-web-branding/favicon.ico:/usr/share/jitsi-meet/favicon.ico:ro
+      - ./jitsi-web-branding/title.html:/usr/share/jitsi-meet/title.html:ro
     env_file:
       - jitsi.env
     networks:
