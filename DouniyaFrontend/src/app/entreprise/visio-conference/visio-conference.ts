@@ -241,8 +241,12 @@ export class VisioConference implements OnInit, OnDestroy, AfterViewInit {
         ]
       },
       interfaceConfigOverwrite: {
-        SHOW_JITSI_WATERMARK: false,
-        SHOW_WATERMARK_FOR_GUESTS: false,
+        SHOW_JITSI_WATERMARK: true,
+        SHOW_WATERMARK_FOR_GUESTS: true,
+        DEFAULT_LOGO_URL: 'images/logo-douniya.png',
+        JITSI_WATERMARK_LINK: 'https://duniyaconnect.com',
+        SHOW_BRAND_WATERMARK: false,
+        SHOW_POWERED_BY: false,
         APP_NAME: 'DouniyaConnect Meeting',
         DEFAULT_BACKGROUND: '#0f2855',
         TOOLBAR_ALWAYS_VISIBLE: false

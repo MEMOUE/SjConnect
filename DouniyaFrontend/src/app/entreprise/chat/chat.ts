@@ -14,6 +14,9 @@ import { TranslationService, Language } from '../../services/translation/transla
 import { Conversation, Message, ChatNotification, Participant } from '../../models/chat.model';
 import { Subscription } from 'rxjs';
 import { EmployeSimple } from '../../models/auth.model';
+import { environment } from '../../../environments/environment';
+
+declare var JitsiMeetExternalAPI: any;
 
 @Component({
   selector: 'app-chat',
@@ -33,6 +36,7 @@ import { EmployeSimple } from '../../models/auth.model';
 export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   @ViewChild('messageContainer') private messageContainer!: ElementRef;
   @ViewChild('fileInput') private fileInput!: ElementRef;
+  @ViewChild('chatJitsiContainer') private chatJitsiContainer!: ElementRef<HTMLDivElement>;
 
   // ── État principal ────────────────────────────────────────────────────────
   conversations: Conversation[] = [];
@@ -122,6 +126,22 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   addMembersSelectedParticipants: EmployeSimple[] = [];
   existingParticipantIds: Set<number> = new Set();
 
+  // ── Appel / visioconférence (Jitsi) ───────────────────────────────────────
+  showCallOverlay = false;
+  callType: 'audio' | 'video' = 'video';
+  private jitsiApi: any = null;
+  private jitsiLoaded = false;
+  private jitsiScriptAttentAttempts = 0;
+  private jitsiScriptLoadAttempts = 0;
+  private jitsiJoinTimeoutId: any = null;
+  jitsiPret = false;
+  jitsiErreur: string | null = null;
+  microActif = true;
+  cameraActive = true;
+  partageEcran = false;
+  callParticipantsCount = 0;
+  callLienCopie = false;
+
   get availableLanguages(): Language[] {
     return this.translationService.languages;
   }
@@ -165,6 +185,7 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     this.connectToWebSocket();
     this.setupWebSocketListeners();
     this.loadEmployes();
+    this.chargerJitsiScript();
 
     // Démarrer le polling automatique
     this.startPolling();
@@ -182,6 +203,7 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     this.subscriptions.forEach(sub => sub.unsubscribe());
     this.chatService.disconnect();
     if (this.typingTimeout) clearTimeout(this.typingTimeout);
+    this.detruireJitsiChat();
   }
 
   // ── POLLING AUTOMATIQUE ───────────────────────────────────────────────────
@@ -1354,6 +1376,180 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     if (users.length === 0) return '';
     if (users.length === 1) return `${users[0]} écrit...`;
     return `${users.length} personnes écrivent...`;
+  }
+
+  // ── Appel / visioconférence (Jitsi) ───────────────────────────────────────
+
+  demarrerAppelAudio(): void { this.demarrerAppel('audio'); }
+  demarrerAppelVideo(): void { this.demarrerAppel('video'); }
+
+  private demarrerAppel(type: 'audio' | 'video'): void {
+    if (!this.selectedConversation) return;
+    this.callType = type;
+    this.showCallOverlay = true;
+    this.jitsiPret = false;
+    this.jitsiErreur = null;
+    this.jitsiScriptAttentAttempts = 0;
+    this.microActif = true;
+    this.cameraActive = type === 'video';
+    this.partageEcran = false;
+    this.callParticipantsCount = 1;
+    setTimeout(() => this.initialiserJitsiChat(this.getCallRoomName()), 300);
+  }
+
+  reessayerAppel(): void {
+    if (!this.selectedConversation) return;
+    this.jitsiErreur = null;
+    this.jitsiScriptAttentAttempts = 0;
+    if (!this.jitsiLoaded) {
+      this.jitsiScriptLoadAttempts = 0;
+      this.chargerJitsiScript();
+    }
+    this.initialiserJitsiChat(this.getCallRoomName());
+  }
+
+  private getCallRoomName(): string {
+    return `DouniyaConnect-chat-${this.selectedConversation!.id}`;
+  }
+
+  private initialiserJitsiChat(roomName: string): void {
+    if (!this.jitsiLoaded || !this.chatJitsiContainer?.nativeElement) {
+      this.jitsiScriptAttentAttempts++;
+      if (this.jitsiScriptAttentAttempts > 30) {
+        this.jitsiErreur = 'Impossible de charger le module d\'appel. Vérifiez votre connexion internet et réessayez.';
+        return;
+      }
+      setTimeout(() => this.initialiserJitsiChat(roomName), 500);
+      return;
+    }
+    this.detruireJitsiChat();
+    this.jitsiErreur = null;
+
+    if (this.jitsiJoinTimeoutId) clearTimeout(this.jitsiJoinTimeoutId);
+    this.jitsiJoinTimeoutId = setTimeout(() => {
+      if (!this.jitsiPret) {
+        this.jitsiErreur = 'La connexion à l\'appel prend trop de temps. Vérifiez votre réseau ou réessayez.';
+      }
+    }, 20000);
+
+    const currentUser = this.authService.getCurrentUserValue();
+    const displayName = currentUser?.nomEntreprise
+      || (currentUser?.prenom && currentUser?.nom ? `${currentUser.prenom} ${currentUser.nom}` : currentUser?.username)
+      || 'Utilisateur';
+
+    const options = {
+      roomName,
+      width: '100%',
+      height: '100%',
+      parentNode: this.chatJitsiContainer.nativeElement,
+      lang: 'fr',
+      userInfo: {
+        displayName,
+        email: currentUser?.email ?? ''
+      },
+      configOverwrite: {
+        startWithAudioMuted: false,
+        startWithVideoMuted: this.callType === 'audio',
+        disableDeepLinking: true,
+        enableWelcomePage: false,
+        prejoinPageEnabled: false,
+        prejoinConfig: { enabled: false },
+        toolbarButtons: [
+          'microphone', 'camera', 'desktop', 'participants-pane',
+          'chat', 'tileview', 'select-background', 'hangup'
+        ]
+      },
+      interfaceConfigOverwrite: {
+        SHOW_JITSI_WATERMARK: true,
+        SHOW_WATERMARK_FOR_GUESTS: true,
+        DEFAULT_LOGO_URL: 'images/logo-douniya.png',
+        JITSI_WATERMARK_LINK: 'https://duniyaconnect.com',
+        SHOW_BRAND_WATERMARK: false,
+        SHOW_POWERED_BY: false,
+        APP_NAME: 'DouniyaConnect',
+        DEFAULT_BACKGROUND: '#0f2855',
+        TOOLBAR_ALWAYS_VISIBLE: false
+      }
+    };
+
+    try {
+      this.jitsiApi = new JitsiMeetExternalAPI(environment.jitsiDomain, options);
+
+      this.jitsiApi.addEventListener('videoConferenceJoined', () => {
+        this.jitsiPret = true;
+        this.jitsiErreur = null;
+        this.callParticipantsCount = 1;
+        if (this.jitsiJoinTimeoutId) { clearTimeout(this.jitsiJoinTimeoutId); this.jitsiJoinTimeoutId = null; }
+      });
+      this.jitsiApi.addEventListener('participantJoined', () => this.callParticipantsCount++);
+      this.jitsiApi.addEventListener('participantLeft', () => {
+        this.callParticipantsCount = Math.max(0, this.callParticipantsCount - 1);
+      });
+      this.jitsiApi.addEventListener('audioMuteStatusChanged', (e: any) => this.microActif = !e.muted);
+      this.jitsiApi.addEventListener('videoMuteStatusChanged', (e: any) => this.cameraActive = !e.muted);
+      this.jitsiApi.addEventListener('screenSharingStatusChanged', (e: any) => this.partageEcran = e.on);
+      this.jitsiApi.addEventListener('readyToClose', () => this.terminerAppelChat());
+      this.jitsiApi.addEventListener('connectionFailed', () => {
+        this.jitsiErreur = 'La connexion à l\'appel a échoué. Réessayez.';
+      });
+      this.jitsiApi.addEventListener('errorOccurred', () => {
+        this.jitsiErreur = 'Une erreur est survenue lors de la connexion à l\'appel.';
+      });
+      this.jitsiApi.addEventListener('videoConferenceLeft', () => {
+        if (!this.jitsiPret) this.jitsiErreur = 'La connexion à l\'appel a été interrompue.';
+      });
+    } catch {
+      this.jitsiErreur = 'Erreur lors du lancement de l\'appel';
+      this.showToast('error', 'Erreur', 'Impossible de démarrer l\'appel');
+    }
+  }
+
+  private detruireJitsiChat(): void {
+    if (this.jitsiJoinTimeoutId) { clearTimeout(this.jitsiJoinTimeoutId); this.jitsiJoinTimeoutId = null; }
+    if (this.jitsiApi) {
+      try { this.jitsiApi.dispose(); } catch { /* ignore */ }
+      this.jitsiApi = null;
+    }
+    this.jitsiPret = false;
+  }
+
+  terminerAppelChat(): void {
+    this.detruireJitsiChat();
+    this.showCallOverlay = false;
+  }
+
+  toggleMicroAppel(): void { if (this.jitsiApi) this.jitsiApi.executeCommand('toggleAudio'); }
+  toggleCameraAppel(): void { if (this.jitsiApi) this.jitsiApi.executeCommand('toggleVideo'); }
+  togglePartageEcranAppel(): void { if (this.jitsiApi) this.jitsiApi.executeCommand('toggleShareScreen'); }
+
+  getCallLink(): string {
+    if (!this.selectedConversation) return '';
+    return `https://${environment.jitsiDomain}/${this.getCallRoomName()}`;
+  }
+
+  copierLienAppel(): void {
+    const lien = this.getCallLink();
+    if (!lien) return;
+    navigator.clipboard.writeText(lien).then(() => {
+      this.callLienCopie = true;
+      this.showToast('success', 'Copié', 'Lien de l\'appel copié !');
+      setTimeout(() => this.callLienCopie = false, 2000);
+    });
+  }
+
+  private chargerJitsiScript(): void {
+    if (typeof JitsiMeetExternalAPI !== 'undefined') { this.jitsiLoaded = true; return; }
+    const script = document.createElement('script');
+    script.src = `https://${environment.jitsiDomain}/external_api.js`;
+    script.onload = () => { this.jitsiLoaded = true; };
+    script.onerror = () => {
+      script.remove();
+      this.jitsiScriptLoadAttempts++;
+      if (this.jitsiScriptLoadAttempts <= 5) {
+        setTimeout(() => this.chargerJitsiScript(), 2000);
+      }
+    };
+    document.head.appendChild(script);
   }
 
   // ── Utilitaires ───────────────────────────────────────────────────────────
