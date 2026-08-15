@@ -54,7 +54,8 @@ public class SecurityConfig {
                                 "/api/projets-b2b/**",
                                 "/uploads/**",
                                 "/api/shared/view/**",
-                                "/api/shared/download/**"
+                                "/api/shared/download/**",
+                                "/ws/**"
 
                         ).permitAll()
 

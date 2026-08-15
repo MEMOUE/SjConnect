@@ -20,6 +20,7 @@ import java.time.LocalDateTime;
  *  - USER_ONLINE       : un utilisateur est connecté
  *  - USER_OFFLINE      : un utilisateur s'est déconnecté
  *  - CONVERSATION_DELETED : une conversation a été supprimée
+ *  - CALL_STARTED      : un appel/visioconférence vient d'être démarré
  */
 @Data
 @Builder
@@ -40,4 +41,8 @@ public class ChatNotification {
     private Long userId;
     private String username;
     private LocalDateTime timestamp;
+
+    /** Utilisés par CALL_STARTED : lien de connexion et type d'appel ("audio"/"video"). */
+    private String callLink;
+    private String callType;
 }

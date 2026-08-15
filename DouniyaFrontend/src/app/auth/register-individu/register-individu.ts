@@ -11,6 +11,7 @@ import { Toast } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { AuthService } from '../../services/auth/auth.service';
 import { RegisterParticulierRequest } from '../../models/auth.model';
+import { passwordComplexityValidators } from '../../shared/validators/password.validator';
 
 @Component({
   selector: 'app-register-individu',
@@ -69,7 +70,7 @@ export class RegisterIndividu {
       secteurActivite: ['', Validators.required],
       posteActuel: [''],
       username: ['', Validators.required],
-      password: ['', [Validators.required, Validators.minLength(8)]],
+      password: ['', passwordComplexityValidators()],
       confirmPassword: ['', Validators.required],
       acceptTerms: [false, Validators.requiredTrue],
       newsletter: [false]

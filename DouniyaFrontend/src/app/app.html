@@ -1,3 +1,27 @@
+<p-toast position="top-right">
+  <ng-template let-message pTemplate="message">
+    <div class="flex flex-col gap-2 w-full">
+      <div class="flex items-start gap-2">
+        <i class="pi" [ngClass]="{
+          'pi-check-circle text-green-500': message.severity === 'success',
+          'pi-times-circle text-red-500': message.severity === 'error',
+          'pi-info-circle text-blue-500': message.severity === 'info',
+          'pi-exclamation-triangle text-yellow-500': message.severity === 'warn'
+        }"></i>
+        <div class="flex-1">
+          <p class="font-semibold text-sm">{{ message.summary }}</p>
+          <p class="text-sm text-gray-600">{{ message.detail }}</p>
+        </div>
+      </div>
+      <button *ngIf="message.data?.conversationId"
+              (click)="goToChat()"
+              class="self-end bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
+        Ouvrir la conversation
+      </button>
+    </div>
+  </ng-template>
+</p-toast>
+
 <header *ngIf="!isAuthenticated()" class="bg-white shadow-md sticky top-0 z-50">
   <nav class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
     <div class="flex h-16 justify-between items-center">

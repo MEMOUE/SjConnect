@@ -288,7 +288,7 @@
                     <i class="pi pi-lock-open absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
                     <input [(ngModel)]="pwd.newPwd"
                            [type]="showNew ? 'text' : 'password'"
-                           placeholder="Minimum 8 caractères"
+                           placeholder="8 à 12 caractères, lettre + chiffre + caractère spécial"
                            class="w-full pl-9 pr-11 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                     <button type="button" (click)="showNew = !showNew"
                             class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">

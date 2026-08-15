@@ -119,6 +119,35 @@ public class EmailService {
         sendHtmlEmail(toEmail, subject, content);
     }
 
+    @Async
+    public void sendCallInvitationEmail(String toEmail, String inviterName, String conversationName, String callLink) {
+        String subject = inviterName + " vous invite à un appel DouniyaConnect";
+
+        String content = """
+            <html>
+            <body style="font-family: Arial, sans-serif;">
+                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <h2 style="color: #2563eb;">Invitation à un appel</h2>
+                    <p><strong>%s</strong> vous invite à rejoindre un appel (%s) sur DouniyaConnect.</p>
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="%s" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">
+                            Rejoindre l'appel
+                        </a>
+                    </div>
+                    <p>Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :</p>
+                    <p style="color: #6b7280; word-break: break-all;">%s</p>
+                    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+                    <p style="color: #9ca3af; font-size: 12px;">
+                        Si vous ne reconnaissez pas cette invitation, ignorez cet email.
+                    </p>
+                </div>
+            </body>
+            </html>
+            """.formatted(inviterName, conversationName, callLink, callLink);
+
+        sendHtmlEmail(toEmail, subject, content);
+    }
+
     private void sendHtmlEmail(String to, String subject, String htmlContent) {
         try {
             MimeMessage message = mailSender.createMimeMessage();

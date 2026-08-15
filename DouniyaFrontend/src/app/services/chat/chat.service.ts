@@ -23,6 +23,8 @@ export class ChatService {
   public  onMessageEdited$          = this.messageEditedSubject.asObservable();
   private messageDeletedSubject     = new Subject<ChatNotification>();
   public  onMessageDeleted$         = this.messageDeletedSubject.asObservable();
+  private callStartedSubject        = new Subject<ChatNotification>();
+  public  onCallStarted$            = this.callStartedSubject.asObservable();
 
   /** true uniquement si STOMP est réellement connecté (pas le fallback) */
   private realWebSocket = false;
@@ -200,11 +202,31 @@ export class ChatService {
     );
   }
 
+  inviteToCall(conversationId: number, email: string, callLink: string): Observable<ApiResponse<void>> {
+    return this.http.post<ApiResponse<void>>(
+      `${this.apiUrl}/conversations/${conversationId}/invite-call`,
+      { email, callLink }
+    );
+  }
+
+  notifyCallStarted(conversationId: number, callLink: string, callType: string): Observable<ApiResponse<void>> {
+    return this.http.post<ApiResponse<void>>(
+      `${this.apiUrl}/conversations/${conversationId}/call-started`,
+      { callLink, callType }
+    );
+  }
+
   // ============================================
   // WEBSOCKET
   // ============================================
 
+  /** Évite d'ouvrir plusieurs connexions STOMP si connect() est appelé depuis plusieurs endroits. */
+  private connectionInitiated = false;
+
   connect(): void {
+    if (this.connectionInitiated) return;
+    this.connectionInitiated = true;
+
     import('@stomp/stompjs')
       .then(({ Client }) =>
         import('sockjs-client').then(SockJSModule => {
@@ -249,6 +271,9 @@ export class ChatService {
                   break;
                 case 'MESSAGE_DELETED':
                   this.messageDeletedSubject.next(notif);
+                  break;
+                case 'CALL_STARTED':
+                  this.callStartedSubject.next(notif);
                   break;
               }
             });
@@ -300,6 +325,7 @@ export class ChatService {
   disconnect(): void {
     if (this.stompClient?.active) this.stompClient.deactivate();
     this.realWebSocket = false;
+    this.connectionInitiated = false;
     this.isConnectedSubject.next(false);
     this.subscribedConversations.clear();
   }

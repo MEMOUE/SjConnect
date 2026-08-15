@@ -14,6 +14,7 @@ import { MessageService } from 'primeng/api';
 import { AuthService } from '../../services/auth/auth.service';
 import { RegisterEntrepriseRequest } from '../../models/auth.model';
 import { SECTEURS_ACTIVITE_OPTIONS } from '../../shared/constants/secteurs-activite';
+import { passwordComplexityValidators } from '../../shared/validators/password.validator';
 
 @Component({
   selector: 'app-register-entrprise',
@@ -63,7 +64,7 @@ export class RegisterEntrprise {
       telephone: ['', Validators.required],
       email: ['', [Validators.required, Validators.email]],
       username: ['', Validators.required],
-      password: ['', [Validators.required, Validators.minLength(8)]],
+      password: ['', passwordComplexityValidators()],
       confirmPassword: ['', Validators.required],
       acceptTerms: [false, Validators.requiredTrue],
       numeroRegistreCommerce: [''],

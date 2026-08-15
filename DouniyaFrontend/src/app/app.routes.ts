@@ -17,6 +17,8 @@ import { ProjetB2b } from './entreprise/projet-b2b/projet-b2b';
 import { EntrepriseGuard, EntrepriseEmployeGuard, ParticulierGuard } from './guard/auth-guard';
 import {Chat} from './entreprise/chat/chat';
 import { VerifyEmail } from './auth/verify-email/verify-email';
+import { ForgotPassword } from './auth/forgot-password/forgot-password';
+import { ResetPassword } from './auth/reset-password/reset-password';
 import { PolitiqueConfidentialite } from './politique-confidentialite/politique-confidentialite';
 import { DashboardParticulier } from './particulier/dashboard-particulier/dashboard-particulier';
 import { MarketplaceParticulier } from './particulier/marketplace-particulier/marketplace-particulier';
@@ -31,6 +33,8 @@ export const routes: Routes = [
   { path: 'inscription-entreprise', component: RegisterEntrprise },
   { path: 'inscription-individu', component: RegisterIndividu },
   { path: 'connexion', component: Login },
+  { path: 'mot-de-passe-oublie', component: ForgotPassword },
+  { path: 'reset-password', component: ResetPassword },
   { path: 'accept-invitation', component: AcceptInvitation },
   { path: 'politique-confidentialite', component: PolitiqueConfidentialite },
 

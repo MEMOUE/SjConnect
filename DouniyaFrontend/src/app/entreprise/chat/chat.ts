@@ -11,6 +11,7 @@ import { ChatService } from '../../services/chat/chat.service';
 import { EmployeService } from '../../services/auth/employe.service';
 import { AuthService } from '../../services/auth/auth.service';
 import { TranslationService, Language } from '../../services/translation/translation.service';
+import { NotificationCenterService } from '../../services/notification-center/notification-center.service';
 import { Conversation, Message, ChatNotification, Participant } from '../../models/chat.model';
 import { Subscription } from 'rxjs';
 import { EmployeSimple } from '../../models/auth.model';
@@ -141,6 +142,9 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   partageEcran = false;
   callParticipantsCount = 0;
   callLienCopie = false;
+  showInviteCallPanel = false;
+  inviteCallEmail = '';
+  isInvitingToCall = false;
 
   get availableLanguages(): Language[] {
     return this.translationService.languages;
@@ -165,7 +169,8 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     private confirmationService: ConfirmationService,
     private route: ActivatedRoute,
     private router: Router,
-    public translationService: TranslationService
+    public translationService: TranslationService,
+    private notificationCenter: NotificationCenterService
   ) {}
 
   ngOnInit(): void {
@@ -201,7 +206,9 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   ngOnDestroy(): void {
     this.stopPolling();
     this.subscriptions.forEach(sub => sub.unsubscribe());
-    this.chatService.disconnect();
+    // La connexion WebSocket reste active (gérée par NotificationCenterService)
+    // pour continuer à recevoir messages/appels en dehors de la page chat.
+    this.notificationCenter.setActiveConversationId(null);
     if (this.typingTimeout) clearTimeout(this.typingTimeout);
     this.detruireJitsiChat();
   }
@@ -538,12 +545,43 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
       next: (notification: ChatNotification) => this.handleMessageDeleted(notification)
     });
     this.subscriptions.push(deleteSub);
+
+    const callStartedSub = this.chatService.onCallStarted$.subscribe({
+      next: (notification: ChatNotification) => this.handleCallStarted(notification)
+    });
+    this.subscriptions.push(callStartedSub);
+  }
+
+  handleCallStarted(notification: ChatNotification): void {
+    if (this.showCallOverlay) return;
+
+    const conversation = this.conversations.find(c => c.id === notification.conversationId);
+    const callerName = conversation?.participants?.find(p => p.username === notification.username)?.name
+      || notification.username
+      || 'Quelqu\'un';
+    const conversationName = conversation?.name || 'une conversation';
+
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Appel en cours',
+      detail: `${callerName} a démarré un appel dans ${conversationName}`,
+      sticky: true,
+      data: { conversationId: notification.conversationId, callLink: notification.callLink }
+    });
+  }
+
+  rejoindreAppelDepuisNotification(conversationId: number): void {
+    const conversation = this.conversations.find(c => c.id === conversationId);
+    if (!conversation) return;
+    this.selectConversation(conversation);
+    this.demarrerAppelVideo();
   }
 
   // ── Gestion des conversations ─────────────────────────────────────────────
 
   selectConversation(conversation: Conversation): void {
     this.selectedConversation = conversation;
+    this.notificationCenter.setActiveConversationId(conversation.id);
     conversation.unreadCount = 0;
     this.messages = [];
     this.translatedContents.clear();
@@ -1361,12 +1399,15 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   handleUserStatusChange(notification: ChatNotification): void {
+    const isOnline = notification.type === 'USER_ONLINE';
+
     this.conversations.forEach(conv => {
-      if (!conv.isGroup && conv.participants) {
-        const participant = conv.participants.find(p => p.username === notification.username);
-        if (participant) {
-          conv.isOnline = notification.type === 'USER_ONLINE';
-        }
+      const participant = conv.participants?.find(p => p.username === notification.username);
+      if (participant) {
+        participant.isOnline = isOnline;
+      }
+      if (!conv.isGroup && participant) {
+        conv.isOnline = isOnline;
       }
     });
   }
@@ -1394,6 +1435,8 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     this.cameraActive = type === 'video';
     this.partageEcran = false;
     this.callParticipantsCount = 1;
+    this.showInviteCallPanel = false;
+    this.inviteCallEmail = '';
     setTimeout(() => this.initialiserJitsiChat(this.getCallRoomName()), 300);
   }
 
@@ -1476,10 +1519,12 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
       this.jitsiApi = new JitsiMeetExternalAPI(environment.jitsiDomain, options);
 
       this.jitsiApi.addEventListener('videoConferenceJoined', () => {
+        const dejaConnecte = this.jitsiPret;
         this.jitsiPret = true;
         this.jitsiErreur = null;
         this.callParticipantsCount = 1;
         if (this.jitsiJoinTimeoutId) { clearTimeout(this.jitsiJoinTimeoutId); this.jitsiJoinTimeoutId = null; }
+        if (!dejaConnecte) this.notifierLancementAppel();
       });
       this.jitsiApi.addEventListener('participantJoined', () => this.callParticipantsCount++);
       this.jitsiApi.addEventListener('participantLeft', () => {
@@ -1534,6 +1579,42 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
       this.callLienCopie = true;
       this.showToast('success', 'Copié', 'Lien de l\'appel copié !');
       setTimeout(() => this.callLienCopie = false, 2000);
+    });
+  }
+
+  private notifierLancementAppel(): void {
+    if (!this.selectedConversation) return;
+    this.chatService.notifyCallStarted(
+      this.selectedConversation.id, this.getCallLink(), this.callType
+    ).subscribe({ error: () => { /* non bloquant */ } });
+  }
+
+  toggleInviteCallPanel(): void {
+    this.showInviteCallPanel = !this.showInviteCallPanel;
+  }
+
+  envoyerInvitationAppel(): void {
+    const email = this.inviteCallEmail.trim();
+    if (!email || !this.selectedConversation) return;
+
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(email)) {
+      this.showToast('error', 'Email invalide', 'Veuillez saisir une adresse email valide');
+      return;
+    }
+
+    this.isInvitingToCall = true;
+    this.chatService.inviteToCall(this.selectedConversation.id, email, this.getCallLink()).subscribe({
+      next: () => {
+        this.isInvitingToCall = false;
+        this.showToast('success', 'Invitation envoyée', `Un lien de connexion a été envoyé à ${email}`);
+        this.inviteCallEmail = '';
+        this.showInviteCallPanel = false;
+      },
+      error: (err) => {
+        this.isInvitingToCall = false;
+        this.showToast('error', 'Erreur', err.error?.message || 'Impossible d\'envoyer l\'invitation');
+      }
     });
   }
 

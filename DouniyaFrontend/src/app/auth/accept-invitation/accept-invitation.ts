@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { EmployeService } from '../../services/auth/employe.service';
 import { AcceptInvitationRequest } from '../../models/auth.model';
+import { PASSWORD_PATTERN, PASSWORD_HINT } from '../../shared/validators/password.validator';
 
 @Component({
   selector: 'app-accept-invitation',
@@ -75,8 +76,8 @@ export class AcceptInvitation implements OnInit {
       this.errorMessage = 'Le nom d\'utilisateur doit contenir au moins 3 caractères.';
       return;
     }
-    if (this.password.length < 8) {
-      this.errorMessage = 'Le mot de passe doit contenir au moins 8 caractères.';
+    if (this.password.length < 8 || this.password.length > 12 || !PASSWORD_PATTERN.test(this.password)) {
+      this.errorMessage = PASSWORD_HINT;
       return;
     }
     if (!this.passwordsMatch) {

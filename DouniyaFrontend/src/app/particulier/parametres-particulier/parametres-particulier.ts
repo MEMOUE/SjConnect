@@ -8,6 +8,7 @@ import { ParticulierService } from '../../services/particulier/particulier.servi
 import { UserResponse } from '../../models/auth.model';
 import { SECTEURS_ACTIVITE } from '../../shared/constants/secteurs-activite';
 import { ParticulierNav } from '../particulier-nav/particulier-nav';
+import { PASSWORD_PATTERN, PASSWORD_HINT } from '../../shared/validators/password.validator';
 
 type Section = 'profil' | 'securite' | 'compte';
 
@@ -110,9 +111,10 @@ export class ParametresParticulier implements OnInit, OnDestroy {
   }
 
   savePassword(): void {
-    if (!this.pwd.current)                              return this.flash('error', 'Mot de passe actuel requis.');
-    if (!this.pwd.newPwd || this.pwd.newPwd.length < 8)  return this.flash('error', 'Nouveau mot de passe : min 8 caractères.');
-    if (this.pwd.newPwd !== this.pwd.confirm)            return this.flash('error', 'Les mots de passe ne correspondent pas.');
+    if (!this.pwd.current)                                              return this.flash('error', 'Mot de passe actuel requis.');
+    if (!this.pwd.newPwd || this.pwd.newPwd.length < 8 || this.pwd.newPwd.length > 12) return this.flash('error', PASSWORD_HINT);
+    if (!PASSWORD_PATTERN.test(this.pwd.newPwd))                        return this.flash('error', PASSWORD_HINT);
+    if (this.pwd.newPwd !== this.pwd.confirm)                           return this.flash('error', 'Les mots de passe ne correspondent pas.');
 
     this.isSaving = true;
     this.particulierService.changePassword({

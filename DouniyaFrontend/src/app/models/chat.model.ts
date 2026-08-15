@@ -55,6 +55,8 @@ export interface ChatNotification {
     conversationId: number;
     isEdited?: boolean;
   };
+  callLink?: string;
+  callType?: string;
 }
 
 export interface ApiResponse<T> {

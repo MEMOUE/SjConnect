@@ -6,6 +6,7 @@ import { Subscription } from 'rxjs';
 import { AuthService } from '../../services/auth/auth.service';
 import { UserResponse } from '../../models/auth.model';
 import { environment } from '../../../environments/environment';
+import { PASSWORD_PATTERN, PASSWORD_HINT } from '../../shared/validators/password.validator';
 
 type Section = 'company' | 'security' | 'notifications' | 'appearance' | 'api';
 
@@ -208,9 +209,10 @@ export class Parametres implements OnInit, OnDestroy {
   /* ════════════ SAUVEGARDE — MOT DE PASSE ════════════ */
 
   savePassword(): void {
-    if (!this.pwd.current)                              return this.flash('error', 'Mot de passe actuel requis.');
-    if (!this.pwd.newPwd || this.pwd.newPwd.length < 8) return this.flash('error', 'Nouveau mot de passe : min 8 caractères.');
-    if (this.pwd.newPwd !== this.pwd.confirm)           return this.flash('error', 'Les mots de passe ne correspondent pas.');
+    if (!this.pwd.current)                                              return this.flash('error', 'Mot de passe actuel requis.');
+    if (!this.pwd.newPwd || this.pwd.newPwd.length < 8 || this.pwd.newPwd.length > 12) return this.flash('error', PASSWORD_HINT);
+    if (!PASSWORD_PATTERN.test(this.pwd.newPwd))                        return this.flash('error', PASSWORD_HINT);
+    if (this.pwd.newPwd !== this.pwd.confirm)                           return this.flash('error', 'Les mots de passe ne correspondent pas.');
 
     this.isSaving = true;
     this.http.post(`${environment.apiUrl}/entreprise/change-password`, {

@@ -37,6 +37,8 @@ public class ChatService {
     private final EntrepriseRepository entrepriseRepository;
     private final EmployeRepository employeRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final PresenceService presenceService;
+    private final EmailService emailService;
 
     // =========================================================================
     // Créer une nouvelle conversation (usage interne / général)
@@ -732,6 +734,76 @@ public class ChatService {
     }
 
     // =========================================================================
+    // Notifier les participants du lancement d'un appel
+    // =========================================================================
+    public ApiResponse<Void> notifyCallStarted(
+            String username,
+            Long conversationId,
+            String callLink,
+            String callType
+    ) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
+
+        Conversation conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Conversation non trouvée"));
+
+        if (!conversationRepository.isUserParticipant(conversationId, user.getId())) {
+            throw new ForbiddenException("Vous n'êtes pas participant de cette conversation");
+        }
+
+        ChatNotification notification = ChatNotification.builder()
+                .type("CALL_STARTED")
+                .conversationId(conversationId)
+                .userId(user.getId())
+                .username(user.getUsername())
+                .callLink(callLink)
+                .callType(callType)
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        conversation.getParticipants().forEach(participant -> {
+            if (!participant.getId().equals(user.getId())) {
+                messagingTemplate.convertAndSendToUser(
+                        participant.getUsername(), "/queue/messages", notification);
+            }
+        });
+
+        messagingTemplate.convertAndSend("/topic/conversation/" + conversationId, notification);
+
+        return ApiResponse.success("Notification envoyée");
+    }
+
+    // =========================================================================
+    // Inviter une personne (par email) à rejoindre un appel en cours
+    // =========================================================================
+    public ApiResponse<Void> inviteToCall(
+            String username,
+            Long conversationId,
+            String email,
+            String callLink
+    ) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
+
+        Conversation conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Conversation non trouvée"));
+
+        if (!conversationRepository.isUserParticipant(conversationId, user.getId())) {
+            throw new ForbiddenException("Vous n'êtes pas participant de cette conversation");
+        }
+
+        String inviterName = getUserDisplayName(user);
+        String conversationName = conversation.isGroup()
+                ? conversation.getName()
+                : "un appel privé";
+
+        emailService.sendCallInvitationEmail(email, inviterName, conversationName, callLink);
+
+        return ApiResponse.success("Invitation envoyée à " + email);
+    }
+
+    // =========================================================================
     // Rechercher des conversations
     // =========================================================================
     public List<ConversationResponse> searchConversations(String username, String searchTerm) {
@@ -808,6 +880,7 @@ public class ChatService {
             if (otherUser != null) {
                 conversationName = getUserDisplayName(otherUser);
                 avatar = getInitials(conversationName);
+                isOnline = presenceService.isOnline(otherUser.getUsername());
             }
         }
 
@@ -869,7 +942,7 @@ public class ChatService {
                 .email(user.getEmail())
                 .name(name)
                 .avatar(avatar)
-                .isOnline(false)
+                .isOnline(presenceService.isOnline(user.getUsername()))
                 .role(role)
                 .build();
     }

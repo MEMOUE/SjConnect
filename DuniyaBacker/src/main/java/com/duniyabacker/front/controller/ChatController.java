@@ -1,5 +1,7 @@
 package com.duniyabacker.front.controller;
 
+import com.duniyabacker.front.dto.request.CallInviteRequest;
+import com.duniyabacker.front.dto.request.CallStartedRequest;
 import com.duniyabacker.front.dto.request.CreateConversationRequest;
 import com.duniyabacker.front.dto.response.ApiResponse;
 import com.duniyabacker.front.dto.response.ConversationResponse;
@@ -322,6 +324,46 @@ public class ChatController {
         return ResponseEntity.ok(
                 chatService.createOrGetPrivateConversation(
                         userDetails.getUsername(), targetUserId));
+    }
+
+    // =========================================================================
+    // Inviter une personne par email à un appel en cours
+    // =========================================================================
+
+    @Operation(
+            summary = "Inviter par email à un appel",
+            description = "Envoie par email un lien pour rejoindre l'appel en cours dans une conversation"
+    )
+    @PostMapping("/conversations/{conversationId}/invite-call")
+    public ResponseEntity<ApiResponse<Void>> inviteToCall(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long conversationId,
+            @Valid @RequestBody CallInviteRequest request
+    ) {
+        return ResponseEntity.ok(
+                chatService.inviteToCall(
+                        userDetails.getUsername(), conversationId,
+                        request.getEmail(), request.getCallLink()));
+    }
+
+    // =========================================================================
+    // Notifier le lancement d'un appel aux participants de la conversation
+    // =========================================================================
+
+    @Operation(
+            summary = "Notifier le lancement d'un appel",
+            description = "Envoie à tous les participants de la conversation un lien pour rejoindre l'appel qui vient de démarrer"
+    )
+    @PostMapping("/conversations/{conversationId}/call-started")
+    public ResponseEntity<ApiResponse<Void>> notifyCallStarted(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long conversationId,
+            @Valid @RequestBody CallStartedRequest request
+    ) {
+        return ResponseEntity.ok(
+                chatService.notifyCallStarted(
+                        userDetails.getUsername(), conversationId,
+                        request.getCallLink(), request.getCallType()));
     }
 }
 

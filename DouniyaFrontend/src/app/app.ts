@@ -2,8 +2,10 @@ import { Component, signal } from '@angular/core';
 import {ActivatedRoute, NavigationEnd, Router} from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { Toast } from 'primeng/toast';
 import { Footer } from './footer/footer';
 import { AuthService } from './services/auth/auth.service';
+import { NotificationCenterService } from './services/notification-center/notification-center.service';
 import {filter, mergeMap} from 'rxjs';
 import {map} from 'rxjs/operators';
 
@@ -15,6 +17,7 @@ import {map} from 'rxjs/operators';
     RouterOutlet,
     RouterLink,
     RouterLinkActive,
+    Toast,
   ],
   templateUrl: './app.html',
   styleUrl: './app.css'
@@ -29,7 +32,8 @@ export class App {
   constructor(
     private authService: AuthService,
     private router: Router,
-    private activatedRoute: ActivatedRoute
+    private activatedRoute: ActivatedRoute,
+    private notificationCenter: NotificationCenterService
   ) {
     // Logique pour détecter le flag hideFooter
     this.router.events.pipe(
@@ -44,6 +48,15 @@ export class App {
       // Si hideFooter est à true dans la route, on met showFooter à false
       this.showFooter.set(data['hideFooter'] !== true);
     });
+
+    // Notifications temps réel (messages/appels) tant que l'utilisateur est connecté
+    this.authService.currentUser$.subscribe(user => {
+      if (user) {
+        this.notificationCenter.start();
+      } else {
+        this.notificationCenter.stop();
+      }
+    });
   }
 
   // 🔐 connecté si token présent dans localStorage
@@ -57,6 +70,11 @@ export class App {
 
   closeMobileMenu() {
     this.mobileMenuOpen.set(false);
+  }
+
+  goToChat(): void {
+    const isParticulier = this.authService.isParticulier();
+    this.router.navigate([isParticulier ? '/particulier/chat' : '/entreprise/chat']);
   }
 
   logout() {
