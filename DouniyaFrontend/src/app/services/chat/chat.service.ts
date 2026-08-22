@@ -240,14 +240,20 @@ export class ChatService {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private initStomp(Client: any, SockJS: any): void {
-    const token = localStorage.getItem('accessToken');
-
     this.stompClient = new Client({
       webSocketFactory: () => new SockJS(this.wsUrl),
-      connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
+
+      // Relit le token à chaque tentative de connexion (y compris les
+      // reconnexions automatiques de stomp.js) : connectHeaders figé une
+      // seule fois enverrait un JWT périmé après un refresh token, et le
+      // backend acceptait alors la session sans Principal (présence cassée).
+      beforeConnect: () => {
+        const token = localStorage.getItem('accessToken');
+        this.stompClient.connectHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+      },
 
       onConnect: () => {
         this.subscribedConversations.clear();
