@@ -151,12 +151,8 @@ export class ParametresParticulier implements OnInit, OnDestroy {
     this.particulierService.convertToEntreprise(this.convertForm).subscribe({
       next: () => {
         this.flash('ok', 'Compte converti avec succès ! Reconnexion en cours...');
-        setTimeout(() => {
-          this.authService.logout().subscribe({
-            next: () => this.router.navigate(['/connexion']),
-            error: () => this.router.navigate(['/connexion'])
-          });
-        }, 1800);
+        // AuthService.logout() redirige déjà vers /connexion lui-même.
+        setTimeout(() => this.authService.logout().subscribe(), 1800);
       },
       error: err => {
         this.isConverting = false;

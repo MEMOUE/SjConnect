@@ -49,4 +49,8 @@ export class MeetingService {
   terminerMeeting(id: number): Observable<Meeting> {
     return this.http.put<Meeting>(`${this.apiUrl}/${id}/terminer`, {});
   }
+
+  inviterParEmail(meetingId: number, email: string, callLink: string): Observable<unknown> {
+    return this.http.post(`${this.apiUrl}/${meetingId}/invite`, { email, callLink });
+  }
 }

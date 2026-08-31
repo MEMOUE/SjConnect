@@ -1,0 +1,174 @@
+<div *ngIf="callService.active()" class="call-overlay" [class.minimized]="callService.minimized()">
+
+  <!-- Barre supérieure (vue plein écran) -->
+  <div *ngIf="!callService.minimized()" class="flex items-center justify-between px-5 py-3 bg-gray-900/90 backdrop-blur border-b border-white/10 flex-shrink-0">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center">
+        <i class="pi text-blue-900 text-sm" [class.pi-video]="callService.callType() === 'video'" [class.pi-phone]="callService.callType() === 'audio'"></i>
+      </div>
+      <div>
+        <p class="text-white font-bold text-sm leading-none">{{ callService.title() }}</p>
+        <p class="text-gray-400 text-xs mt-0.5 flex items-center gap-1">
+          <i class="pi pi-users text-xs"></i>{{ callService.participantsCount() }} participant(s)
+        </p>
+      </div>
+    </div>
+
+    <!-- Badge EN DIRECT -->
+    <div class="flex items-center gap-2 bg-red-600/20 border border-red-500/30 px-3 py-1.5 rounded-full">
+      <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+      <span class="text-red-400 text-xs font-bold tracking-wider">EN DIRECT</span>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <!-- Inviter -->
+      <button (click)="callService.toggleInvitePanel()"
+              class="flex items-center gap-2 border border-white/20 text-white/80 hover:text-white
+                     hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-medium transition-all">
+        <i class="pi pi-user-plus"></i>
+        Inviter
+      </button>
+
+      <!-- Copier lien -->
+      <button (click)="callService.copierLien()"
+              class="flex items-center gap-2 border border-white/20 text-white/80 hover:text-white
+                     hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-medium transition-all">
+        <i [ngClass]="callService.lienCopie() ? 'pi pi-check text-green-400' : 'pi pi-link'"></i>
+        {{ callService.lienCopie() ? 'Copié !' : 'Copier le lien' }}
+      </button>
+
+      <button (click)="callService.toggleMinimize()"
+              title="Réduire l'appel pour accéder au reste de l'application"
+              class="flex items-center gap-2 border border-white/20 text-white/80 hover:text-white
+                     hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-medium transition-all">
+        <i class="pi pi-window-minimize"></i>
+        Réduire
+      </button>
+    </div>
+  </div>
+
+  <!-- Panneau d'invitation par email — élément racine indépendant (pas
+       descendant de la barre backdrop-blur ci-dessus) : un ancêtre avec
+       backdrop-filter/filter/transform devient le containing block des
+       descendants position:fixed, ce qui piégerait ce panneau sous le
+       conteneur Jitsi au lieu de l'afficher au-dessus de tout l'écran. -->
+  <div *ngIf="callService.showInvitePanel()"
+       class="fixed top-16 right-4 w-80 max-w-[calc(100vw-2rem)] bg-gray-800 border border-white/10 rounded-xl shadow-2xl p-4 z-[10001]">
+    <p class="text-white text-sm font-semibold mb-2">Inviter une personne par email</p>
+    <div class="flex gap-2">
+      <input
+        [(ngModel)]="callService.inviteEmail"
+        (keyup.enter)="callService.envoyerInvitation()"
+        type="email"
+        placeholder="email@exemple.com"
+        class="flex-1 bg-gray-900 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-blue-500"
+      />
+      <button (click)="callService.envoyerInvitation()"
+              [disabled]="callService.isInviting() || !callService.inviteEmail.trim()"
+              class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed
+                     text-white px-3 py-2 rounded-lg text-sm flex items-center justify-center">
+        <i class="pi" [ngClass]="callService.isInviting() ? 'pi-spin pi-spinner' : 'pi-send'"></i>
+      </button>
+    </div>
+    <p class="text-gray-400 text-xs mt-2">La personne recevra le lien de connexion par email.</p>
+  </div>
+
+  <!-- Barre compacte (vue réduite) -->
+  <div *ngIf="callService.minimized()" (click)="callService.toggleMinimize()"
+       class="flex items-center justify-between px-3 py-2 bg-gray-900/95 border-b border-white/10 cursor-pointer">
+    <span class="text-white text-xs font-semibold truncate flex items-center gap-1.5">
+      <span class="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse flex-shrink-0"></span>
+      {{ callService.title() }}
+    </span>
+    <i class="pi pi-window-maximize text-white/70 text-xs"></i>
+  </div>
+
+  <!-- Container Jitsi -->
+  <div class="flex-1 relative bg-gray-900 overflow-hidden">
+    <!-- Erreur de connexion -->
+    <div *ngIf="!callService.jitsiPret() && callService.jitsiErreur()"
+         class="absolute inset-0 flex flex-col items-center justify-center gap-4 z-10 bg-gray-900 px-6">
+      <div class="w-20 h-20 bg-red-900/60 rounded-full flex items-center justify-center shadow-lg">
+        <i class="pi pi-exclamation-triangle text-red-400 text-3xl"></i>
+      </div>
+      <p class="text-white font-semibold text-lg text-center">{{ callService.jitsiErreur() }}</p>
+      <button (click)="callService.reessayer()"
+              class="mt-2 px-4 py-2 bg-blue-500 hover:bg-blue-400 text-white font-semibold rounded-lg text-sm transition-all">
+        Réessayer
+      </button>
+      <button (click)="callService.endCall()" class="text-gray-400 hover:text-white text-sm underline">
+        Quitter
+      </button>
+    </div>
+
+    <!-- Spinner de connexion -->
+    <div *ngIf="!callService.jitsiPret() && !callService.jitsiErreur()"
+         class="absolute inset-0 flex flex-col items-center justify-center gap-4 z-10 bg-gray-900">
+      <div class="w-20 h-20 bg-blue-900/60 rounded-full flex items-center justify-center shadow-lg">
+        <i class="pi pi-spin pi-spinner text-blue-400 text-3xl"></i>
+      </div>
+      <p class="text-white font-semibold text-lg">Connexion à l'appel...</p>
+      <p class="text-gray-500 text-xs mt-2">Autoriser l'accès à la caméra et au microphone si demandé</p>
+    </div>
+
+    <div #jitsiContainer class="w-full h-full"></div>
+  </div>
+
+  <!-- Barre de contrôles (vue plein écran) -->
+  <div *ngIf="!callService.minimized()" class="flex items-center justify-center gap-3 px-6 py-4 bg-gray-900 border-t border-white/10 flex-wrap flex-shrink-0">
+
+    <!-- Micro -->
+    <button (click)="callService.toggleMicro()" class="flex flex-col items-center gap-1">
+      <div class="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200"
+           [ngClass]="callService.microActif() ? 'bg-white/10 hover:bg-white/20' : 'bg-red-600 hover:bg-red-700'">
+        <i class="pi pi-microphone text-white text-lg"></i>
+      </div>
+      <span class="text-gray-400 text-xs">{{ callService.microActif() ? 'Micro' : 'Micro off' }}</span>
+    </button>
+
+    <!-- Caméra -->
+    <button (click)="callService.toggleCamera()" class="flex flex-col items-center gap-1">
+      <div class="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200"
+           [ngClass]="callService.cameraActive() ? 'bg-white/10 hover:bg-white/20' : 'bg-red-600 hover:bg-red-700'">
+        <i class="pi text-white text-lg" [ngClass]="callService.cameraActive() ? 'pi-video' : 'pi-video-slash'"></i>
+      </div>
+      <span class="text-gray-400 text-xs">{{ callService.cameraActive() ? 'Caméra' : 'Caméra off' }}</span>
+    </button>
+
+    <!-- Partage écran (non disponible sur mobile/tablette) -->
+    <button *ngIf="!callService.isMobileDevice()" (click)="callService.togglePartageEcran()" class="flex flex-col items-center gap-1">
+      <div class="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200"
+           [ngClass]="callService.partageEcran() ? 'bg-blue-600 hover:bg-blue-700' : 'bg-white/10 hover:bg-white/20'">
+        <i class="pi pi-desktop text-white text-lg"></i>
+      </div>
+      <span class="text-gray-400 text-xs">Partager</span>
+    </button>
+
+    <!-- Raccrocher -->
+    <button (click)="callService.endCall()" class="flex flex-col items-center gap-1">
+      <div class="w-14 h-14 rounded-full bg-red-600 hover:bg-red-700 flex items-center
+                  justify-center transition-all duration-200 shadow-lg shadow-red-900/50">
+        <i class="pi pi-phone text-white text-xl" style="transform: rotate(135deg)"></i>
+      </div>
+      <span class="text-gray-400 text-xs">Raccrocher</span>
+    </button>
+  </div>
+
+  <!-- Barre de contrôles compacte (vue réduite) -->
+  <div *ngIf="callService.minimized()" class="flex items-center justify-center gap-2 px-3 py-2 bg-gray-900 border-t border-white/10 flex-shrink-0">
+    <button (click)="callService.toggleMicro(); $event.stopPropagation()"
+            class="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200"
+            [ngClass]="callService.microActif() ? 'bg-white/10 hover:bg-white/20' : 'bg-red-600 hover:bg-red-700'">
+      <i class="pi pi-microphone text-white text-xs"></i>
+    </button>
+    <button (click)="callService.toggleCamera(); $event.stopPropagation()"
+            class="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200"
+            [ngClass]="callService.cameraActive() ? 'bg-white/10 hover:bg-white/20' : 'bg-red-600 hover:bg-red-700'">
+      <i class="pi text-white text-xs" [ngClass]="callService.cameraActive() ? 'pi-video' : 'pi-video-slash'"></i>
+    </button>
+    <button (click)="callService.endCall(); $event.stopPropagation()"
+            class="w-8 h-8 rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center transition-all duration-200">
+      <i class="pi pi-phone text-white text-xs" style="transform: rotate(135deg)"></i>
+    </button>
+  </div>
+</div>

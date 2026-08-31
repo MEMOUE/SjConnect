@@ -6,6 +6,8 @@ import { Toast } from 'primeng/toast';
 import { Footer } from './footer/footer';
 import { AuthService } from './services/auth/auth.service';
 import { NotificationCenterService } from './services/notification-center/notification-center.service';
+import { CallService } from './services/call/call.service';
+import { CallOverlay } from './shared/call-overlay/call-overlay';
 import {filter, mergeMap} from 'rxjs';
 import {map} from 'rxjs/operators';
 
@@ -18,6 +20,7 @@ import {map} from 'rxjs/operators';
     RouterLink,
     RouterLinkActive,
     Toast,
+    CallOverlay,
   ],
   templateUrl: './app.html',
   styleUrl: './app.css'
@@ -33,7 +36,8 @@ export class App {
     private authService: AuthService,
     private router: Router,
     private activatedRoute: ActivatedRoute,
-    private notificationCenter: NotificationCenterService
+    private notificationCenter: NotificationCenterService,
+    public callService: CallService
   ) {
     // Logique pour détecter le flag hideFooter
     this.router.events.pipe(
@@ -47,6 +51,10 @@ export class App {
     ).subscribe(data => {
       // Si hideFooter est à true dans la route, on met showFooter à false
       this.showFooter.set(data['hideFooter'] !== true);
+      // Un appel en cours ne doit jamais se fermer en changeant de page :
+      // s'il est encore plein écran, on le réduit au lieu de bloquer la
+      // navigation vers la nouvelle page.
+      this.callService.minimizeForNavigation();
     });
 
     // Notifications temps réel (messages/appels) tant que l'utilisateur est connecté
@@ -78,16 +86,9 @@ export class App {
   }
 
   logout() {
-    this.authService.logout().subscribe({
-      next: () => {
-        this.router.navigate(['/connexion']);
-      },
-      error: () => {
-        // même si l’API échoue, on force la déconnexion locale
-        localStorage.clear();
-        this.router.navigate(['/connexion']);
-      }
-    });
+    // AuthService.logout() nettoie la session et redirige vers /connexion
+    // lui-même, y compris si l'appel API échoue.
+    this.authService.logout().subscribe();
   }
 }
 

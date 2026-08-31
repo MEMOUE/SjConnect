@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable, BehaviorSubject, tap } from 'rxjs';
+import { Router } from '@angular/router';
+import { Observable, BehaviorSubject, tap, catchError, of } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   RegisterEntrepriseRequest,
@@ -21,7 +22,7 @@ export class AuthService {
   private currentUserSubject: BehaviorSubject<UserResponse | null>;
   public currentUser$: Observable<UserResponse | null>;
 
-  constructor(private http: HttpClient) {
+  constructor(private http: HttpClient, private router: Router) {
     // Initialiser avec l'utilisateur stocké localement
     const storedUser = this.getStoredUser();
     this.currentUserSubject = new BehaviorSubject<UserResponse | null>(storedUser);
@@ -70,15 +71,26 @@ export class AuthService {
   }
 
   /**
-   * Déconnexion
+   * Déconnexion. Nettoie la session et redirige vers /connexion dans tous
+   * les cas (succès ou échec de l'appel API) : sans ce redirect ici, chaque
+   * page ayant son propre bouton "Déconnexion" devait le faire elle-même,
+   * et plusieurs oubliaient — la page restait affichée jusqu'à un
+   * rafraîchissement manuel bien que la session soit déjà invalidée.
    */
   logout(): Observable<ApiResponse<void>> {
     return this.http.post<ApiResponse<void>>(`${this.apiUrl}/logout`, {}).pipe(
-      tap(() => {
-        this.clearAuthData();
-        this.currentUserSubject.next(null);
+      tap(() => this.finalizeLogout()),
+      catchError(() => {
+        this.finalizeLogout();
+        return of({ success: true, message: 'Déconnecté (hors ligne)' } as ApiResponse<void>);
       })
     );
+  }
+
+  private finalizeLogout(): void {
+    this.clearAuthData();
+    this.currentUserSubject.next(null);
+    this.router.navigate(['/connexion']);
   }
 
   // ============================================

@@ -53,10 +53,9 @@ public class WebSocketPresenceListener {
             return;
         }
 
-        presenceService.userDisconnected(sessionId).ifPresent(username -> {
-            log.info("Utilisateur passé hors ligne: {}", username);
-            broadcastStatus(username, "USER_OFFLINE");
-        });
+        // PresenceService gère lui-même la fenêtre de grâce et l'annonce
+        // différée "hors ligne" (pour absorber les flaps de reconnexion WS).
+        presenceService.userDisconnected(sessionId);
     }
 
     private void broadcastStatus(String username, String type) {

@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { DialogModule } from 'primeng/dialog';
 import { MultiSelectModule } from 'primeng/multiselect';
@@ -15,9 +16,7 @@ import { NotificationCenterService } from '../../services/notification-center/no
 import { Conversation, Message, ChatNotification, Participant } from '../../models/chat.model';
 import { Subscription } from 'rxjs';
 import { EmployeSimple } from '../../models/auth.model';
-import { environment } from '../../../environments/environment';
-
-declare var JitsiMeetExternalAPI: any;
+import { CallService } from '../../services/call/call.service';
 
 @Component({
   selector: 'app-chat',
@@ -37,7 +36,6 @@ declare var JitsiMeetExternalAPI: any;
 export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   @ViewChild('messageContainer') private messageContainer!: ElementRef;
   @ViewChild('fileInput') private fileInput!: ElementRef;
-  @ViewChild('chatJitsiContainer') private chatJitsiContainer!: ElementRef<HTMLDivElement>;
 
   // ── État principal ────────────────────────────────────────────────────────
   conversations: Conversation[] = [];
@@ -51,6 +49,13 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   isLoading = false;
   isConnected = false;
   private shouldScrollToBottom = false;
+
+  /** true seulement si le WebSocket temps réel est réellement connecté (pas
+   * le mode de secours par sondage HTTP, qui affiche aussi isConnected=true) —
+   * permet de distinguer les deux dans l'UI sans avoir besoin de la console. */
+  get isRealTimeActive(): boolean {
+    return this.chatService.isRealWebSocket;
+  }
 
   private targetConversationId: number | null = null;
 
@@ -128,23 +133,10 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   existingParticipantIds: Set<number> = new Set();
 
   // ── Appel / visioconférence (Jitsi) ───────────────────────────────────────
-  showCallOverlay = false;
-  callType: 'audio' | 'video' = 'video';
-  private jitsiApi: any = null;
-  private jitsiLoaded = false;
-  private jitsiScriptAttentAttempts = 0;
-  private jitsiScriptLoadAttempts = 0;
-  private jitsiJoinTimeoutId: any = null;
-  jitsiPret = false;
-  jitsiErreur: string | null = null;
-  microActif = true;
-  cameraActive = true;
-  partageEcran = false;
-  callParticipantsCount = 0;
-  callLienCopie = false;
-  showInviteCallPanel = false;
-  inviteCallEmail = '';
-  isInvitingToCall = false;
+  // L'appel lui-même (iframe, micro/caméra, minimiser, inviter...) est géré
+  // par CallService + <app-call-overlay>, rendu globalement en dehors du
+  // router-outlet pour survivre à la navigation entre pages.
+  private callType: 'audio' | 'video' = 'video';
 
   get availableLanguages(): Language[] {
     return this.translationService.languages;
@@ -170,7 +162,9 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     private route: ActivatedRoute,
     private router: Router,
     public translationService: TranslationService,
-    private notificationCenter: NotificationCenterService
+    private notificationCenter: NotificationCenterService,
+    private sanitizer: DomSanitizer,
+    private callService: CallService
   ) {}
 
   ngOnInit(): void {
@@ -190,7 +184,6 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     this.connectToWebSocket();
     this.setupWebSocketListeners();
     this.loadEmployes();
-    this.chargerJitsiScript();
 
     // Démarrer le polling automatique
     this.startPolling();
@@ -210,7 +203,8 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     // pour continuer à recevoir messages/appels en dehors de la page chat.
     this.notificationCenter.setActiveConversationId(null);
     if (this.typingTimeout) clearTimeout(this.typingTimeout);
-    this.detruireJitsiChat();
+    // L'appel Jitsi n'est PAS détruit ici : il est géré par CallService,
+    // en dehors de ce composant, précisément pour survivre à la navigation.
   }
 
   // ── POLLING AUTOMATIQUE ───────────────────────────────────────────────────
@@ -458,6 +452,11 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
 
   loadEmployes(): void {
     if (this.availableEmployes.length > 0) return;
+    // Chat est un composant partagé entre /entreprise/chat et /particulier/chat.
+    // La liste des "employés" n'a de sens que côté entreprise : pour un compte
+    // particulier, /api/entreprise/employes/all renvoie systématiquement un
+    // 403 (aucune entreprise associée), qui n'est pas une vraie erreur ici.
+    if (!this.authService.isEntreprise() && !this.authService.isEmploye()) return;
     this.isLoadingEmployes = true;
     const sub = this.employeService.getAllEmployesForChat().subscribe({
       next: (employes) => {
@@ -467,6 +466,8 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
       error: (error) => {
         console.error('Erreur chargement employés:', error);
         this.isLoadingEmployes = false;
+        this.showToast('error', 'Erreur',
+          error.error?.message || 'Impossible de charger la liste des employés');
       }
     });
     this.subscriptions.push(sub);
@@ -553,7 +554,7 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   handleCallStarted(notification: ChatNotification): void {
-    if (this.showCallOverlay) return;
+    if (this.callService.active()) return;
 
     const conversation = this.conversations.find(c => c.id === notification.conversationId);
     const callerName = conversation?.participants?.find(p => p.username === notification.username)?.name
@@ -1280,13 +1281,32 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   translateSingleMessage(message: Message): void {
     if (!message.content?.trim() || message.type !== 'TEXT') return;
 
+    // Ne pas envoyer les URLs au service de traduction : elles reviennent
+    // parfois altérées (espaces, ponctuation ajoutée). On les remplace par
+    // des jetons, on traduit le reste, puis on réinjecte les URLs d'origine.
+    const links: string[] = [];
+    const tokenized = message.content.replace(Chat.URL_REGEX, url => {
+      links.push(url);
+      return `__LINK_${links.length - 1}__`;
+    });
+
+    if (links.length && !tokenized.replace(/__LINK_\d+__/g, '').trim()) {
+      // Le message n'est composé que d'un ou plusieurs liens : rien à traduire.
+      this.skippedTranslation.add(message.id);
+      return;
+    }
+
     this.translatingMessages.add(message.id);
 
     const sub = this.translationService
-      .translate(message.content, this.selectedLanguageCode)
+      .translate(tokenized, this.selectedLanguageCode)
       .subscribe({
-        next: (translated) => {
+        next: (translatedTokenized) => {
           this.translatingMessages.delete(message.id);
+
+          const translated = links.length
+            ? translatedTokenized.replace(/__LINK_(\d+)__/g, (_m, i) => links[Number(i)] ?? '')
+            : translatedTokenized;
 
           const originalNormalized = message.content.trim().toLowerCase();
           const translatedNormalized = translated.trim().toLowerCase();
@@ -1316,6 +1336,22 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
       return message.content;
     }
     return this.translatedContents.get(message.id) ?? message.content;
+  }
+
+  private static readonly URL_REGEX = /(https?:\/\/[^\s<]+[^\s<.,;:!?'")\]])/g;
+
+  /** Échappe le HTML puis transforme les URLs en liens cliquables, pour que
+   * l'utilisateur distingue un lien d'un texte normal. */
+  renderMessageContent(message: Message): SafeHtml {
+    const raw = this.getMessageContent(message);
+    const escaped = raw
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    const linked = escaped.replace(Chat.URL_REGEX, url =>
+      `<a href="${url}" target="_blank" rel="noopener noreferrer" class="chat-link">${url}</a>`
+    );
+    return this.sanitizer.bypassSecurityTrustHtml(linked);
   }
 
   isTranslating(messageId: number): boolean {
@@ -1401,8 +1437,16 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   handleUserStatusChange(notification: ChatNotification): void {
     const isOnline = notification.type === 'USER_ONLINE';
 
+    // conv.participants inclut toujours l'utilisateur courant lui-même (pas
+    // seulement l'interlocuteur). Sans exclusion, une notification de statut
+    // à propos de SOI-MÊME (ex : reconnexion WebSocket après un flap) était
+    // appliquée à conv.isOnline comme si elle décrivait l'autre personne —
+    // chacun voyait alors son interlocuteur passer "hors ligne" à cause de
+    // ses propres reconnexions, pas de celles de l'autre.
     this.conversations.forEach(conv => {
-      const participant = conv.participants?.find(p => p.username === notification.username);
+      const participant = conv.participants?.find(
+        p => p.username === notification.username && p.id !== this.currentUserId
+      );
       if (participant) {
         participant.isOnline = isOnline;
       }
@@ -1420,6 +1464,11 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   // ── Appel / visioconférence (Jitsi) ───────────────────────────────────────
+  // L'iframe Jitsi et son état (micro/caméra/partage, minimiser...) vivent
+  // dans CallService, rendus globalement par <app-call-overlay> en dehors du
+  // router-outlet — voir call.service.ts. Ce composant fournit seulement le
+  // contexte propre au chat : la salle, le nom, et les effets de bord
+  // (notifier la conversation, inviter par email).
 
   demarrerAppelAudio(): void { this.demarrerAppel('audio'); }
   demarrerAppelVideo(): void { this.demarrerAppel('video'); }
@@ -1427,210 +1476,26 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
   private demarrerAppel(type: 'audio' | 'video'): void {
     if (!this.selectedConversation) return;
     this.callType = type;
-    this.showCallOverlay = true;
-    this.jitsiPret = false;
-    this.jitsiErreur = null;
-    this.jitsiScriptAttentAttempts = 0;
-    this.microActif = true;
-    this.cameraActive = type === 'video';
-    this.partageEcran = false;
-    this.callParticipantsCount = 1;
-    this.showInviteCallPanel = false;
-    this.inviteCallEmail = '';
-    setTimeout(() => this.initialiserJitsiChat(this.getCallRoomName()), 300);
-  }
+    const conversation = this.selectedConversation;
 
-  reessayerAppel(): void {
-    if (!this.selectedConversation) return;
-    this.jitsiErreur = null;
-    this.jitsiScriptAttentAttempts = 0;
-    if (!this.jitsiLoaded) {
-      this.jitsiScriptLoadAttempts = 0;
-      this.chargerJitsiScript();
-    }
-    this.initialiserJitsiChat(this.getCallRoomName());
+    this.callService.startCall({
+      roomName: this.getCallRoomName(),
+      title: conversation.name,
+      callType: type,
+      onInvite: (email) => this.chatService.inviteToCall(conversation.id, email, this.callService.getCallLink()),
+      onJoined: () => this.notifierLancementAppel()
+    });
   }
 
   private getCallRoomName(): string {
     return `DouniyaConnect-chat-${this.selectedConversation!.id}`;
   }
 
-  private initialiserJitsiChat(roomName: string): void {
-    if (!this.jitsiLoaded || !this.chatJitsiContainer?.nativeElement) {
-      this.jitsiScriptAttentAttempts++;
-      if (this.jitsiScriptAttentAttempts > 30) {
-        this.jitsiErreur = 'Impossible de charger le module d\'appel. Vérifiez votre connexion internet et réessayez.';
-        return;
-      }
-      setTimeout(() => this.initialiserJitsiChat(roomName), 500);
-      return;
-    }
-    this.detruireJitsiChat();
-    this.jitsiErreur = null;
-
-    if (this.jitsiJoinTimeoutId) clearTimeout(this.jitsiJoinTimeoutId);
-    this.jitsiJoinTimeoutId = setTimeout(() => {
-      if (!this.jitsiPret) {
-        this.jitsiErreur = 'La connexion à l\'appel prend trop de temps. Vérifiez votre réseau ou réessayez.';
-      }
-    }, 20000);
-
-    const currentUser = this.authService.getCurrentUserValue();
-    const displayName = currentUser?.nomEntreprise
-      || (currentUser?.prenom && currentUser?.nom ? `${currentUser.prenom} ${currentUser.nom}` : currentUser?.username)
-      || 'Utilisateur';
-
-    const options = {
-      roomName,
-      width: '100%',
-      height: '100%',
-      parentNode: this.chatJitsiContainer.nativeElement,
-      lang: 'fr',
-      userInfo: {
-        displayName,
-        email: currentUser?.email ?? ''
-      },
-      configOverwrite: {
-        startWithAudioMuted: false,
-        startWithVideoMuted: this.callType === 'audio',
-        disableDeepLinking: true,
-        enableWelcomePage: false,
-        prejoinPageEnabled: false,
-        prejoinConfig: { enabled: false },
-        toolbarButtons: [
-          'microphone', 'camera', 'desktop', 'participants-pane',
-          'chat', 'tileview', 'select-background', 'hangup'
-        ]
-      },
-      interfaceConfigOverwrite: {
-        SHOW_JITSI_WATERMARK: true,
-        SHOW_WATERMARK_FOR_GUESTS: true,
-        DEFAULT_LOGO_URL: 'images/logo-douniya.png',
-        JITSI_WATERMARK_LINK: 'https://duniyaconnect.com',
-        SHOW_BRAND_WATERMARK: false,
-        SHOW_POWERED_BY: false,
-        APP_NAME: 'DouniyaConnect',
-        DEFAULT_BACKGROUND: '#0f2855',
-        TOOLBAR_ALWAYS_VISIBLE: false
-      }
-    };
-
-    try {
-      this.jitsiApi = new JitsiMeetExternalAPI(environment.jitsiDomain, options);
-
-      this.jitsiApi.addEventListener('videoConferenceJoined', () => {
-        const dejaConnecte = this.jitsiPret;
-        this.jitsiPret = true;
-        this.jitsiErreur = null;
-        this.callParticipantsCount = 1;
-        if (this.jitsiJoinTimeoutId) { clearTimeout(this.jitsiJoinTimeoutId); this.jitsiJoinTimeoutId = null; }
-        if (!dejaConnecte) this.notifierLancementAppel();
-      });
-      this.jitsiApi.addEventListener('participantJoined', () => this.callParticipantsCount++);
-      this.jitsiApi.addEventListener('participantLeft', () => {
-        this.callParticipantsCount = Math.max(0, this.callParticipantsCount - 1);
-      });
-      this.jitsiApi.addEventListener('audioMuteStatusChanged', (e: any) => this.microActif = !e.muted);
-      this.jitsiApi.addEventListener('videoMuteStatusChanged', (e: any) => this.cameraActive = !e.muted);
-      this.jitsiApi.addEventListener('screenSharingStatusChanged', (e: any) => this.partageEcran = e.on);
-      this.jitsiApi.addEventListener('readyToClose', () => this.terminerAppelChat());
-      this.jitsiApi.addEventListener('connectionFailed', () => {
-        this.jitsiErreur = 'La connexion à l\'appel a échoué. Réessayez.';
-      });
-      this.jitsiApi.addEventListener('errorOccurred', () => {
-        this.jitsiErreur = 'Une erreur est survenue lors de la connexion à l\'appel.';
-      });
-      this.jitsiApi.addEventListener('videoConferenceLeft', () => {
-        if (!this.jitsiPret) this.jitsiErreur = 'La connexion à l\'appel a été interrompue.';
-      });
-    } catch {
-      this.jitsiErreur = 'Erreur lors du lancement de l\'appel';
-      this.showToast('error', 'Erreur', 'Impossible de démarrer l\'appel');
-    }
-  }
-
-  private detruireJitsiChat(): void {
-    if (this.jitsiJoinTimeoutId) { clearTimeout(this.jitsiJoinTimeoutId); this.jitsiJoinTimeoutId = null; }
-    if (this.jitsiApi) {
-      try { this.jitsiApi.dispose(); } catch { /* ignore */ }
-      this.jitsiApi = null;
-    }
-    this.jitsiPret = false;
-  }
-
-  terminerAppelChat(): void {
-    this.detruireJitsiChat();
-    this.showCallOverlay = false;
-  }
-
-  toggleMicroAppel(): void { if (this.jitsiApi) this.jitsiApi.executeCommand('toggleAudio'); }
-  toggleCameraAppel(): void { if (this.jitsiApi) this.jitsiApi.executeCommand('toggleVideo'); }
-  togglePartageEcranAppel(): void { if (this.jitsiApi) this.jitsiApi.executeCommand('toggleShareScreen'); }
-
-  getCallLink(): string {
-    if (!this.selectedConversation) return '';
-    return `https://${environment.jitsiDomain}/${this.getCallRoomName()}`;
-  }
-
-  copierLienAppel(): void {
-    const lien = this.getCallLink();
-    if (!lien) return;
-    navigator.clipboard.writeText(lien).then(() => {
-      this.callLienCopie = true;
-      this.showToast('success', 'Copié', 'Lien de l\'appel copié !');
-      setTimeout(() => this.callLienCopie = false, 2000);
-    });
-  }
-
   private notifierLancementAppel(): void {
     if (!this.selectedConversation) return;
     this.chatService.notifyCallStarted(
-      this.selectedConversation.id, this.getCallLink(), this.callType
+      this.selectedConversation.id, this.callService.getCallLink(), this.callType
     ).subscribe({ error: () => { /* non bloquant */ } });
-  }
-
-  toggleInviteCallPanel(): void {
-    this.showInviteCallPanel = !this.showInviteCallPanel;
-  }
-
-  envoyerInvitationAppel(): void {
-    const email = this.inviteCallEmail.trim();
-    if (!email || !this.selectedConversation) return;
-
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailPattern.test(email)) {
-      this.showToast('error', 'Email invalide', 'Veuillez saisir une adresse email valide');
-      return;
-    }
-
-    this.isInvitingToCall = true;
-    this.chatService.inviteToCall(this.selectedConversation.id, email, this.getCallLink()).subscribe({
-      next: () => {
-        this.isInvitingToCall = false;
-        this.showToast('success', 'Invitation envoyée', `Un lien de connexion a été envoyé à ${email}`);
-        this.inviteCallEmail = '';
-        this.showInviteCallPanel = false;
-      },
-      error: (err) => {
-        this.isInvitingToCall = false;
-        this.showToast('error', 'Erreur', err.error?.message || 'Impossible d\'envoyer l\'invitation');
-      }
-    });
-  }
-
-  private chargerJitsiScript(): void {
-    if (typeof JitsiMeetExternalAPI !== 'undefined') { this.jitsiLoaded = true; return; }
-    const script = document.createElement('script');
-    script.src = `https://${environment.jitsiDomain}/external_api.js`;
-    script.onload = () => { this.jitsiLoaded = true; };
-    script.onerror = () => {
-      script.remove();
-      this.jitsiScriptLoadAttempts++;
-      if (this.jitsiScriptLoadAttempts <= 5) {
-        setTimeout(() => this.chargerJitsiScript(), 2000);
-      }
-    };
-    document.head.appendChild(script);
   }
 
   // ── Utilitaires ───────────────────────────────────────────────────────────

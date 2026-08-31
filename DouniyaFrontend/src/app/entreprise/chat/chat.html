@@ -41,10 +41,17 @@
           <h2 class="text-base font-semibold text-slate-800">Messagerie</h2>
         </div>
         <div class="flex items-center gap-2">
-          <span *ngIf="isConnected"
-                class="flex items-center gap-1 text-xs text-emerald-600 font-medium">
+          <span *ngIf="isConnected && isRealTimeActive"
+                class="flex items-center gap-1 text-xs text-emerald-600 font-medium"
+                title="Connexion WebSocket temps réel active">
             <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
             En ligne
+          </span>
+          <span *ngIf="isConnected && !isRealTimeActive"
+                class="flex items-center gap-1 text-xs text-amber-600 font-medium"
+                title="WebSocket indisponible : messages envoyés/reçus par requêtes HTTP classiques, la présence en ligne des autres utilisateurs n'est pas fiable dans ce mode">
+            <span class="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
+            Mode dégradé
           </span>
           <span *ngIf="!isConnected"
                 class="flex items-center gap-1 text-xs text-slate-400">
@@ -364,8 +371,8 @@
                     <span class="text-xs text-slate-400 italic">Traduction...</span>
                   </div>
                   <p *ngIf="!isTranslating(message.id)"
-                     class="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
-                    {{ getMessageContent(message) }}
+                     class="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap"
+                     [innerHTML]="renderMessageContent(message)">
                   </p>
                 </div>
 
@@ -436,8 +443,8 @@
                     <span class="text-xs text-blue-200 italic">Traduction...</span>
                   </div>
                   <p *ngIf="!isTranslating(message.id)"
-                     class="text-sm text-white leading-relaxed whitespace-pre-wrap">
-                    {{ getMessageContent(message) }}
+                     class="text-sm text-white leading-relaxed whitespace-pre-wrap"
+                     [innerHTML]="renderMessageContent(message)">
                   </p>
                 </div>
 
@@ -745,140 +752,9 @@
   </div>
 </div>
 
-<!-- ====================================================
-     OVERLAY APPEL / VISIOCONFÉRENCE (Jitsi)
-     ==================================================== -->
-<div *ngIf="showCallOverlay" class="fixed inset-0 z-[10000] bg-gray-900 flex flex-col">
-
-  <!-- Barre supérieure -->
-  <div class="flex items-center justify-between px-5 py-3 bg-gray-900/90 backdrop-blur border-b border-white/10 flex-shrink-0">
-    <div class="flex items-center gap-3">
-      <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-        <i class="pi text-white text-sm" [class.pi-video]="callType === 'video'" [class.pi-phone]="callType === 'audio'"></i>
-      </div>
-      <div>
-        <p class="text-white font-bold text-sm leading-none">{{ selectedConversation?.name }}</p>
-        <p class="text-gray-400 text-xs mt-0.5 flex items-center gap-1">
-          <i class="pi pi-users text-xs"></i>{{ callParticipantsCount }} participant(s)
-        </p>
-      </div>
-    </div>
-
-    <div class="flex items-center gap-2 bg-red-600/20 border border-red-500/30 px-3 py-1.5 rounded-full">
-      <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-      <span class="text-red-400 text-xs font-bold tracking-wider">EN DIRECT</span>
-    </div>
-
-    <div class="flex items-center gap-2 relative">
-      <button (click)="toggleInviteCallPanel()"
-              class="flex items-center gap-2 border border-white/20 text-white/80 hover:text-white
-                     hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-medium transition-all">
-        <i class="pi pi-user-plus"></i>
-        Inviter par email
-      </button>
-
-      <button (click)="copierLienAppel()"
-              class="flex items-center gap-2 border border-white/20 text-white/80 hover:text-white
-                     hover:bg-white/10 px-3 py-1.5 rounded-lg text-xs font-medium transition-all">
-        <i [ngClass]="callLienCopie ? 'pi pi-check text-green-400' : 'pi pi-link'"></i>
-        {{ callLienCopie ? 'Copié !' : 'Copier le lien' }}
-      </button>
-
-      <!-- Panneau d'invitation par email -->
-      <div *ngIf="showInviteCallPanel"
-           class="absolute top-full right-0 mt-2 w-80 bg-gray-800 border border-white/10 rounded-xl shadow-2xl p-4 z-20">
-        <p class="text-white text-sm font-semibold mb-2">Inviter une personne par email</p>
-        <div class="flex gap-2">
-          <input
-            [(ngModel)]="inviteCallEmail"
-            (keyup.enter)="envoyerInvitationAppel()"
-            type="email"
-            placeholder="email@exemple.com"
-            class="flex-1 bg-gray-900 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-blue-500"
-          />
-          <button (click)="envoyerInvitationAppel()"
-                  [disabled]="isInvitingToCall || !inviteCallEmail.trim()"
-                  class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed
-                         text-white px-3 py-2 rounded-lg text-sm flex items-center justify-center">
-            <i class="pi" [ngClass]="isInvitingToCall ? 'pi-spin pi-spinner' : 'pi-send'"></i>
-          </button>
-        </div>
-        <p class="text-gray-400 text-xs mt-2">La personne recevra le lien de connexion à l'appel par email.</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- Container Jitsi -->
-  <div class="flex-1 relative bg-gray-900 overflow-hidden">
-    <!-- Erreur de connexion -->
-    <div *ngIf="!jitsiPret && jitsiErreur"
-         class="absolute inset-0 flex flex-col items-center justify-center gap-4 z-10 bg-gray-900 px-6">
-      <div class="w-20 h-20 bg-red-900/60 rounded-full flex items-center justify-center shadow-lg">
-        <i class="pi pi-exclamation-triangle text-red-400 text-3xl"></i>
-      </div>
-      <p class="text-white font-semibold text-lg text-center">{{ jitsiErreur }}</p>
-      <button (click)="reessayerAppel()"
-              class="mt-2 px-4 py-2 bg-blue-500 hover:bg-blue-400 text-white font-semibold rounded-lg text-sm transition-all">
-        Réessayer
-      </button>
-      <button (click)="terminerAppelChat()" class="text-gray-400 hover:text-white text-sm underline">
-        Quitter
-      </button>
-    </div>
-
-    <!-- Spinner de connexion -->
-    <div *ngIf="!jitsiPret && !jitsiErreur"
-         class="absolute inset-0 flex flex-col items-center justify-center gap-4 z-10 bg-gray-900">
-      <div class="w-20 h-20 bg-blue-900/60 rounded-full flex items-center justify-center shadow-lg">
-        <i class="pi pi-spin pi-spinner text-blue-400 text-3xl"></i>
-      </div>
-      <p class="text-white font-semibold text-lg">Connexion à l'appel...</p>
-      <p class="text-gray-500 text-xs mt-2">Autoriser l'accès à la caméra et au microphone si demandé</p>
-    </div>
-
-    <div #chatJitsiContainer class="w-full h-full"></div>
-  </div>
-
-  <!-- Barre de contrôles -->
-  <div class="flex items-center justify-center gap-3 px-6 py-4 bg-gray-900 border-t border-white/10 flex-wrap flex-shrink-0">
-
-    <!-- Micro -->
-    <button (click)="toggleMicroAppel()" class="flex flex-col items-center gap-1">
-      <div class="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200"
-           [ngClass]="microActif ? 'bg-white/10 hover:bg-white/20' : 'bg-red-600 hover:bg-red-700'">
-        <i class="pi pi-microphone text-white text-lg"></i>
-      </div>
-      <span class="text-gray-400 text-xs">{{ microActif ? 'Micro' : 'Micro off' }}</span>
-    </button>
-
-    <!-- Caméra -->
-    <button (click)="toggleCameraAppel()" class="flex flex-col items-center gap-1">
-      <div class="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200"
-           [ngClass]="cameraActive ? 'bg-white/10 hover:bg-white/20' : 'bg-red-600 hover:bg-red-700'">
-        <i class="pi text-white text-lg" [ngClass]="cameraActive ? 'pi-video' : 'pi-video-slash'"></i>
-      </div>
-      <span class="text-gray-400 text-xs">{{ cameraActive ? 'Caméra' : 'Caméra off' }}</span>
-    </button>
-
-    <!-- Partage écran -->
-    <button (click)="togglePartageEcranAppel()" class="flex flex-col items-center gap-1">
-      <div class="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200"
-           [ngClass]="partageEcran ? 'bg-blue-600 hover:bg-blue-700' : 'bg-white/10 hover:bg-white/20'">
-        <i class="pi pi-desktop text-white text-lg"></i>
-      </div>
-      <span class="text-gray-400 text-xs">Partager l'écran</span>
-    </button>
-
-    <!-- Raccrocher -->
-    <button (click)="terminerAppelChat()" class="flex flex-col items-center gap-1">
-      <div class="w-14 h-14 rounded-full bg-red-600 hover:bg-red-700 flex items-center
-                  justify-center transition-all duration-200 shadow-lg shadow-red-900/50">
-        <i class="pi pi-phone text-white text-xl" style="transform: rotate(135deg)"></i>
-      </div>
-      <span class="text-gray-400 text-xs">Raccrocher</span>
-    </button>
-  </div>
-</div>
+<!-- L'appel Jitsi est maintenant rendu globalement par <app-call-overlay>
+     (app.html), en dehors du router-outlet, pour survivre à la navigation
+     entre pages au lieu d'être fermé quand on quitte le Chat. -->
 
 <!-- ====================================================
      MENU CONTEXTUEL MESSAGE (NOUVEAU)

@@ -27,6 +27,32 @@
 }
 
 /* ============================================
+   LIENS DANS LES MESSAGES — distincts du texte
+   ============================================ */
+.chat-link {
+  color: #2563eb;
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+.chat-link:hover {
+  color: #1d4ed8;
+}
+
+/* Bulle des messages envoyés (fond bleu foncé) : lien plus clair pour rester lisible */
+.bg-blue-600 .chat-link {
+  color: #dbeafe;
+}
+
+.bg-blue-600 .chat-link:hover {
+  color: #ffffff;
+}
+
+/* L'appel (plein écran et réduit) est désormais rendu globalement par
+   <app-call-overlay> (voir shared/call-overlay/) pour survivre à la
+   navigation entre pages — son style vit dans ce composant. */
+
+/* ============================================
    PANNEAU MEMBRES — animation slide-left
    ============================================ */
 

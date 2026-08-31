@@ -2,6 +2,9 @@ package com.duniyabacker.front.service;
 
 import com.duniyabacker.front.dto.request.CreateMeetingRequest;
 import com.duniyabacker.front.entity.User;
+import com.duniyabacker.front.entity.auth.Employe;
+import com.duniyabacker.front.entity.auth.Entreprise;
+import com.duniyabacker.front.entity.auth.Particulier;
 import com.duniyabacker.front.entity.meeting.Meeting;
 import com.duniyabacker.front.entity.meeting.MeetingParticipant;
 import com.duniyabacker.front.exception.CustomExceptions.*;
@@ -24,6 +27,7 @@ public class MeetingService {
 
     private final MeetingRepository meetingRepository;
     private final UserRepository    userRepository;
+    private final EmailService      emailService;
 
     // ── Lister les meetings de l'utilisateur connecté ───────────────────────
     @Transactional(readOnly = true)
@@ -90,7 +94,32 @@ public class MeetingService {
         return saved;
     }
 
+    // ── Inviter une personne par email à rejoindre une réunion ─────────────────
+    public void inviteToMeeting(Long meetingId, String email, String callLink) {
+        User organisateur = utilisateurConnecte();
+
+        Meeting meeting = meetingRepository.findById(meetingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Réunion introuvable"));
+
+        emailService.sendCallInvitationEmail(
+                email, getUserDisplayName(organisateur), meeting.getTitre(), callLink);
+
+        log.info("Invitation envoyée à {} pour la réunion '{}' par {}",
+                email, meeting.getTitre(), organisateur.getUsername());
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
+    private String getUserDisplayName(User user) {
+        if (user instanceof Entreprise entreprise) {
+            return entreprise.getNomEntreprise();
+        } else if (user instanceof Particulier particulier) {
+            return particulier.getPrenom() + " " + particulier.getNom();
+        } else if (user instanceof Employe employe) {
+            return employe.getPrenom() + " " + employe.getNom();
+        }
+        return user.getUsername();
+    }
+
     private User utilisateurConnecte() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByUsername(username)

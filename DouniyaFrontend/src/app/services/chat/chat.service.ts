@@ -306,9 +306,13 @@ export class ChatService {
         this.realWebSocket = false;
         this.ngZone.run(() => this.isConnectedSubject.next(false));
       },
+      // Erreur réseau sur une connexion déjà tentée : ne PAS forcer "connecté" via
+      // fallbackConnect (sinon l'indicateur reste bloqué sur "En ligne" pendant une
+      // vraie coupure). reconnectDelay se charge de retenter, onConnect remettra
+      // isConnectedSubject à true une fois la connexion rétablie.
       onWebSocketError: () => {
         this.realWebSocket = false;
-        this.fallbackConnect();
+        this.ngZone.run(() => this.isConnectedSubject.next(false));
       }
     });
 
@@ -337,7 +341,13 @@ export class ChatService {
   }
 
   subscribeToConversation(conversationId: number): void {
-    if (!this.stompClient?.active || this.subscribedConversations.has(conversationId)) return;
+    // `stompClient.active` passe à true dès que activate() a été appelé
+    // (le client "doit" être connecté), pas seulement une fois la poignée
+    // de main STOMP terminée — s'y fier ici pouvait faire planter subscribe()
+    // avec "There is no underlying STOMP connection" pendant la brève
+    // fenêtre où la connexion est encore en cours. `connected` reflète
+    // l'état réel de la connexion.
+    if (!this.stompClient?.connected || this.subscribedConversations.has(conversationId)) return;
 
     this.stompClient.subscribe(
       `/topic/conversation/${conversationId}`,

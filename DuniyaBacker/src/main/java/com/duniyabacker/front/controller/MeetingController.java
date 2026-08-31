@@ -1,5 +1,7 @@
 package com.duniyabacker.front.controller;
 
+import com.duniyabacker.front.dto.response.ApiResponse;
+import com.duniyabacker.front.dto.request.CallInviteRequest;
 import com.duniyabacker.front.dto.request.CreateMeetingRequest;
 import com.duniyabacker.front.entity.meeting.Meeting;
 import com.duniyabacker.front.service.MeetingService;
@@ -43,5 +45,15 @@ public class MeetingController {
     @Operation(summary = "Terminer une réunion")
     public ResponseEntity<Meeting> terminerMeeting(@PathVariable Long id) {
         return ResponseEntity.ok(meetingService.terminerMeeting(id));
+    }
+
+    /** POST /api/meetings/{id}/invite — inviter une personne par email à rejoindre une réunion */
+    @PostMapping("/{id}/invite")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Inviter une personne par email à rejoindre une réunion")
+    public ResponseEntity<ApiResponse<Void>> inviterParEmail(
+            @PathVariable Long id, @Valid @RequestBody CallInviteRequest req) {
+        meetingService.inviteToMeeting(id, req.getEmail(), req.getCallLink());
+        return ResponseEntity.ok(ApiResponse.success("Invitation envoyée à " + req.getEmail()));
     }
 }

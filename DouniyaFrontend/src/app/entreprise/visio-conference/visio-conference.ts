@@ -1,13 +1,10 @@
-import {
-  Component, OnInit, OnDestroy, AfterViewInit,
-  ElementRef, ViewChild
-} from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { throwError } from 'rxjs';
 import { MeetingService, Meeting, CreateMeetingRequest } from '../../services/meeting/meeting.service';
-import { AuthService } from '../../services/auth/auth.service';
+import { CallService } from '../../services/call/call.service';
 import { environment } from '../../../environments/environment';
-declare var JitsiMeetExternalAPI: any;
 
 @Component({
   selector: 'app-visio-conference',
@@ -16,16 +13,13 @@ declare var JitsiMeetExternalAPI: any;
   templateUrl: './visio-conference.html',
   styleUrl: './visio-conference.css'
 })
-export class VisioConference implements OnInit, OnDestroy, AfterViewInit {
-
-  @ViewChild('jitsiContainer') jitsiContainer!: ElementRef<HTMLDivElement>;
+export class VisioConference implements OnInit {
 
   // ── Vue active ─────────────────────────────────────────────────────────
-  vue: 'liste' | 'creer' | 'rejoindre' | 'appel' = 'liste';
+  vue: 'liste' | 'creer' | 'rejoindre' = 'liste';
 
   // ── Meetings ───────────────────────────────────────────────────────────
   meetings: Meeting[] = [];
-  meetingActif: Meeting | null = null;
   loading = false;
 
   // ── Formulaire création ────────────────────────────────────────────────
@@ -40,25 +34,6 @@ export class VisioConference implements OnInit, OnDestroy, AfterViewInit {
 
   // ── Rejoindre par lien ─────────────────────────────────────────────────
   lienOuCode = '';
-
-  // ── Jitsi ──────────────────────────────────────────────────────────────
-  private jitsiApi: any = null;
-  private jitsiLoaded = false;
-  private jitsiScriptAttentAttempts = 0;
-  private jitsiScriptLoadAttempts = 0;
-  private jitsiJoinTimeoutId: any = null;
-  jitsiPret = false;
-  jitsiErreur: string | null = null;
-
-  // ── Utilisateur courant ────────────────────────────────────────────────
-  nomUtilisateur = 'Utilisateur';
-  emailUtilisateur = '';
-
-  // ── Contrôles appel ────────────────────────────────────────────────────
-  microActif    = true;
-  cameraActive  = true;
-  partageEcran  = false;
-  participantsCount = 0;
 
   // ── Toast ──────────────────────────────────────────────────────────────
   toast: { type: 'success' | 'error' | 'info'; message: string } | null = null;
@@ -75,33 +50,11 @@ export class VisioConference implements OnInit, OnDestroy, AfterViewInit {
 
   constructor(
     private meetingService: MeetingService,
-    private authService: AuthService
+    private callService: CallService
   ) {}
 
   ngOnInit(): void {
-    this.chargerProfil();
     this.chargerMeetings();
-    this.chargerJitsiScript();
-  }
-
-  ngAfterViewInit(): void {}
-
-  ngOnDestroy(): void {
-    this.detruireJitsi();
-  }
-
-  // ── Profil ─────────────────────────────────────────────────────────────
-  chargerProfil(): void {
-    const user = this.authService.getCurrentUserValue();
-    if (!user) return;
-    this.emailUtilisateur = user.email ?? '';
-    if (user.nomEntreprise) {
-      this.nomUtilisateur = user.nomEntreprise;
-    } else if (user.prenom && user.nom) {
-      this.nomUtilisateur = `${user.prenom} ${user.nom}`;
-    } else {
-      this.nomUtilisateur = user.username;
-    }
   }
 
   // ── Meetings ───────────────────────────────────────────────────────────
@@ -152,7 +105,7 @@ export class VisioConference implements OnInit, OnDestroy, AfterViewInit {
           roomName: this.genererRoomName(this.form.titre),
           dateDebut,
           dateFin: this.form.dateFin || undefined,
-          organisateurNom: this.nomUtilisateur,
+          organisateurNom: 'Vous',
           participants: [],
           statut: this.form.maintenant ? 'EN_COURS' : 'PLANIFIE',
           createdAt: new Date().toISOString()
@@ -167,24 +120,29 @@ export class VisioConference implements OnInit, OnDestroy, AfterViewInit {
   }
 
   // ── Appel Jitsi ────────────────────────────────────────────────────────
+  // L'iframe Jitsi et son état (micro/caméra/partage, minimiser...) vivent
+  // dans CallService, rendus globalement par <app-call-overlay> en dehors du
+  // router-outlet — voir call.service.ts. Ce composant fournit seulement le
+  // contexte propre à la réunion : la salle, le titre, et les effets de bord
+  // (marquer la réunion terminée, inviter par email).
   lancerAppel(meeting: Meeting): void {
-    this.meetingActif = meeting;
-    this.vue = 'appel';
-    this.jitsiPret = false;
-    this.jitsiErreur = null;
-    this.jitsiScriptAttentAttempts = 0;
-    setTimeout(() => this.initialiserJitsi(meeting.roomName), 300);
-  }
-
-  reessayerConnexion(): void {
-    if (!this.meetingActif) return;
-    this.jitsiErreur = null;
-    this.jitsiScriptAttentAttempts = 0;
-    if (!this.jitsiLoaded) {
-      this.jitsiScriptLoadAttempts = 0;
-      this.chargerJitsiScript();
-    }
-    this.lancerAppel(this.meetingActif);
+    this.callService.startCall({
+      roomName: `DouniyaConnect-${meeting.roomName}`,
+      title: meeting.titre,
+      callType: 'video',
+      onInvite: (email) => {
+        if (!meeting.id) {
+          return throwError(() => new Error('Impossible d\'inviter : réunion non enregistrée côté serveur'));
+        }
+        return this.meetingService.inviterParEmail(meeting.id, email, this.getLienPartage(meeting));
+      },
+      onEnded: () => {
+        if (meeting.id) {
+          this.meetingService.terminerMeeting(meeting.id).subscribe();
+          meeting.statut = 'TERMINE';
+        }
+      }
+    });
   }
 
   rejoindreParLien(): void {
@@ -197,118 +155,6 @@ export class VisioConference implements OnInit, OnDestroy, AfterViewInit {
     };
     this.lancerAppel(meeting);
   }
-
-  private initialiserJitsi(roomName: string): void {
-    if (!this.jitsiLoaded || !this.jitsiContainer?.nativeElement) {
-      this.jitsiScriptAttentAttempts++;
-      if (this.jitsiScriptAttentAttempts > 30) {
-        this.jitsiErreur = 'Impossible de charger le module de visioconférence. Vérifiez votre connexion internet et réessayez.';
-        return;
-      }
-      setTimeout(() => this.initialiserJitsi(roomName), 500);
-      return;
-    }
-    this.detruireJitsi();
-    this.jitsiErreur = null;
-
-    if (this.jitsiJoinTimeoutId) clearTimeout(this.jitsiJoinTimeoutId);
-    this.jitsiJoinTimeoutId = setTimeout(() => {
-      if (!this.jitsiPret) {
-        this.jitsiErreur = 'La connexion à la salle prend trop de temps. Vérifiez votre réseau ou réessayez.';
-      }
-    }, 20000);
-
-    const options = {
-      roomName: `DouniyaConnect-${roomName}`,
-      width: '100%',
-      height: '100%',
-      parentNode: this.jitsiContainer.nativeElement,
-      lang: 'fr',
-      userInfo: {
-        displayName: this.nomUtilisateur,
-        email:       this.emailUtilisateur
-      },
-      configOverwrite: {
-        startWithAudioMuted: false,
-        startWithVideoMuted: false,
-        disableDeepLinking: true,
-        enableWelcomePage: false,
-        prejoinPageEnabled: false,
-        prejoinConfig: { enabled: false },
-        toolbarButtons: [
-          'microphone', 'camera', 'desktop', 'participants-pane',
-          'chat', 'recording', 'tileview', 'select-background', 'hangup'
-        ]
-      },
-      interfaceConfigOverwrite: {
-        SHOW_JITSI_WATERMARK: true,
-        SHOW_WATERMARK_FOR_GUESTS: true,
-        DEFAULT_LOGO_URL: 'images/logo-douniya.png',
-        JITSI_WATERMARK_LINK: 'https://duniyaconnect.com',
-        SHOW_BRAND_WATERMARK: false,
-        SHOW_POWERED_BY: false,
-        APP_NAME: 'DouniyaConnect Meeting',
-        DEFAULT_BACKGROUND: '#0f2855',
-        TOOLBAR_ALWAYS_VISIBLE: false
-      }
-    };
-
-    try {
-      this.jitsiApi = new JitsiMeetExternalAPI(environment.jitsiDomain, options);
-
-      this.jitsiApi.addEventListener('videoConferenceJoined', () => {
-        this.jitsiPret = true;
-        this.jitsiErreur = null;
-        this.participantsCount = 1;
-        if (this.jitsiJoinTimeoutId) { clearTimeout(this.jitsiJoinTimeoutId); this.jitsiJoinTimeoutId = null; }
-      });
-      this.jitsiApi.addEventListener('participantJoined',    () => this.participantsCount++);
-      this.jitsiApi.addEventListener('participantLeft',      () => {
-        this.participantsCount = Math.max(0, this.participantsCount - 1);
-      });
-      this.jitsiApi.addEventListener('audioMuteStatusChanged',  (e: any) => this.microActif   = !e.muted);
-      this.jitsiApi.addEventListener('videoMuteStatusChanged',  (e: any) => this.cameraActive  = !e.muted);
-      this.jitsiApi.addEventListener('screenSharingStatusChanged', (e: any) => this.partageEcran = e.on);
-      this.jitsiApi.addEventListener('readyToClose', () => this.terminerAppel());
-      this.jitsiApi.addEventListener('connectionFailed', () => {
-        this.jitsiErreur = 'La connexion à la salle a échoué. Réessayez.';
-      });
-      this.jitsiApi.addEventListener('errorOccurred', (e: any) => {
-        this.jitsiErreur = 'Une erreur est survenue lors de la connexion à la salle.';
-      });
-      this.jitsiApi.addEventListener('videoConferenceLeft', () => {
-        if (!this.jitsiPret) this.jitsiErreur = 'La connexion à la salle a été interrompue.';
-      });
-    } catch {
-      this.jitsiErreur = 'Erreur lors du lancement de la réunion';
-      this.showToast('error', 'Erreur lors du lancement de la réunion');
-    }
-  }
-
-  private detruireJitsi(): void {
-    if (this.jitsiJoinTimeoutId) { clearTimeout(this.jitsiJoinTimeoutId); this.jitsiJoinTimeoutId = null; }
-    if (this.jitsiApi) {
-      try { this.jitsiApi.dispose(); } catch { /* ignore */ }
-      this.jitsiApi = null;
-    }
-    this.jitsiPret = false;
-  }
-
-  terminerAppel(): void {
-    this.detruireJitsi();
-    if (this.meetingActif?.id) {
-      this.meetingService.terminerMeeting(this.meetingActif.id).subscribe();
-      this.meetingActif.statut = 'TERMINE';
-    }
-    this.meetingActif = null;
-    this.vue = 'liste';
-    this.showToast('info', 'Réunion terminée');
-  }
-
-  // ── Contrôles appel ────────────────────────────────────────────────────
-  toggleMicro():        void { if (this.jitsiApi) this.jitsiApi.executeCommand('toggleAudio'); }
-  toggleCamera():       void { if (this.jitsiApi) this.jitsiApi.executeCommand('toggleVideo'); }
-  togglePartageEcran(): void { if (this.jitsiApi) this.jitsiApi.executeCommand('toggleShareScreen'); }
 
   // ── Lien partage ───────────────────────────────────────────────────────
   getLienPartage(meeting: Meeting): string {
@@ -335,23 +181,6 @@ export class VisioConference implements OnInit, OnDestroy, AfterViewInit {
     if (lien.includes(`${environment.jitsiDomain}/`))
       return lien.split(`${environment.jitsiDomain}/`)[1]?.replace('DouniyaConnect-', '') ?? '';
     return lien;
-  }
-
-  private chargerJitsiScript(): void {
-    if (typeof JitsiMeetExternalAPI !== 'undefined') { this.jitsiLoaded = true; return; }
-    const script = document.createElement('script');
-    script.src    = `https://${environment.jitsiDomain}/external_api.js`;
-    script.onload = () => { this.jitsiLoaded = true; };
-    script.onerror = () => {
-      script.remove();
-      this.jitsiScriptLoadAttempts++;
-      if (this.jitsiScriptLoadAttempts <= 5) {
-        setTimeout(() => this.chargerJitsiScript(), 2000);
-      } else {
-        this.showToast('error', 'Impossible de charger Jitsi Meet');
-      }
-    };
-    document.head.appendChild(script);
   }
 
   resetForm(): void {

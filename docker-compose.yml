@@ -258,6 +258,8 @@ volumes:
 
 networks:
   duniya-network:
+    name: duniya-network
     driver: bridge
   jitsi-net:
+    name: jitsi-net
     driver: bridge
