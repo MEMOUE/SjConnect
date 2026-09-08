@@ -2,6 +2,7 @@
 .env
 .env.*
 jitsi.env
+jigasi.env
 !*.env.example
 
 # Uploads et logs runtime

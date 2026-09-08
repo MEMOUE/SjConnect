@@ -250,6 +250,26 @@ services:
       - "traefik.http.routers.jitsiweb.tls.certresolver=le"
       - "traefik.http.services.jitsiweb.loadbalancer.server.port=80"
 
+  # ==========================================
+  # JIGASI TRANSCRIBER (Sous-titres traduits en direct)
+  # ==========================================
+  transcriber:
+    image: jitsi/jigasi:stable
+    container_name: duniya-jitsi-transcriber
+    restart: unless-stopped
+    depends_on:
+      - prosody
+    env_file:
+      - jitsi.env
+      - jigasi.env
+    environment:
+      JIGASI_MODE: transcriber
+      JIGASI_TRANSCRIBER_ENABLE_TRANSLATION: "1"
+      JIGASI_TRANSCRIBER_LIBRETRANSLATE_URL: "http://translate:5000"
+    networks:
+      - jitsi-net
+      - duniya-network
+
 volumes:
   mysql-data:
   letsencrypt:

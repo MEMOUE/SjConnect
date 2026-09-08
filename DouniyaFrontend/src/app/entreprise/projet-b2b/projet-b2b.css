@@ -21,6 +21,17 @@ input[type="range"] {
   -webkit-box-orient: vertical;
 }
 
+/* Liens dans les messages — distincts du texte, cliquables */
+.chat-link {
+  color: #2563eb;
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+.chat-link:hover {
+  color: #1d4ed8;
+}
+
 /* Toast slide-in animation */
 @keyframes slideIn {
   from { transform: translateX(100%); opacity: 0; }

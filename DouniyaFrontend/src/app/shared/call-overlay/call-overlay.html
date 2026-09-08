@@ -135,8 +135,8 @@
       <span class="text-gray-400 text-xs">{{ callService.cameraActive() ? 'Caméra' : 'Caméra off' }}</span>
     </button>
 
-    <!-- Partage écran (non disponible sur mobile/tablette) -->
-    <button *ngIf="!callService.isMobileDevice()" (click)="callService.togglePartageEcran()" class="flex flex-col items-center gap-1">
+    <!-- Partage écran (masqué seulement si le navigateur ne l'implémente pas du tout, ex. Safari iOS) -->
+    <button *ngIf="callService.isScreenShareSupported()" (click)="callService.togglePartageEcran()" class="flex flex-col items-center gap-1">
       <div class="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200"
            [ngClass]="callService.partageEcran() ? 'bg-blue-600 hover:bg-blue-700' : 'bg-white/10 hover:bg-white/20'">
         <i class="pi pi-desktop text-white text-lg"></i>

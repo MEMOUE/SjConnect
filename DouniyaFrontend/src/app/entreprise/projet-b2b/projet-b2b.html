@@ -411,7 +411,7 @@
                       <span class="text-xs font-semibold text-slate-700">{{ msg.sender }}</span>
                       <span class="text-xs text-slate-400">{{ msg.timestamp }}</span>
                     </div>
-                    <p class="text-sm text-slate-600 whitespace-pre-wrap">{{ displayContent(msg) }}</p>
+                    <p class="text-sm text-slate-600 whitespace-pre-wrap" [innerHTML]="renderMessageContent(msg)"></p>
 
                     <!-- Indicateur de traduction -->
                     <div *ngIf="isTranslated(msg)" class="mt-1.5 flex items-center gap-2">

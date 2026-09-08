@@ -134,9 +134,9 @@ export class CallService {
 
     const toolbarButtons = [
       'microphone', 'camera', 'participants-pane',
-      'chat', 'tileview', 'select-background', 'hangup'
+      'chat', 'tileview', 'select-background', 'closedcaptions', 'hangup'
     ];
-    if (!this.isMobileDevice()) toolbarButtons.splice(2, 0, 'desktop');
+    if (this.isScreenShareSupported()) toolbarButtons.splice(2, 0, 'desktop');
 
     const options = {
       roomName: this.roomName,
@@ -155,7 +155,14 @@ export class CallService {
         enableWelcomePage: false,
         prejoinPageEnabled: false,
         prejoinConfig: { enabled: false },
-        toolbarButtons
+        toolbarButtons,
+        transcription: {
+          enabled: true,
+          translationEnabled: true,
+          // Doit matcher LT_LOAD_ONLY du service LibreTranslate (docker-compose.yml)
+          translationLanguages: ['en', 'fr', 'ar', 'it', 'es', 'de', 'tr'],
+          translationLanguagesHead: ['fr']
+        }
       },
       interfaceConfigOverwrite: {
         SHOW_JITSI_WATERMARK: true,
@@ -245,6 +252,14 @@ export class CallService {
   isMobileDevice(): boolean {
     return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
       || window.matchMedia('(max-width: 768px)').matches;
+  }
+
+  /** Détection par capacité réelle plutôt que par UA : certains Android récents
+   * supportent le partage d'écran (au moins l'onglet/appli en cours) alors
+   * qu'iOS Safari ne l'implémente pas du tout — un simple isMobileDevice()
+   * masquait le bouton pour tout le monde, y compris les téléphones qui le supportent. */
+  isScreenShareSupported(): boolean {
+    return !!(navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function');
   }
 
   getCallLink(): string {

@@ -1,6 +1,7 @@
 import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ProjetB2BService } from '../../services/projet-b2b/projet-b2b.service';
 import { TranslationService, Language } from '../../services/translation/translation.service';
 import {
@@ -116,7 +117,8 @@ export class ProjetB2b implements OnInit {
 
   constructor(
     private projetService: ProjetB2BService,
-    private translation: TranslationService
+    private translation: TranslationService,
+    private sanitizer: DomSanitizer
   ) {
     this.languages = this.translation.languages;
   }
@@ -731,6 +733,22 @@ export class ProjetB2b implements OnInit {
   displayContent(m: ChatMessage): string {
     if (this.msgLang === 'original' || m.showOriginal || !m.translated) { return m.content; }
     return m.translated;
+  }
+
+  private static readonly URL_REGEX = /(https?:\/\/[^\s<]+[^\s<.,;:!?'")\]])/g;
+
+  /** Échappe le HTML puis transforme les URLs en liens cliquables, pour que
+   * l'utilisateur distingue un lien d'un texte normal (même logique que Chat.renderMessageContent). */
+  renderMessageContent(m: ChatMessage): SafeHtml {
+    const raw = this.displayContent(m);
+    const escaped = raw
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    const linked = escaped.replace(ProjetB2b.URL_REGEX, url =>
+      `<a href="${url}" target="_blank" rel="noopener noreferrer" class="chat-link">${url}</a>`
+    );
+    return this.sanitizer.bypassSecurityTrustHtml(linked);
   }
 
   isTranslated(m: ChatMessage): boolean {
