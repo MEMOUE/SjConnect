@@ -144,6 +144,32 @@
       <span class="text-gray-400 text-xs">Partager</span>
     </button>
 
+    <!-- Sous-titres (transcription en direct + traduction) -->
+    <button (click)="callService.toggleSousTitres()" [disabled]="!callService.jitsiPret()"
+            title="Afficher la transcription en direct de la conversation"
+            class="flex flex-col items-center gap-1 disabled:opacity-50">
+      <div class="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200"
+           [ngClass]="callService.sousTitresActifs() ? 'bg-blue-600 hover:bg-blue-700' : 'bg-white/10 hover:bg-white/20'">
+        <i class="pi pi-comment text-white text-lg"></i>
+      </div>
+      <span class="text-gray-400 text-xs">Sous-titres</span>
+    </button>
+
+    <!-- Langue de traduction des sous-titres -->
+    <div class="flex flex-col items-center gap-1">
+      <select [ngModel]="callService.langueSousTitres()"
+              (ngModelChange)="callService.changerLangueSousTitres($event)"
+              [disabled]="!callService.jitsiPret()"
+              title="Traduire les sous-titres dans cette langue"
+              class="h-12 bg-white/10 hover:bg-white/20 border border-white/10 rounded-full px-3 text-white text-xs outline-none disabled:opacity-50">
+        <option *ngFor="let l of callService.languesSousTitres" [value]="l.code" class="bg-gray-800">{{ l.label }}</option>
+      </select>
+      <span class="text-gray-400 text-xs flex items-center gap-1">
+        <span *ngIf="callService.transcriptionEnCours()" class="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
+        Traduction
+      </span>
+    </div>
+
     <!-- Raccrocher -->
     <button (click)="callService.endCall()" class="flex flex-col items-center gap-1">
       <div class="w-14 h-14 rounded-full bg-red-600 hover:bg-red-700 flex items-center

@@ -259,13 +259,20 @@ services:
     restart: unless-stopped
     depends_on:
       - prosody
+      - translate
     env_file:
       - jitsi.env
       - jigasi.env
     environment:
       JIGASI_MODE: transcriber
+      # Reconnaissance vocale : Google Cloud Speech-to-Text (service par défaut de Jigasi).
+      # Identifiants du compte de service GC_* dans jigasi.env (voir jitsi-transcription.env.example).
+      # Traduction des sous-titres via LibreTranslate (sinon Jigasi utilise Google Translate)
       JIGASI_TRANSCRIBER_ENABLE_TRANSLATION: "1"
+      JIGASI_TRANSCRIBER_CUSTOM_TRANSLATION_SERVICE: "org.jitsi.jigasi.transcription.LibreTranslateTranslationService"
       JIGASI_TRANSCRIBER_LIBRETRANSLATE_URL: "http://translate:5000"
+      # Pas d'archivage des transcriptions sur disque (sous-titres en direct uniquement)
+      JIGASI_TRANSCRIBER_ENABLE_SAVING: "0"
     networks:
       - jitsi-net
       - duniya-network

@@ -19,6 +19,18 @@ export interface StartCallOptions {
   onEnded?: () => void;
 }
 
+/** Langues de sous-titres traduits — doit matcher LT_LOAD_ONLY du service LibreTranslate (docker-compose.yml). */
+export const LANGUES_SOUS_TITRES = [
+  { code: 'original', label: 'Langue d\'origine' },
+  { code: 'fr', label: 'Français' },
+  { code: 'en', label: 'English' },
+  { code: 'ar', label: 'العربية' },
+  { code: 'es', label: 'Español' },
+  { code: 'de', label: 'Deutsch' },
+  { code: 'it', label: 'Italiano' },
+  { code: 'tr', label: 'Türkçe' },
+];
+
 /**
  * Appel Jitsi global, monté en dehors du router-outlet (voir CallOverlay et
  * app.html) : survit à la navigation entre pages au lieu d'être détruit avec
@@ -36,6 +48,11 @@ export class CallService {
   partageEcran = signal(false);
   jitsiPret = signal(false);
   jitsiErreur = signal<string | null>(null);
+
+  readonly languesSousTitres = LANGUES_SOUS_TITRES;
+  sousTitresActifs = signal(false);
+  langueSousTitres = signal('original');
+  transcriptionEnCours = signal(false);
 
   showInvitePanel = signal(false);
   inviteEmail = '';
@@ -89,6 +106,8 @@ export class CallService {
     this.microActif.set(true);
     this.cameraActive.set(options.callType === 'video');
     this.partageEcran.set(false);
+    this.sousTitresActifs.set(false);
+    this.transcriptionEnCours.set(false);
     this.participantsCount.set(1);
     this.showInvitePanel.set(false);
     this.inviteEmail = '';
@@ -161,7 +180,10 @@ export class CallService {
           translationEnabled: true,
           // Doit matcher LT_LOAD_ONLY du service LibreTranslate (docker-compose.yml)
           translationLanguages: ['en', 'fr', 'ar', 'it', 'es', 'de', 'tr'],
-          translationLanguagesHead: ['fr']
+          translationLanguagesHead: ['fr', 'en'],
+          // La langue de l'interface (lang: 'fr') sert de langue parlée pour
+          // la reconnaissance vocale Google Cloud du transcriber.
+          useAppLanguage: true
         }
       },
       interfaceConfigOverwrite: {
@@ -196,6 +218,7 @@ export class CallService {
       this.jitsiApi.addEventListener('audioMuteStatusChanged', (e: any) => this.microActif.set(!e.muted));
       this.jitsiApi.addEventListener('videoMuteStatusChanged', (e: any) => this.cameraActive.set(!e.muted));
       this.jitsiApi.addEventListener('screenSharingStatusChanged', (e: any) => this.partageEcran.set(e.on));
+      this.jitsiApi.addEventListener('transcribingStatusChanged', (e: any) => this.transcriptionEnCours.set(!!e.on));
       this.jitsiApi.addEventListener('readyToClose', () => this.endCall());
       this.jitsiApi.addEventListener('connectionFailed', () => {
         this.jitsiErreur.set('La connexion à l\'appel a échoué. Réessayez.');
@@ -248,6 +271,26 @@ export class CallService {
   toggleMicro(): void { if (this.jitsiApi) this.jitsiApi.executeCommand('toggleAudio'); }
   toggleCamera(): void { if (this.jitsiApi) this.jitsiApi.executeCommand('toggleVideo'); }
   togglePartageEcran(): void { if (this.jitsiApi) this.jitsiApi.executeCommand('toggleShareScreen'); }
+
+  /** Active/désactive les sous-titres : le premier participant qui les demande démarre le transcriber Jigasi. */
+  toggleSousTitres(): void {
+    if (!this.jitsiApi) return;
+    this.sousTitresActifs.update(v => !v);
+    this.appliquerSousTitres();
+  }
+
+  changerLangueSousTitres(code: string): void {
+    this.langueSousTitres.set(code);
+    if (!this.sousTitresActifs()) this.sousTitresActifs.set(true);
+    this.appliquerSousTitres();
+  }
+
+  private appliquerSousTitres(): void {
+    if (!this.jitsiApi) return;
+    const langue = this.langueSousTitres();
+    this.jitsiApi.executeCommand('setSubtitles', this.sousTitresActifs(), true,
+      langue === 'original' ? null : langue);
+  }
 
   isMobileDevice(): boolean {
     return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
