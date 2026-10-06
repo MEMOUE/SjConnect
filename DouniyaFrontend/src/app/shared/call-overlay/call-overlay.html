@@ -112,6 +112,15 @@
     </div>
 
     <div #jitsiContainer class="w-full h-full"></div>
+
+    <!-- Sous-titres traduits dans la langue du lecteur (au-dessus de la barre d'outils Jitsi) -->
+    <div *ngIf="callService.sousTitresActifs() && callService.sousTitres().length && !callService.minimized()"
+         class="absolute inset-x-0 bottom-28 flex flex-col items-center gap-1.5 px-4 pointer-events-none z-20">
+      <p *ngFor="let st of callService.sousTitres()"
+         class="max-w-3xl bg-black/75 text-white text-base sm:text-lg leading-snug px-3 py-1.5 rounded-lg text-center">
+        <span class="text-yellow-300 font-semibold">{{ st.nom }} :</span> {{ st.texte }}
+      </p>
+    </div>
   </div>
 
   <!-- Barre de contrôles (vue plein écran) -->
@@ -155,18 +164,30 @@
       <span class="text-gray-400 text-xs">Sous-titres</span>
     </button>
 
-    <!-- Langue de traduction des sous-titres -->
+    <!-- Langue parlée : sert à reconnaître la voix de ce participant (reconnexion rapide si modifiée) -->
+    <div class="flex flex-col items-center gap-1">
+      <select [ngModel]="callService.langueParlee()"
+              (ngModelChange)="callService.changerLangueParlee($event)"
+              [disabled]="!callService.jitsiPret()"
+              title="Langue dans laquelle vous parlez (l'appel se reconnecte quelques secondes)"
+              class="h-12 bg-gray-800 hover:bg-gray-700 border border-white/10 rounded-full px-3 text-white text-xs outline-none disabled:opacity-50">
+        <option *ngFor="let l of callService.languesAppel" [value]="l.code">{{ l.label }}</option>
+      </select>
+      <span class="text-gray-400 text-xs">Je parle</span>
+    </div>
+
+    <!-- Langue de lecture : chaque participant lit les sous-titres dans sa langue -->
     <div class="flex flex-col items-center gap-1">
       <select [ngModel]="callService.langueSousTitres()"
               (ngModelChange)="callService.changerLangueSousTitres($event)"
               [disabled]="!callService.jitsiPret()"
-              title="Traduire les sous-titres dans cette langue"
-              class="h-12 bg-white/10 hover:bg-white/20 border border-white/10 rounded-full px-3 text-white text-xs outline-none disabled:opacity-50">
-        <option *ngFor="let l of callService.languesSousTitres" [value]="l.code" class="bg-gray-800">{{ l.label }}</option>
+              title="Langue dans laquelle afficher les sous-titres, quelle que soit la langue de l'orateur"
+              class="h-12 bg-gray-800 hover:bg-gray-700 border border-white/10 rounded-full px-3 text-white text-xs outline-none disabled:opacity-50">
+        <option *ngFor="let l of callService.languesAppel" [value]="l.code">{{ l.label }}</option>
       </select>
       <span class="text-gray-400 text-xs flex items-center gap-1">
         <span *ngIf="callService.transcriptionEnCours()" class="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
-        Traduction
+        Sous-titres en
       </span>
     </div>
 

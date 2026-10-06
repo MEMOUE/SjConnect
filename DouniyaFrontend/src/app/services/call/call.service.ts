@@ -2,6 +2,7 @@ import { ElementRef, Injectable, signal } from '@angular/core';
 import { Observable } from 'rxjs';
 import { MessageService } from 'primeng/api';
 import { AuthService } from '../auth/auth.service';
+import { TranslationService } from '../translation/translation.service';
 import { environment } from '../../../environments/environment';
 
 declare var JitsiMeetExternalAPI: any;
@@ -19,17 +20,50 @@ export interface StartCallOptions {
   onEnded?: () => void;
 }
 
-/** Langues de sous-titres traduits — doit matcher LT_LOAD_ONLY du service LibreTranslate (docker-compose.yml). */
-export const LANGUES_SOUS_TITRES = [
-  { code: 'original', label: 'Langue d\'origine' },
-  { code: 'fr', label: 'Français' },
-  { code: 'en', label: 'English' },
-  { code: 'ar', label: 'العربية' },
-  { code: 'es', label: 'Español' },
-  { code: 'de', label: 'Deutsch' },
-  { code: 'it', label: 'Italiano' },
-  { code: 'tr', label: 'Türkçe' },
+/**
+ * Langues parlées / de sous-titres proposées pendant un appel.
+ * - bcp47 : code envoyé au transcriber (reconnaissance vocale Google Cloud), doit
+ *   exister dans transcriber-langs.json de Jitsi.
+ * - code : langue de traduction, doit matcher LT_LOAD_ONLY du service LibreTranslate (docker-compose.yml).
+ */
+export const LANGUES_APPEL = [
+  { code: 'fr', label: 'Français', bcp47: 'fr-FR' },
+  { code: 'en', label: 'English', bcp47: 'en-US' },
+  { code: 'ar', label: 'العربية', bcp47: 'ar-SA' },
+  { code: 'es', label: 'Español', bcp47: 'es-ES' },
+  { code: 'de', label: 'Deutsch', bcp47: 'de-DE' },
+  { code: 'it', label: 'Italiano', bcp47: 'it-IT' },
+  { code: 'tr', label: 'Türkçe', bcp47: 'tr-TR' },
 ];
+
+export interface SousTitre {
+  id: string;
+  nom: string;
+  texte: string;
+}
+
+const CLE_LANGUE_PARLEE = 'sjc.call.langueParlee';
+const CLE_LANGUE_SOUS_TITRES = 'sjc.call.langueSousTitres';
+const DUREE_AFFICHAGE_SOUS_TITRE_MS = 8000;
+const MAX_SOUS_TITRES = 3;
+
+function lireLangue(cle: string): string | null {
+  try { return localStorage.getItem(cle); } catch { return null; }
+}
+
+function ecrireLangue(cle: string, code: string): void {
+  try { localStorage.setItem(cle, code); } catch { /* stockage indisponible */ }
+}
+
+/** Langue du navigateur si elle est proposée, sinon le français. */
+function langueParDefaut(): string {
+  const primaire = (navigator.language || 'fr').split('-')[0].toLowerCase();
+  return LANGUES_APPEL.some(l => l.code === primaire) ? primaire : 'fr';
+}
+
+function langueValide(code: string | null): string | null {
+  return code && LANGUES_APPEL.some(l => l.code === code) ? code : null;
+}
 
 /**
  * Appel Jitsi global, monté en dehors du router-outlet (voir CallOverlay et
@@ -49,10 +83,15 @@ export class CallService {
   jitsiPret = signal(false);
   jitsiErreur = signal<string | null>(null);
 
-  readonly languesSousTitres = LANGUES_SOUS_TITRES;
+  readonly languesAppel = LANGUES_APPEL;
   sousTitresActifs = signal(false);
-  langueSousTitres = signal('original');
+  /** Langue que parle ce participant : détermine la reconnaissance vocale de sa voix. */
+  langueParlee = signal(langueValide(lireLangue(CLE_LANGUE_PARLEE)) ?? langueParDefaut());
+  /** Langue dans laquelle ce participant lit les sous-titres, quelle que soit la langue de l'orateur. */
+  langueSousTitres = signal(langueValide(lireLangue(CLE_LANGUE_SOUS_TITRES)) ?? this.langueParlee());
+  sousTitres = signal<SousTitre[]>([]);
   transcriptionEnCours = signal(false);
+  private sousTitresTimers = new Map<string, any>();
 
   showInvitePanel = signal(false);
   inviteEmail = '';
@@ -66,12 +105,18 @@ export class CallService {
   private jitsiScriptLoadAttempts = 0;
   private jitsiJoinTimeoutId: any = null;
   private containerEl: HTMLDivElement | null = null;
+  /** Évite de rappeler onJoined lors d'une reconnexion (changement de langue parlée, Réessayer). */
+  private dejaRejoint = false;
 
   private onInviteFn: ((email: string) => Observable<unknown>) | null = null;
   private onJoinedFn?: () => void;
   private onEndedFn?: () => void;
 
-  constructor(private authService: AuthService, private messageService: MessageService) {
+  constructor(
+    private authService: AuthService,
+    private messageService: MessageService,
+    private translationService: TranslationService
+  ) {
     this.chargerJitsiScript();
   }
 
@@ -99,6 +144,7 @@ export class CallService {
     this.onEndedFn = options.onEnded;
 
     this.active.set(true);
+    this.dejaRejoint = false;
     this.minimized.set(false);
     this.jitsiPret.set(false);
     this.jitsiErreur.set(null);
@@ -107,6 +153,7 @@ export class CallService {
     this.cameraActive.set(options.callType === 'video');
     this.partageEcran.set(false);
     this.sousTitresActifs.set(false);
+    this.viderSousTitres();
     this.transcriptionEnCours.set(false);
     this.participantsCount.set(1);
     this.showInvitePanel.set(false);
@@ -181,9 +228,10 @@ export class CallService {
           // Doit matcher LT_LOAD_ONLY du service LibreTranslate (docker-compose.yml)
           translationLanguages: ['en', 'fr', 'ar', 'it', 'es', 'de', 'tr'],
           translationLanguagesHead: ['fr', 'en'],
-          // La langue de l'interface (lang: 'fr') sert de langue parlée pour
-          // la reconnaissance vocale Google Cloud du transcriber.
-          useAppLanguage: true
+          // La langue parlée choisie par le participant (et non celle de
+          // l'interface) sert à la reconnaissance vocale Google Cloud de sa voix.
+          useAppLanguage: false,
+          preferredLanguage: this.bcp47LangueParlee()
         }
       },
       interfaceConfigOverwrite: {
@@ -204,12 +252,15 @@ export class CallService {
       this.jitsiApi = new JitsiMeetExternalAPI(environment.jitsiDomain, options);
 
       this.jitsiApi.addEventListener('videoConferenceJoined', () => {
-        const dejaConnecte = this.jitsiPret();
+        const dejaConnecte = this.dejaRejoint;
+        this.dejaRejoint = true;
         this.jitsiPret.set(true);
         this.jitsiErreur.set(null);
         this.participantsCount.set(1);
         if (this.jitsiJoinTimeoutId) { clearTimeout(this.jitsiJoinTimeoutId); this.jitsiJoinTimeoutId = null; }
         if (!dejaConnecte) this.onJoinedFn?.();
+        // Reconnexion après un changement de langue parlée : on redemande le transcriber.
+        if (this.sousTitresActifs()) this.appliquerSousTitres();
       });
       this.jitsiApi.addEventListener('participantJoined', () => this.participantsCount.update(n => n + 1));
       this.jitsiApi.addEventListener('participantLeft', () => {
@@ -219,6 +270,7 @@ export class CallService {
       this.jitsiApi.addEventListener('videoMuteStatusChanged', (e: any) => this.cameraActive.set(!e.muted));
       this.jitsiApi.addEventListener('screenSharingStatusChanged', (e: any) => this.partageEcran.set(e.on));
       this.jitsiApi.addEventListener('transcribingStatusChanged', (e: any) => this.transcriptionEnCours.set(!!e.on));
+      this.jitsiApi.addEventListener('transcriptionChunkReceived', (e: any) => this.recevoirTranscription(e?.data ?? e));
       this.jitsiApi.addEventListener('readyToClose', () => this.endCall());
       this.jitsiApi.addEventListener('connectionFailed', () => {
         this.jitsiErreur.set('La connexion à l\'appel a échoué. Réessayez.');
@@ -247,6 +299,7 @@ export class CallService {
   endCall(): void {
     if (!this.active()) return;
     this.detruireJitsiApi();
+    this.viderSousTitres();
     const onEnded = this.onEndedFn;
     this.active.set(false);
     this.minimized.set(false);
@@ -276,20 +329,95 @@ export class CallService {
   toggleSousTitres(): void {
     if (!this.jitsiApi) return;
     this.sousTitresActifs.update(v => !v);
+    if (!this.sousTitresActifs()) this.viderSousTitres();
     this.appliquerSousTitres();
   }
 
   changerLangueSousTitres(code: string): void {
     this.langueSousTitres.set(code);
-    if (!this.sousTitresActifs()) this.sousTitresActifs.set(true);
-    this.appliquerSousTitres();
+    ecrireLangue(CLE_LANGUE_SOUS_TITRES, code);
+    this.viderSousTitres();
+    if (!this.sousTitresActifs()) {
+      this.sousTitresActifs.set(true);
+      this.appliquerSousTitres();
+    }
   }
 
+  /**
+   * La langue parlée est lue par Jitsi à l'entrée dans la conférence : la
+   * changer en cours d'appel impose une reconnexion rapide.
+   */
+  changerLangueParlee(code: string): void {
+    if (code === this.langueParlee()) return;
+    this.langueParlee.set(code);
+    ecrireLangue(CLE_LANGUE_PARLEE, code);
+    if (this.active() && this.jitsiApi) {
+      this.jitsiScriptAttentAttempts = 0;
+      this.initialiserJitsi();
+    }
+  }
+
+  private bcp47LangueParlee(): string {
+    return LANGUES_APPEL.find(l => l.code === this.langueParlee())?.bcp47 ?? 'fr-FR';
+  }
+
+  /**
+   * Demande (ou arrête) le transcriber sans l'affichage natif de Jitsi : les
+   * sous-titres sont rendus par CallOverlay, traduits dans la langue de chacun.
+   */
   private appliquerSousTitres(): void {
     if (!this.jitsiApi) return;
-    const langue = this.langueSousTitres();
-    this.jitsiApi.executeCommand('setSubtitles', this.sousTitresActifs(), true,
-      langue === 'original' ? null : langue);
+    this.jitsiApi.executeCommand('setSubtitles', this.sousTitresActifs(), false, null);
+  }
+
+  /**
+   * Chaque fragment de transcription arrive dans la langue de l'orateur. Les
+   * fragments intermédiaires ne sont affichés que s'ils sont déjà dans la langue
+   * du lecteur ; les phrases finales sont traduites via LibreTranslate.
+   */
+  private recevoirTranscription(chunk: any): void {
+    if (!this.sousTitresActifs() || !chunk?.messageID) return;
+    const texte: string = (chunk.final ?? chunk.stable ?? chunk.unstable ?? '').trim();
+    if (!texte) return;
+
+    const id = String(chunk.messageID);
+    const nom = chunk.participant?.name || 'Participant';
+    const cible = this.langueSousTitres();
+    const source = String(chunk.language ?? '').split(/[-_]/)[0].toLowerCase();
+    const estFinal = chunk.final !== undefined;
+
+    if (source === cible) {
+      this.afficherSousTitre({ id, nom, texte }, estFinal);
+      return;
+    }
+    if (!estFinal) return;
+
+    this.translationService.translate(texte, cible).subscribe(traduit => {
+      // Le lecteur a pu changer de langue ou couper les sous-titres entre-temps.
+      if (!this.sousTitresActifs() || this.langueSousTitres() !== cible) return;
+      this.afficherSousTitre({ id, nom, texte: traduit }, true);
+    });
+  }
+
+  private afficherSousTitre(sousTitre: SousTitre, estFinal: boolean): void {
+    this.sousTitres.update(liste => {
+      const autres = liste.filter(s => s.id !== sousTitre.id);
+      return [...autres, sousTitre].slice(-MAX_SOUS_TITRES);
+    });
+
+    clearTimeout(this.sousTitresTimers.get(sousTitre.id));
+    if (estFinal) {
+      this.sousTitresTimers.set(sousTitre.id, setTimeout(() => {
+        this.sousTitresTimers.delete(sousTitre.id);
+        this.sousTitres.update(liste => liste.filter(s => s.id !== sousTitre.id));
+      }, DUREE_AFFICHAGE_SOUS_TITRE_MS));
+    }
+  }
+
+  private viderSousTitres(): void {
+    this.sousTitresTimers.forEach(t => clearTimeout(t));
+    this.sousTitresTimers.clear();
+    this.sousTitres.set([]);
   }
 
   isMobileDevice(): boolean {
