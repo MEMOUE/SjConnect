@@ -2,6 +2,13 @@
 @import "primeicons/primeicons.css";
 @import "tailwindcss";
 
+/* L'appel (app-call-overlay) est en plein écran avec z-index: 10000 pour survivre
+   à la navigation — sans ceci, tout p-toast (ex: message "partage d'écran indisponible")
+   s'affiche derrière l'appel et reste invisible pendant qu'un appel est actif. */
+.p-toast {
+  z-index: 10010 !important;
+}
+
 /* Styles globaux pour les champs PrimeNG */
 .p-inputtext {
   width: 100%;

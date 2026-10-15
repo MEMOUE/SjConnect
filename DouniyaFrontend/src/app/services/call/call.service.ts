@@ -323,7 +323,18 @@ export class CallService {
 
   toggleMicro(): void { if (this.jitsiApi) this.jitsiApi.executeCommand('toggleAudio'); }
   toggleCamera(): void { if (this.jitsiApi) this.jitsiApi.executeCommand('toggleVideo'); }
-  togglePartageEcran(): void { if (this.jitsiApi) this.jitsiApi.executeCommand('toggleShareScreen'); }
+  togglePartageEcran(): void {
+    if (!this.isScreenShareSupported()) {
+      this.messageService.add({
+        severity: 'info',
+        summary: 'Partage d\'écran indisponible',
+        detail: 'Safari sur iPhone/iPad ne permet pas le partage d\'écran depuis un navigateur (limitation d\'Apple, pas de l\'application). Utilisez un ordinateur ou un appareil Android pour partager votre écran.',
+        life: 6000
+      });
+      return;
+    }
+    if (this.jitsiApi) this.jitsiApi.executeCommand('toggleShareScreen');
+  }
 
   /** Active/désactive les sous-titres : le premier participant qui les demande démarre le transcriber Jigasi. */
   toggleSousTitres(): void {
