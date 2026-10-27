@@ -46,6 +46,7 @@ const CLE_LANGUE_PARLEE = 'sjc.call.langueParlee';
 const CLE_LANGUE_SOUS_TITRES = 'sjc.call.langueSousTitres';
 const DUREE_AFFICHAGE_SOUS_TITRE_MS = 8000;
 const MAX_SOUS_TITRES = 3;
+const DELAI_TRADUCTION_PROVISOIRE_MS = 700;
 
 function lireLangue(cle: string): string | null {
   try { return localStorage.getItem(cle); } catch { return null; }
@@ -92,6 +93,10 @@ export class CallService {
   sousTitres = signal<SousTitre[]>([]);
   transcriptionEnCours = signal(false);
   private sousTitresTimers = new Map<string, any>();
+  /** Horodatage de la dernière traduction provisoire lancée, par phrase (messageID). */
+  private dernierePartielle = new Map<string, number>();
+  /** Numéro de la dernière requête de traduction par phrase : ignore les réponses obsolètes. */
+  private versionsSousTitres = new Map<string, number>();
 
   showInvitePanel = signal(false);
   inviteEmail = '';
@@ -388,25 +393,40 @@ export class CallService {
    */
   private recevoirTranscription(chunk: any): void {
     if (!this.sousTitresActifs() || !chunk?.messageID) return;
-    const texte: string = (chunk.final ?? chunk.stable ?? chunk.unstable ?? '').trim();
+    const estFinal = chunk.final !== undefined;
+    const texte: string = (estFinal ? chunk.final : `${chunk.stable ?? ''}${chunk.unstable ?? ''}`).trim();
     if (!texte) return;
 
     const id = String(chunk.messageID);
     const nom = chunk.participant?.name || 'Participant';
     const cible = this.langueSousTitres();
     const source = String(chunk.language ?? '').split(/[-_]/)[0].toLowerCase();
-    const estFinal = chunk.final !== undefined;
 
     if (source === cible) {
       this.afficherSousTitre({ id, nom, texte }, estFinal);
       return;
     }
-    if (!estFinal) return;
 
+    // Traduction au fil de l'eau : sans elle, le lecteur attendait la phrase
+    // finale de Google (plusieurs secondes). Les fragments provisoires sont
+    // traduits au plus toutes les DELAI_TRADUCTION_PROVISOIRE_MS par phrase.
+    const maintenant = Date.now();
+    if (!estFinal) {
+      if (maintenant - (this.dernierePartielle.get(id) ?? 0) < DELAI_TRADUCTION_PROVISOIRE_MS) return;
+      this.dernierePartielle.set(id, maintenant);
+    } else {
+      this.dernierePartielle.delete(id);
+    }
+
+    const version = (this.versionsSousTitres.get(id) ?? 0) + 1;
+    this.versionsSousTitres.set(id, version);
     this.translationService.translate(texte, cible).subscribe(traduit => {
-      // Le lecteur a pu changer de langue ou couper les sous-titres entre-temps.
+      // Le lecteur a pu changer de langue ou couper les sous-titres entre-temps,
+      // ou une réponse plus récente (ou la version finale) est déjà arrivée.
       if (!this.sousTitresActifs() || this.langueSousTitres() !== cible) return;
-      this.afficherSousTitre({ id, nom, texte: traduit }, true);
+      if (this.versionsSousTitres.get(id) !== version) return;
+      if (estFinal) this.versionsSousTitres.delete(id);
+      this.afficherSousTitre({ id, nom, texte: traduit }, estFinal);
     });
   }
 
@@ -428,6 +448,8 @@ export class CallService {
   private viderSousTitres(): void {
     this.sousTitresTimers.forEach(t => clearTimeout(t));
     this.sousTitresTimers.clear();
+    this.dernierePartielle.clear();
+    this.versionsSousTitres.clear();
     this.sousTitres.set([]);
   }
 

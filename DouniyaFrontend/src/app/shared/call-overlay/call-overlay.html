@@ -124,7 +124,7 @@
   </div>
 
   <!-- Barre de contrôles (vue plein écran) -->
-  <div *ngIf="!callService.minimized()" class="flex items-center justify-center gap-3 px-6 py-4 bg-gray-900 border-t border-white/10 flex-wrap flex-shrink-0">
+  <div *ngIf="!callService.minimized()" class="flex items-start justify-center gap-x-2 gap-y-1 sm:gap-3 px-2 sm:px-6 py-2 sm:py-4 bg-gray-900 border-t border-white/10 flex-wrap flex-shrink-0 max-h-[40vh] overflow-y-auto">
 
     <!-- Micro -->
     <button (click)="callService.toggleMicro()" class="flex flex-col items-center gap-1">
@@ -174,7 +174,7 @@
               (ngModelChange)="callService.changerLangueParlee($event)"
               [disabled]="!callService.jitsiPret()"
               title="Langue dans laquelle vous parlez (l'appel se reconnecte quelques secondes)"
-              class="h-12 bg-gray-800 hover:bg-gray-700 border border-white/10 rounded-full px-3 text-white text-xs outline-none disabled:opacity-50">
+              class="h-12 max-w-[6.5rem] sm:max-w-none bg-gray-800 hover:bg-gray-700 border border-white/10 rounded-full px-2 sm:px-3 text-white text-xs outline-none disabled:opacity-50">
         <option *ngFor="let l of callService.languesAppel" [value]="l.code">{{ l.label }}</option>
       </select>
       <span class="text-gray-400 text-xs">Je parle</span>
@@ -186,7 +186,7 @@
               (ngModelChange)="callService.changerLangueSousTitres($event)"
               [disabled]="!callService.jitsiPret()"
               title="Langue dans laquelle afficher les sous-titres, quelle que soit la langue de l'orateur"
-              class="h-12 bg-gray-800 hover:bg-gray-700 border border-white/10 rounded-full px-3 text-white text-xs outline-none disabled:opacity-50">
+              class="h-12 max-w-[6.5rem] sm:max-w-none bg-gray-800 hover:bg-gray-700 border border-white/10 rounded-full px-2 sm:px-3 text-white text-xs outline-none disabled:opacity-50">
         <option *ngFor="let l of callService.languesAppel" [value]="l.code">{{ l.label }}</option>
       </select>
       <span class="text-gray-400 text-xs flex items-center gap-1">
