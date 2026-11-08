@@ -168,6 +168,18 @@
       <span class="text-gray-400 text-xs">Sous-titres</span>
     </button>
 
+    <!-- Lecture vocale : les phrases traduites sont lues à voix haute dans la langue des sous-titres -->
+    <button *ngIf="callService.lectureVocaleDisponible" (click)="callService.toggleLectureVocale()"
+            [disabled]="!callService.sousTitresActifs()"
+            title="Lire à voix haute les sous-titres traduits (nécessite les sous-titres actifs)"
+            class="flex flex-col items-center gap-1 disabled:opacity-50">
+      <div class="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200"
+           [ngClass]="callService.lectureVocaleActive() ? 'bg-blue-600 hover:bg-blue-700' : 'bg-white/10 hover:bg-white/20'">
+        <i class="pi text-white text-lg" [ngClass]="callService.lectureVocaleActive() ? 'pi-volume-up' : 'pi-volume-off'"></i>
+      </div>
+      <span class="text-gray-400 text-xs">Lecture vocale</span>
+    </button>
+
     <!-- Langue parlée : sert à reconnaître la voix de ce participant (reconnexion rapide si modifiée) -->
     <div class="flex flex-col items-center gap-1">
       <select [ngModel]="callService.langueParlee()"

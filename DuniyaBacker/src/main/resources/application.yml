@@ -66,3 +66,6 @@ translation:
   libretranslate:                                                                                                 
     api-key:                                                                                                      
     url: "http://duniya-translate:5000"                                                                           
+google:
+  tts:
+    api-key: ${GOOGLE_TTS_API_KEY:}

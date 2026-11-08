@@ -73,6 +73,7 @@ public class SecurityConfig {
 
                         // ── Traduction ────────────────────────────────────────────────────────
                         .requestMatchers("/api/translate/**").authenticated()
+                        .requestMatchers("/api/tts/**").authenticated()
 
                         // ── Entreprise + Employés : les deux rôles ont accès ──────────────────
                         // Le contrôle fin (lecture vs écriture) est géré par @PreAuthorize

@@ -1,8 +1,9 @@
 import { ElementRef, Injectable, signal } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, firstValueFrom } from 'rxjs';
 import { MessageService } from 'primeng/api';
 import { AuthService } from '../auth/auth.service';
 import { TranslationService } from '../translation/translation.service';
+import { TtsService } from '../tts/tts.service';
 import { environment } from '../../../environments/environment';
 
 declare var JitsiMeetExternalAPI: any;
@@ -46,6 +47,10 @@ const CLE_LANGUE_PARLEE = 'sjc.call.langueParlee';
 const CLE_LANGUE_SOUS_TITRES = 'sjc.call.langueSousTitres';
 const DUREE_AFFICHAGE_SOUS_TITRE_MS = 8000;
 const MAX_SOUS_TITRES = 3;
+const CLE_LECTURE_VOCALE = 'sjc.call.lectureVocale';
+const MAX_PHRASES_LUES_EN_ATTENTE = 3;
+/** WAV silencieux : sert à débloquer la lecture audio au clic de l'utilisateur. */
+const SILENCE_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
 const DELAI_TRADUCTION_PROVISOIRE_MS = 700;
 
 function lireLangue(cle: string): string | null {
@@ -92,6 +97,16 @@ export class CallService {
   langueSousTitres = signal(langueValide(lireLangue(CLE_LANGUE_SOUS_TITRES)) ?? this.langueParlee());
   sousTitres = signal<SousTitre[]>([]);
   transcriptionEnCours = signal(false);
+  /** Lecture à voix haute des sous-titres traduits (Google Text-to-Speech, voix du navigateur en secours). */
+  readonly lectureVocaleDisponible = typeof Audio !== 'undefined';
+  lectureVocaleActive = signal(this.lectureVocaleDisponible && lireLangue(CLE_LECTURE_VOCALE) === '1');
+  private lecteur = typeof Audio !== 'undefined' ? new Audio() : (null as unknown as HTMLAudioElement);
+  private fileLecture: { texte: string; codeLangue: string; audio: Promise<string | null> }[] = [];
+  private lectureEnCours = false;
+  /** Incrémenté à chaque arrêt : invalide les lectures/synthèses en vol. */
+  private generationLecture = 0;
+  /** Identifiant Jitsi du participant local : on ne relit pas sa propre voix. */
+  private idLocal: string | null = null;
   private sousTitresTimers = new Map<string, any>();
   /** Horodatage de la dernière traduction provisoire lancée, par phrase (messageID). */
   private dernierePartielle = new Map<string, number>();
@@ -120,7 +135,8 @@ export class CallService {
   constructor(
     private authService: AuthService,
     private messageService: MessageService,
-    private translationService: TranslationService
+    private translationService: TranslationService,
+    private ttsService: TtsService
   ) {
     this.chargerJitsiScript();
   }
@@ -256,7 +272,8 @@ export class CallService {
     try {
       this.jitsiApi = new JitsiMeetExternalAPI(environment.jitsiDomain, options);
 
-      this.jitsiApi.addEventListener('videoConferenceJoined', () => {
+      this.jitsiApi.addEventListener('videoConferenceJoined', (e: any) => {
+        this.idLocal = e?.id ?? null;
         const dejaConnecte = this.dejaRejoint;
         this.dejaRejoint = true;
         this.jitsiPret.set(true);
@@ -399,6 +416,7 @@ export class CallService {
 
     const id = String(chunk.messageID);
     const nom = chunk.participant?.name || 'Participant';
+    const estMoi = !!chunk.participant?.id && chunk.participant.id === this.idLocal;
     const cible = this.langueSousTitres();
     const source = String(chunk.language ?? '').split(/[-_]/)[0].toLowerCase();
 
@@ -427,7 +445,87 @@ export class CallService {
       if (this.versionsSousTitres.get(id) !== version) return;
       if (estFinal) this.versionsSousTitres.delete(id);
       this.afficherSousTitre({ id, nom, texte: traduit }, estFinal);
+      // Seules les phrases traduites sont lues : dans la langue du lecteur, on
+      // entend déjà l'orateur, la lecture ferait doublon.
+      if (estFinal && !estMoi) this.lireAVoixHaute(traduit, cible);
     });
+  }
+
+  /** Active/désactive la lecture à voix haute des sous-titres traduits (Google Text-to-Speech). */
+  toggleLectureVocale(): void {
+    if (!this.lectureVocaleDisponible) return;
+    const actif = !this.lectureVocaleActive();
+    this.lectureVocaleActive.set(actif);
+    ecrireLangue(CLE_LECTURE_VOCALE, actif ? '1' : '0');
+    if (actif) {
+      // Les navigateurs (surtout iOS) n'autorisent la lecture audio qu'après un geste de
+      // l'utilisateur : ce clic « débloque » le lecteur réutilisé ensuite pour chaque phrase.
+      this.lecteur.src = SILENCE_WAV;
+      this.lecteur.play().catch(() => { /* débloquage best-effort */ });
+      if (typeof speechSynthesis !== 'undefined') speechSynthesis.speak(new SpeechSynthesisUtterance(''));
+    } else {
+      this.arreterLecture();
+    }
+  }
+
+  private lireAVoixHaute(texte: string, codeLangue: string): void {
+    if (!this.lectureVocaleActive() || !texte.trim()) return;
+    // File d'attente bornée : en cas de retard, on sacrifie les phrases les plus anciennes.
+    while (this.fileLecture.length >= MAX_PHRASES_LUES_EN_ATTENTE) this.fileLecture.shift();
+    // La synthèse démarre dès l'arrivée de la phrase (pendant que la précédente est lue).
+    const audio = firstValueFrom(this.ttsService.synthesize(texte, codeLangue)).catch(() => null);
+    this.fileLecture.push({ texte, codeLangue, audio });
+    this.lireSuivante();
+  }
+
+  private async lireSuivante(): Promise<void> {
+    if (this.lectureEnCours) return;
+    const phrase = this.fileLecture.shift();
+    if (!phrase) return;
+    this.lectureEnCours = true;
+    const generation = this.generationLecture;
+    let terminee = false;
+    const finie = () => {
+      if (terminee || generation !== this.generationLecture) return; // déjà passée, ou lecture arrêtée
+      terminee = true;
+      this.lectureEnCours = false;
+      this.lireSuivante();
+    };
+
+    const url = await phrase.audio;
+    if (generation !== this.generationLecture) return;
+    if (url) {
+      this.lecteur.src = url;
+      this.lecteur.onended = finie;
+      let secours = false;
+      const basculer = () => { if (!secours) { secours = true; this.lireAvecVoixNavigateur(phrase, finie); } };
+      this.lecteur.onerror = basculer;
+      this.lecteur.play().catch(basculer);
+    } else {
+      // Google indisponible (clé absente, quota, réseau) : voix intégrée au navigateur.
+      this.lireAvecVoixNavigateur(phrase, finie);
+    }
+  }
+
+  private lireAvecVoixNavigateur(phrase: { texte: string; codeLangue: string }, finie: () => void): void {
+    if (typeof speechSynthesis === 'undefined') { finie(); return; }
+    const bcp47 = LANGUES_APPEL.find(l => l.code === phrase.codeLangue)?.bcp47 ?? 'fr-FR';
+    const u = new SpeechSynthesisUtterance(phrase.texte);
+    u.lang = bcp47;
+    const voix = speechSynthesis.getVoices().find(v => v.lang.replace('_', '-').toLowerCase().startsWith(phrase.codeLangue));
+    if (voix) u.voice = voix;
+    u.onend = u.onerror = finie;
+    speechSynthesis.speak(u);
+  }
+
+  private arreterLecture(): void {
+    this.generationLecture++;
+    this.fileLecture = [];
+    this.lectureEnCours = false;
+    this.lecteur.onended = null;
+    this.lecteur.onerror = null;
+    this.lecteur.pause();
+    if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel();
   }
 
   private afficherSousTitre(sousTitre: SousTitre, estFinal: boolean): void {
@@ -448,6 +546,7 @@ export class CallService {
   private viderSousTitres(): void {
     this.sousTitresTimers.forEach(t => clearTimeout(t));
     this.sousTitresTimers.clear();
+    this.arreterLecture();
     this.dernierePartielle.clear();
     this.versionsSousTitres.clear();
     this.sousTitres.set([]);
