@@ -118,6 +118,7 @@ export class CallService {
   isInviting = signal(false);
   lienCopie = signal(false);
 
+  private assistants = new Set<string>();
   private roomName = '';
   private jitsiApi: any = null;
   private jitsiLoaded = false;
@@ -205,6 +206,7 @@ export class CallService {
       return;
     }
     this.detruireJitsiApi();
+    this.assistants.clear();
     this.jitsiErreur.set(null);
 
     if (this.jitsiJoinTimeoutId) clearTimeout(this.jitsiJoinTimeoutId);
@@ -284,8 +286,13 @@ export class CallService {
         // Reconnexion après un changement de langue parlée : on redemande le transcriber.
         if (this.sousTitresActifs()) this.appliquerSousTitres();
       });
-      this.jitsiApi.addEventListener('participantJoined', () => this.participantsCount.update(n => n + 1));
-      this.jitsiApi.addEventListener('participantLeft', () => {
+      // L'assistant de transcription (Jigasi) rejoint l'appel comme un participant : on ne le compte pas.
+      this.jitsiApi.addEventListener('participantJoined', (e: any) => {
+        if (this.estAssistantTranscription(e?.displayName)) { if (e?.id) this.assistants.add(e.id); return; }
+        this.participantsCount.update(n => n + 1);
+      });
+      this.jitsiApi.addEventListener('participantLeft', (e: any) => {
+        if (e?.id && this.assistants.delete(e.id)) return;
         this.participantsCount.update(n => Math.max(0, n - 1));
       });
       this.jitsiApi.addEventListener('audioMuteStatusChanged', (e: any) => this.microActif.set(!e.muted));
@@ -363,6 +370,7 @@ export class CallService {
     if (!this.jitsiApi) return;
     this.sousTitresActifs.update(v => !v);
     if (!this.sousTitresActifs()) this.viderSousTitres();
+    else this.debloquerAudio();
     this.appliquerSousTitres();
   }
 
@@ -370,10 +378,10 @@ export class CallService {
     this.langueSousTitres.set(code);
     ecrireLangue(CLE_LANGUE_SOUS_TITRES, code);
     this.viderSousTitres();
-    if (!this.sousTitresActifs()) {
-      this.sousTitresActifs.set(true);
-      this.appliquerSousTitres();
-    }
+    // Choisir une langue ne démarre pas la transcription : sinon l'assistant de
+    // transcription (Jigasi) serait invité dans l'appel à chaque changement de langue.
+    // Le bouton « Sous-titres » reste le seul déclencheur.
+    if (this.sousTitresActifs()) this.debloquerAudio();
   }
 
   /**
@@ -388,6 +396,10 @@ export class CallService {
       this.jitsiScriptAttentAttempts = 0;
       this.initialiserJitsi();
     }
+  }
+
+  private estAssistantTranscription(nom?: string): boolean {
+    return /transcriber|jigasi/i.test(nom ?? '');
   }
 
   private bcp47LangueParlee(): string {
@@ -458,14 +470,22 @@ export class CallService {
     this.lectureVocaleActive.set(actif);
     ecrireLangue(CLE_LECTURE_VOCALE, actif ? '1' : '0');
     if (actif) {
-      // Les navigateurs (surtout iOS) n'autorisent la lecture audio qu'après un geste de
-      // l'utilisateur : ce clic « débloque » le lecteur réutilisé ensuite pour chaque phrase.
-      this.lecteur.src = SILENCE_WAV;
-      this.lecteur.play().catch(() => { /* débloquage best-effort */ });
-      if (typeof speechSynthesis !== 'undefined') speechSynthesis.speak(new SpeechSynthesisUtterance(''));
+      this.debloquerAudio();
     } else {
       this.arreterLecture();
     }
+  }
+
+  /**
+   * Les navigateurs (surtout iOS) n'autorisent la lecture audio qu'après un geste de
+   * l'utilisateur : on « débloque » le lecteur réutilisé ensuite pour chaque phrase.
+   * Appelé depuis un clic (la préférence mémorisée ne suffit pas après un rechargement).
+   */
+  private debloquerAudio(): void {
+    if (!this.lectureVocaleActive() || !this.lecteur) return;
+    this.lecteur.src = SILENCE_WAV;
+    this.lecteur.play().catch(() => { /* débloquage best-effort */ });
+    if (typeof speechSynthesis !== 'undefined') speechSynthesis.speak(new SpeechSynthesisUtterance(''));
   }
 
   private lireAVoixHaute(texte: string, codeLangue: string): void {
