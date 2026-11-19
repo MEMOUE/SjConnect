@@ -22,7 +22,7 @@
   </ng-template>
 </p-toast>
 
-<header *ngIf="!isAuthenticated()" class="bg-white shadow-md sticky top-0 z-50">
+<header *ngIf="showHeader()" class="bg-white shadow-md sticky top-0 z-50">
   <nav class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
     <div class="flex h-16 justify-between items-center">
 
@@ -66,6 +66,9 @@
         </ng-container>
 
         <ng-template #connectedDesktop>
+          <button [routerLink]="monEspace()" class="text-blue-600 font-medium">
+            Mon espace
+          </button>
           <button (click)="logout()"
                   class="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
             Déconnexion
@@ -100,6 +103,10 @@
       </ng-container>
 
       <ng-template #connectedMobile>
+        <button [routerLink]="monEspace()" (click)="closeMobileMenu()"
+                class="w-full text-left px-4 py-2 text-blue-600">
+          Mon espace
+        </button>
         <button (click)="logout(); closeMobileMenu()"
                 class="w-full px-4 py-2 bg-red-500 text-white rounded-lg">
           Déconnexion

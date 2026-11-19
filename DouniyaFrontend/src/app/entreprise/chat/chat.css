@@ -29,22 +29,22 @@
 /* ============================================
    LIENS DANS LES MESSAGES — distincts du texte
    ============================================ */
-.chat-link {
+:host ::ng-deep .chat-link {
   color: #2563eb;
   text-decoration: underline;
   word-break: break-all;
 }
 
-.chat-link:hover {
+:host ::ng-deep .chat-link:hover {
   color: #1d4ed8;
 }
 
 /* Bulle des messages envoyés (fond bleu foncé) : lien plus clair pour rester lisible */
-.bg-blue-600 .chat-link {
+:host ::ng-deep .bg-blue-600 .chat-link {
   color: #dbeafe;
 }
 
-.bg-blue-600 .chat-link:hover {
+:host ::ng-deep .bg-blue-600 .chat-link:hover {
   color: #ffffff;
 }
 

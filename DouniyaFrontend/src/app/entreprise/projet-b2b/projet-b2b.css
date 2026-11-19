@@ -22,13 +22,13 @@ input[type="range"] {
 }
 
 /* Liens dans les messages — distincts du texte, cliquables */
-.chat-link {
+:host ::ng-deep .chat-link {
   color: #2563eb;
   text-decoration: underline;
   word-break: break-all;
 }
 
-.chat-link:hover {
+:host ::ng-deep .chat-link:hover {
   color: #1d4ed8;
 }
 

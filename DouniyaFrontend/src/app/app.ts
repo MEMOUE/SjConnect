@@ -31,6 +31,8 @@ export class App {
   routerLinkActiveOptions = { exact: true };
 
   showFooter = signal(true);
+  /** Pages publiques (accueil, à propos) : l'en-tête reste visible même connecté, pour pouvoir revenir à son espace. */
+  pagePublique = signal(false);
 
   constructor(
     private authService: AuthService,
@@ -51,6 +53,8 @@ export class App {
     ).subscribe(data => {
       // Si hideFooter est à true dans la route, on met showFooter à false
       this.showFooter.set(data['hideFooter'] !== true);
+      const chemin = this.router.url.split(/[?#]/)[0];
+      this.pagePublique.set(chemin === '/' || chemin === '/a-propos' || chemin === '/accueil');
       // Un appel en cours ne doit jamais se fermer en changeant de page :
       // s'il est encore plein écran, on le réduit au lieu de bloquer la
       // navigation vers la nouvelle page.
@@ -70,6 +74,15 @@ export class App {
   // 🔐 connecté si token présent dans localStorage
   isAuthenticated(): boolean {
     return this.authService.isAuthenticated();
+  }
+
+  showHeader(): boolean {
+    return !this.isAuthenticated() || this.pagePublique();
+  }
+
+  /** Tableau de bord de l'utilisateur connecté selon son rôle. */
+  monEspace(): string {
+    return this.authService.isParticulier() ? '/particulier/dashboard' : '/dashboard-entreprise';
   }
 
   toggleMobileMenu() {
